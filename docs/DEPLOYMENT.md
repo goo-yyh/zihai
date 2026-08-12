@@ -1,0 +1,61 @@
+# Production deployment
+
+The target deployment is Vercel (Pro recommended for production controls), Neon PostgreSQL, and a public Vercel Blob store.
+
+## 1. Provision services
+
+1. Create a Neon project in the deployment region nearest the primary audience.
+2. Copy the pooled connection string into `DATABASE_URL`.
+3. Create a public Vercel Blob store and connect it to the Vercel project. Confirm `BLOB_READ_WRITE_TOKEN` is present.
+4. Generate a unique production `BETTER_AUTH_SECRET`; never reuse the local or preview secret.
+5. Set `BETTER_AUTH_URL` and `NEXT_PUBLIC_SITE_URL` to the final HTTPS origin with no trailing slash.
+
+Use separate databases, Blob stores, OAuth apps, and auth secrets for preview and production deployments.
+
+## 2. Configure OAuth
+
+Create GitHub and Google OAuth clients for the production origin. Register these exact callback URLs:
+
+```text
+https://your-domain.example/api/auth/callback/github
+https://your-domain.example/api/auth/callback/google
+```
+
+Set the matching client IDs and secrets in the Vercel Production environment. Add equivalent credentials for local or preview environments only when those origins are explicitly registered with the providers.
+
+## 3. Apply the database migration
+
+Run migrations from a controlled release job or trusted workstation before directing production traffic to a schema-dependent release:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm db:check
+pnpm db:migrate
+```
+
+The initial migration includes concurrency-safe image-count triggers and integrity constraints beyond the generated Drizzle schema. Review generated migrations before applying future schema changes; do not edit a migration after it has reached production.
+
+## 4. Verify and deploy
+
+```bash
+pnpm check
+```
+
+Deploy the same commit verified by CI. After deployment:
+
+1. Open `/api/auth/ok` or begin a sign-in and confirm the auth origin is correct.
+2. Test GitHub and Google sign-in with non-admin accounts.
+3. Complete onboarding, upload an avatar, and create a draft project.
+4. Upload three screenshots; confirm a fourth is rejected.
+5. Promote the intended first administrator with `pnpm admin:promote <email>`.
+6. Approve the project and confirm it appears on `/`, `/p/{slug}`, `/u/{username}`, and `/sitemap.xml`.
+7. Create and approve an iteration, then verify the public build log.
+8. Confirm `/admin`, `/dashboard`, and `/settings` are inaccessible to unauthorized users.
+
+## 5. Operations and rollback
+
+- Vercel application rollbacks do not roll back the database. Prefer backward-compatible migrations and deploy schema changes before code that requires them.
+- Keep Neon point-in-time restore and Vercel deployment retention enabled according to the organization’s recovery policy.
+- A failed Blob-to-database callback deletes the newly uploaded object. Account and project deletion remove Blob objects before relational rows.
+- Rotate any exposed OAuth, Better Auth, Neon, or Blob credential immediately and revoke affected sessions.
+- Review `/admin/audit` for moderation and access-control changes.
