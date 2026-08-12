@@ -7,16 +7,80 @@ import { cn, formatDate, truncate } from "@/lib/utils";
 
 const statuses = ["all", "pending", "approved", "rejected", "draft"] as const;
 
-export default async function AdminIterationsPage({ searchParams }: PageProps<"/admin/iterations">) {
+export default async function AdminIterationsPage({
+  searchParams,
+}: PageProps<"/admin/iterations">) {
   await requireAdmin();
   const { status } = await searchParams;
-  const active = typeof status === "string" && statuses.includes(status as (typeof statuses)[number]) ? status : "all";
-  const iterations = await getAdminIterations(active === "all" ? undefined : active);
+  const active =
+    typeof status === "string" &&
+    statuses.includes(status as (typeof statuses)[number])
+      ? status
+      : "all";
+  const iterations = await getAdminIterations(
+    active === "all" ? undefined : active,
+  );
   return (
     <div className="space-y-6">
-      <div><h1 className="text-3xl font-black tracking-tight">Iteration moderation</h1><p className="mt-2 text-sm text-muted-foreground">Keep published build logs useful, specific, and safe.</p></div>
-      <nav className="flex gap-2 overflow-x-auto pb-1">{statuses.map((item) => <Link key={item} href={item === "all" ? "/admin/iterations" : `/admin/iterations?status=${item}`} className={cn("rounded-full border bg-white px-3 py-1.5 text-xs font-bold capitalize", active === item && "border-primary bg-primary text-white")}>{item}</Link>)}</nav>
-      <div className="space-y-3">{iterations.map((iteration) => <Link key={iteration.id} href={`/admin/iterations/${iteration.id}`} className="flex flex-col gap-3 rounded-2xl border bg-white p-5 hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{iteration.versionLabel || "Untitled update"}</h2><span className="text-xs text-muted-foreground">for {iteration.projectName}</span></div><p className="mt-2 text-sm text-muted-foreground">{truncate(iteration.description.replace(/[#*_`]/g, ""), 120)}</p><p className="mt-2 text-xs text-muted-foreground">@{iteration.ownerUsername || "builder"} · {formatDate(iteration.submittedAt)}</p></div><Badge variant={iteration.status}>{iteration.status}</Badge></Link>)}{!iterations.length ? <p className="rounded-2xl border border-dashed bg-white/60 p-8 text-center text-sm text-muted-foreground">No iterations in this view.</p> : null}</div>
+      <div>
+        <h1 className="text-3xl font-black tracking-tight">
+          Iteration moderation
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Keep published build logs useful, specific, and safe.
+        </p>
+      </div>
+      <nav className="flex gap-2 overflow-x-auto pb-1">
+        {statuses.map((item) => (
+          <Link
+            key={item}
+            href={
+              item === "all"
+                ? "/admin/iterations"
+                : `/admin/iterations?status=${item}`
+            }
+            className={cn(
+              "rounded-full border bg-white px-3 py-1.5 text-xs font-bold capitalize",
+              active === item && "border-primary bg-primary text-white",
+            )}
+          >
+            {item}
+          </Link>
+        ))}
+      </nav>
+      <div className="space-y-3">
+        {iterations.map((iteration) => (
+          <Link
+            key={iteration.id}
+            href={`/admin/iterations/${iteration.id}`}
+            className="flex flex-col gap-3 rounded-2xl border bg-white p-5 hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-bold">
+                  {iteration.versionLabel || "Untitled update"}
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  for {iteration.projectName}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {truncate(iteration.description.replace(/[#*_`]/g, ""), 120)}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                @{iteration.ownerUsername || "builder"} ·{" "}
+                {formatDate(iteration.submittedAt)}
+              </p>
+            </div>
+            <Badge variant={iteration.status}>{iteration.status}</Badge>
+          </Link>
+        ))}
+        {!iterations.length ? (
+          <p className="rounded-2xl border border-dashed bg-white/60 p-8 text-center text-sm text-muted-foreground">
+            No iterations in this view.
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

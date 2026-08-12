@@ -58,7 +58,9 @@ export function ProjectForm({ project = {} }: { project?: ProjectValues }) {
         <FieldError errors={state.fieldErrors?.description} />
       </div>
       <fieldset className="rounded-2xl border bg-muted/40 p-4">
-        <legend className="px-2 text-sm font-bold">Choose exactly one destination</legend>
+        <legend className="px-2 text-sm font-bold">
+          Choose exactly one destination
+        </legend>
         <div className="mt-2 grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="websiteUrl">Website URL</Label>

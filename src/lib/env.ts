@@ -21,7 +21,9 @@ export function getServerEnv() {
   const parsed = serverEnvSchema.safeParse(process.env);
   if (!parsed.success) {
     const keys = parsed.error.issues.map((issue) => issue.path.join("."));
-    throw new Error(`Missing or invalid server environment: ${keys.join(", ")}`);
+    throw new Error(
+      `Missing or invalid server environment: ${keys.join(", ")}`,
+    );
   }
 
   cachedEnv = parsed.data;

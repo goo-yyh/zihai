@@ -29,7 +29,13 @@ const adminItems: NavItem[] = [
   { href: "/admin/audit", label: "Audit log", icon: FileClock },
 ];
 
-export function Sidebar({ admin = false, className }: { admin?: boolean; className?: string }) {
+export function Sidebar({
+  admin = false,
+  className,
+}: {
+  admin?: boolean;
+  className?: string;
+}) {
   const items = admin ? adminItems : userItems;
   return (
     <aside className={cn("w-full lg:w-56", className)}>

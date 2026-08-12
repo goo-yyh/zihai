@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
+import { UserFacingError } from "@/lib/errors";
 
 export const getSession = cache(async () =>
   auth.api.getSession({ headers: await headers() }),
@@ -30,20 +31,20 @@ export async function requireAdmin() {
 
 export async function assertUser() {
   const current = await auth.api.getSession({ headers: await headers() });
-  if (!current) throw new Error("Unauthorized");
+  if (!current) throw new UserFacingError("Unauthorized");
   return current;
 }
 
 export async function assertOnboardedUser() {
   const current = await assertUser();
   if (!current.user.onboardingCompleted) {
-    throw new Error("Complete onboarding before continuing.");
+    throw new UserFacingError("Complete onboarding before continuing.");
   }
   return current;
 }
 
 export async function assertAdmin() {
   const current = await assertOnboardedUser();
-  if (current.user.role !== "admin") throw new Error("Forbidden");
+  if (current.user.role !== "admin") throw new UserFacingError("Forbidden");
   return current;
 }

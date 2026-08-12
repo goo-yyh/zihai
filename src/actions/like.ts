@@ -3,12 +3,13 @@
 import "server-only";
 
 import { and, count, eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { projectLikes, projects, user } from "@/db/schema";
+import { UserFacingError } from "@/lib/errors";
 import { assertOnboardedUser } from "@/lib/session";
+import { revalidatePublicProject } from "@/server/cache";
 
 export async function toggleLikeAction(projectId: string) {
   const current = await assertOnboardedUser();
@@ -27,7 +28,7 @@ export async function toggleLikeAction(projectId: string) {
       .where(eq(projects.id, id))
       .limit(1);
     if (!project || project.status !== "approved") {
-      throw new Error("Only approved projects can be liked.");
+      throw new UserFacingError("Only approved projects can be liked.");
     }
 
     const [existing] = await tx
@@ -73,8 +74,6 @@ export async function toggleLikeAction(projectId: string) {
     };
   });
 
-  revalidatePath("/");
-  revalidatePath(`/p/${result.slug}`);
-  if (result.ownerUsername) revalidatePath(`/u/${result.ownerUsername}`);
+  revalidatePublicProject(result.slug, result.ownerUsername);
   return { liked: result.liked, count: result.count };
 }

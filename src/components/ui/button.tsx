@@ -11,10 +11,8 @@ const buttonVariants = cva(
       variant: {
         default:
           "bg-primary text-primary-foreground shadow-sm hover:bg-[#5b35d8]",
-        secondary:
-          "bg-foreground text-white shadow-sm hover:bg-[#303830]",
-        outline:
-          "border bg-white/80 text-foreground shadow-sm hover:bg-muted",
+        secondary: "bg-foreground text-white shadow-sm hover:bg-[#303830]",
+        outline: "border bg-white/80 text-foreground shadow-sm hover:bg-muted",
         ghost: "text-foreground hover:bg-muted",
         danger: "bg-danger text-white hover:bg-[#a92f40]",
         accent: "bg-accent text-accent-foreground hover:bg-[#cbef5f]",

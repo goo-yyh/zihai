@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { completeOnboardingAction } from "@/actions/profile";
+import { completeOnboardingAction } from "@/actions/onboarding";
 import { FieldError, FormMessage } from "@/components/forms/form-message";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Avatar } from "@/components/ui/avatar";
@@ -20,7 +20,10 @@ export function OnboardingForm({
   suggestedUsername: string;
   returnTo?: string;
 }) {
-  const [state, action] = useActionState(completeOnboardingAction, initialActionState);
+  const [state, action] = useActionState(
+    completeOnboardingAction,
+    initialActionState,
+  );
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="next" value={returnTo || ""} />
@@ -29,7 +32,8 @@ export function OnboardingForm({
         <div className="flex-1 text-center sm:text-left">
           <p className="font-bold">Your public avatar</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Keep your OAuth avatar or upload a custom image. Refresh after upload if the preview has not updated yet.
+            Keep your OAuth avatar or upload a custom image. Refresh after
+            upload if the preview has not updated yet.
           </p>
         </div>
         <ImageUploader kind="avatar" currentCount={0} compact />
@@ -46,18 +50,36 @@ export function OnboardingForm({
           autoComplete="username"
           required
         />
-        <p className="text-xs text-muted-foreground">Your profile will be /u/username.</p>
+        <p className="text-xs text-muted-foreground">
+          Your profile will be /u/username.
+        </p>
         <FieldError errors={state.fieldErrors?.username} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
-          <Input id="password" name="password" type="password" minLength={8} maxLength={128} autoComplete="new-password" required />
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            minLength={8}
+            maxLength={128}
+            autoComplete="new-password"
+            required
+          />
           <FieldError errors={state.fieldErrors?.password} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="confirmPassword">Confirm password</Label>
-          <Input id="confirmPassword" name="confirmPassword" type="password" minLength={8} maxLength={128} autoComplete="new-password" required />
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            minLength={8}
+            maxLength={128}
+            autoComplete="new-password"
+            required
+          />
           <FieldError errors={state.fieldErrors?.confirmPassword} />
         </div>
       </div>

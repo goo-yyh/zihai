@@ -21,12 +21,21 @@ const db = drizzle(databaseUrl);
 const [updated] = await db
   .update(user)
   .set({ role: "admin", updatedAt: new Date() })
-  .where(or(eq(user.email, identifier.toLowerCase()), eq(user.username, identifier.toLowerCase())))
+  .where(
+    or(
+      eq(user.email, identifier.toLowerCase()),
+      eq(user.username, identifier.toLowerCase()),
+    ),
+  )
   .returning({ email: user.email, username: user.username });
 
 if (!updated) {
-  console.error(`No user found for ${identifier}. Complete OAuth sign-in first.`);
+  console.error(
+    `No user found for ${identifier}. Complete OAuth sign-in first.`,
+  );
   process.exit(1);
 }
 
-console.log(`Promoted ${updated.username ? `@${updated.username}` : updated.email} to admin.`);
+console.log(
+  `Promoted ${updated.username ? `@${updated.username}` : updated.email} to admin.`,
+);

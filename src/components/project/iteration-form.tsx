@@ -28,7 +28,10 @@ export function IterationForm({
   return (
     <form action={action} className="space-y-5">
       <div className="space-y-1.5">
-        <Label htmlFor="versionLabel">Version label <span className="font-normal text-muted-foreground">(optional)</span></Label>
+        <Label htmlFor="versionLabel">
+          Version label{" "}
+          <span className="font-normal text-muted-foreground">(optional)</span>
+        </Label>
         <Input
           id="versionLabel"
           name="versionLabel"

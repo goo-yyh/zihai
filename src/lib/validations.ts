@@ -44,7 +44,10 @@ const githubUrlSchema = z
   .url("Enter a valid GitHub repository URL.")
   .refine((value) => {
     const url = new URL(value);
-    const segments = url.pathname.replace(/\.git$/, "").split("/").filter(Boolean);
+    const segments = url.pathname
+      .replace(/\.git$/, "")
+      .split("/")
+      .filter(Boolean);
     return (
       url.protocol === "https:" &&
       url.hostname.toLowerCase() === "github.com" &&

@@ -55,10 +55,7 @@ export async function getOwnedProject(projectId: string, ownerId: string) {
   return { ...project, images, iterations };
 }
 
-export async function getOwnedIteration(
-  iterationId: string,
-  ownerId: string,
-) {
+export async function getOwnedIteration(iterationId: string, ownerId: string) {
   const [iteration] = await db
     .select({
       id: projectIterations.id,

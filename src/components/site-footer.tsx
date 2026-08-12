@@ -11,9 +11,18 @@ export function SiteFooter() {
           <p className="mt-3">Independent AI products, built in public.</p>
         </div>
         <div className="flex gap-5">
-          <Link href="/" className="hover:text-foreground">Explore</Link>
-          <Link href="/submit" className="hover:text-foreground">Submit</Link>
-          <a href="https://github.com/goo-yyh/zihai" target="_blank" rel="noreferrer" className="hover:text-foreground">
+          <Link href="/" className="hover:text-foreground">
+            Explore
+          </Link>
+          <Link href="/submit" className="hover:text-foreground">
+            Submit
+          </Link>
+          <a
+            href="https://github.com/goo-yyh/zihai"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground"
+          >
             GitHub
           </a>
         </div>

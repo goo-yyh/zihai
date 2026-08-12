@@ -1,7 +1,10 @@
 import { Boxes } from "lucide-react";
 import Link from "next/link";
 
-import { ProjectCard, type ProjectCardData } from "@/components/project/project-card";
+import {
+  ProjectCard,
+  type ProjectCardData,
+} from "@/components/project/project-card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 

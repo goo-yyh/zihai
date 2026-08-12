@@ -31,7 +31,11 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
             className="object-cover transition duration-500 group-hover:scale-[1.03]"
           />
           <span className="absolute right-3 top-3 rounded-full border bg-white/90 p-2 shadow-sm backdrop-blur">
-            {project.githubUrl ? <Code2 className="size-4" /> : <ExternalLink className="size-4" />}
+            {project.githubUrl ? (
+              <Code2 className="size-4" />
+            ) : (
+              <ExternalLink className="size-4" />
+            )}
           </span>
         </div>
         <div className="p-5">
@@ -48,7 +52,9 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
                 alt={project.ownerUsername || "Builder"}
                 size={28}
               />
-              <span className="truncate">@{project.ownerUsername || "builder"}</span>
+              <span className="truncate">
+                @{project.ownerUsername || "builder"}
+              </span>
             </span>
             <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground">
               <Heart className="size-3.5" /> {project.likeCount}

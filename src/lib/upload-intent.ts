@@ -56,7 +56,9 @@ export function verifyUploadIntent(token: string) {
   return parsed;
 }
 
-export function extensionForContentType(contentType: UploadIntent["contentType"]) {
+export function extensionForContentType(
+  contentType: UploadIntent["contentType"],
+) {
   if (contentType === "image/jpeg") return "jpg";
   if (contentType === "image/png") return "png";
   return "webp";

@@ -9,6 +9,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
@@ -18,7 +20,7 @@
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio",
     "admin:promote": "tsx scripts/promote-admin.ts",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.6.27",
@@ -49,6 +51,7 @@
     "drizzle-kit": "0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "prettier": "^3.9.6",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5",

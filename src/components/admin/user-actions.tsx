@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { setUserBanAction, setUserRoleAction } from "@/actions/admin";
+import { setUserBanAction, setUserRoleAction } from "@/actions/admin-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,16 +42,23 @@ export function UserActions({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4">
         <div>
           <p className="font-bold">Administrator access</p>
-          <p className="mt-1 text-xs text-muted-foreground">Admins can review content and manage users.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Admins can review content and manage users.
+          </p>
         </div>
         <Button
           type="button"
           variant="outline"
           disabled={pending || (isSelf && role === "admin")}
-          onClick={() => run(
-            () => setUserRoleAction(userId, role === "admin" ? "user" : "admin"),
-            role === "admin" ? "Admin access removed." : "Admin access granted.",
-          )}
+          onClick={() =>
+            run(
+              () =>
+                setUserRoleAction(userId, role === "admin" ? "user" : "admin"),
+              role === "admin"
+                ? "Admin access removed."
+                : "Admin access granted.",
+            )
+          }
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : null}
           {role === "admin" ? "Remove admin" : "Make admin"}
@@ -61,16 +68,28 @@ export function UserActions({
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-64 flex-1 space-y-1.5">
             <Label htmlFor="banReason">Ban reason</Label>
-            <Input id="banReason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Required when banning" disabled={banned} />
+            <Input
+              id="banReason"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Required when banning"
+              disabled={banned}
+            />
           </div>
           <Button
             type="button"
             variant={banned ? "outline" : "danger"}
-            disabled={pending || (isSelf && !banned) || (!banned && reason.trim().length < 3)}
-            onClick={() => run(
-              () => setUserBanAction(userId, !banned, reason),
-              banned ? "User unbanned." : "User banned and sessions revoked.",
-            )}
+            disabled={
+              pending ||
+              (isSelf && !banned) ||
+              (!banned && reason.trim().length < 3)
+            }
+            onClick={() =>
+              run(
+                () => setUserBanAction(userId, !banned, reason),
+                banned ? "User unbanned." : "User banned and sessions revoked.",
+              )
+            }
           >
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : null}
             {banned ? "Unban user" : "Ban user"}

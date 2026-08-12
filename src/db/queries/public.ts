@@ -33,7 +33,10 @@ function cardQuery(ownerId?: string) {
     .innerJoin(user, eq(projects.ownerId, user.id))
     .innerJoin(
       projectImages,
-      and(eq(projectImages.projectId, projects.id), eq(projectImages.sortOrder, 0)),
+      and(
+        eq(projectImages.projectId, projects.id),
+        eq(projectImages.sortOrder, 0),
+      ),
     )
     .leftJoin(projectLikes, eq(projectLikes.projectId, projects.id))
     .where(
@@ -41,12 +44,7 @@ function cardQuery(ownerId?: string) {
         ? and(eq(projects.status, "approved"), eq(projects.ownerId, ownerId))
         : eq(projects.status, "approved"),
     )
-    .groupBy(
-      projects.id,
-      projectImages.blobUrl,
-      user.username,
-      user.image,
-    );
+    .groupBy(projects.id, projectImages.blobUrl, user.username, user.image);
 }
 
 export async function getLatestProjects(limit = 12) {
@@ -55,7 +53,10 @@ export async function getLatestProjects(limit = 12) {
 
 export async function getPopularProjects(limit = 6) {
   return cardQuery()
-    .orderBy(desc(sql`count(${projectLikes.userId})`), desc(projects.publishedAt))
+    .orderBy(
+      desc(sql`count(${projectLikes.userId})`),
+      desc(projects.publishedAt),
+    )
     .limit(limit);
 }
 
@@ -106,7 +107,10 @@ export async function getPublicProject(slug: string, viewerId?: string) {
           eq(projectIterations.status, "approved"),
         ),
       )
-      .orderBy(desc(projectIterations.approvedAt), desc(projectIterations.createdAt)),
+      .orderBy(
+        desc(projectIterations.approvedAt),
+        desc(projectIterations.createdAt),
+      ),
     db
       .select({ count: count() })
       .from(projectLikes)
@@ -194,7 +198,8 @@ export async function getSitemapEntries() {
   return {
     projects: projectRows,
     users: userRows.filter(
-      (row): row is { username: string; updatedAt: Date } => Boolean(row.username),
+      (row): row is { username: string; updatedAt: Date } =>
+        Boolean(row.username),
     ),
   };
 }

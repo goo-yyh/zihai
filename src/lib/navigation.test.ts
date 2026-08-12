@@ -4,7 +4,9 @@ import { safeReturnPath } from "@/lib/navigation";
 
 describe("safeReturnPath", () => {
   it("accepts local absolute paths", () => {
-    expect(safeReturnPath("/dashboard/projects?tab=pending")).toBe("/dashboard/projects?tab=pending");
+    expect(safeReturnPath("/dashboard/projects?tab=pending")).toBe(
+      "/dashboard/projects?tab=pending",
+    );
   });
 
   it("blocks open redirects", () => {

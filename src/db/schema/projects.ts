@@ -15,13 +15,17 @@ import {
 
 import { user } from "./auth";
 
-export const projectStatus = pgEnum("project_status", [
+export const PROJECT_STATUSES = [
   "draft",
   "pending",
   "approved",
   "rejected",
   "archived",
-]);
+] as const;
+
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+export const projectStatus = pgEnum("project_status", PROJECT_STATUSES);
 
 export const projects = pgTable(
   "projects",

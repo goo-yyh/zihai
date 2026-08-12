@@ -31,12 +31,15 @@ export function LikeButton({
   );
 
   if (access !== "ready") {
-    const href = access === "login"
-      ? `/login?next=${encodeURIComponent(nextPath)}`
-      : `/onboarding?next=${encodeURIComponent(nextPath)}`;
+    const href =
+      access === "login"
+        ? `/login?next=${encodeURIComponent(nextPath)}`
+        : `/onboarding?next=${encodeURIComponent(nextPath)}`;
     return (
       <Button asChild variant="outline">
-        <Link href={href}><Heart className="size-4" /> {initialCount}</Link>
+        <Link href={href}>
+          <Heart className="size-4" /> {initialCount}
+        </Link>
       </Button>
     );
   }
@@ -58,7 +61,11 @@ export function LikeButton({
         });
       }}
     >
-      {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Heart className={state.liked ? "size-4 fill-current" : "size-4"} />}
+      {pending ? (
+        <LoaderCircle className="size-4 animate-spin" />
+      ) : (
+        <Heart className={state.liked ? "size-4 fill-current" : "size-4"} />
+      )}
       {state.count}
     </Button>
   );

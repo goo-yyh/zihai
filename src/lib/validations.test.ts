@@ -25,25 +25,58 @@ describe("projectInputSchema", () => {
   };
 
   it("requires exactly one destination", () => {
-    expect(projectInputSchema.safeParse({ ...base, websiteUrl: "", githubUrl: "" }).success).toBe(false);
-    expect(projectInputSchema.safeParse({ ...base, websiteUrl: "https://example.com", githubUrl: "https://github.com/acme/useful" }).success).toBe(false);
+    expect(
+      projectInputSchema.safeParse({ ...base, websiteUrl: "", githubUrl: "" })
+        .success,
+    ).toBe(false);
+    expect(
+      projectInputSchema.safeParse({
+        ...base,
+        websiteUrl: "https://example.com",
+        githubUrl: "https://github.com/acme/useful",
+      }).success,
+    ).toBe(false);
   });
 
   it("normalizes a website destination", () => {
-    const result = projectInputSchema.parse({ ...base, websiteUrl: "https://example.com/product#demo", githubUrl: "" });
+    const result = projectInputSchema.parse({
+      ...base,
+      websiteUrl: "https://example.com/product#demo",
+      githubUrl: "",
+    });
     expect(result.websiteUrl).toBe("https://example.com/product");
     expect(result.githubUrl).toBeNull();
   });
 
   it("accepts only repository-shaped GitHub URLs", () => {
-    expect(projectInputSchema.safeParse({ ...base, websiteUrl: "", githubUrl: "https://github.com/acme" }).success).toBe(false);
-    expect(projectInputSchema.safeParse({ ...base, websiteUrl: "", githubUrl: "https://gitlab.com/acme/useful" }).success).toBe(false);
-    expect(projectInputSchema.safeParse({ ...base, websiteUrl: "", githubUrl: "https://github.com/acme/useful.git" }).success).toBe(true);
+    expect(
+      projectInputSchema.safeParse({
+        ...base,
+        websiteUrl: "",
+        githubUrl: "https://github.com/acme",
+      }).success,
+    ).toBe(false);
+    expect(
+      projectInputSchema.safeParse({
+        ...base,
+        websiteUrl: "",
+        githubUrl: "https://gitlab.com/acme/useful",
+      }).success,
+    ).toBe(false);
+    expect(
+      projectInputSchema.safeParse({
+        ...base,
+        websiteUrl: "",
+        githubUrl: "https://github.com/acme/useful.git",
+      }).success,
+    ).toBe(true);
   });
 });
 
 describe("normalizeGithubUrl", () => {
   it("removes query strings, hashes, and git suffixes", () => {
-    expect(normalizeGithubUrl("https://github.com/acme/useful.git?tab=readme#top")).toBe("https://github.com/acme/useful");
+    expect(
+      normalizeGithubUrl("https://github.com/acme/useful.git?tab=readme#top"),
+    ).toBe("https://github.com/acme/useful");
   });
 });

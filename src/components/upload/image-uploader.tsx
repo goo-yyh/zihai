@@ -35,12 +35,18 @@ export function ImageUploader({
     if (!files?.length) return;
     const selected = Array.from(files);
     if (selected.length + currentCount > maxFiles) {
-      toast.error(`You can upload at most ${maxFiles} image${maxFiles > 1 ? "s" : ""}.`);
+      toast.error(
+        `You can upload at most ${maxFiles} image${maxFiles > 1 ? "s" : ""}.`,
+      );
       return;
     }
 
     for (const file of selected) {
-      if (!ALLOWED_IMAGE_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_TYPES)[number])) {
+      if (
+        !ALLOWED_IMAGE_TYPES.includes(
+          file.type as (typeof ALLOWED_IMAGE_TYPES)[number],
+        )
+      ) {
         toast.error(`${file.name}: JPEG, PNG, and WebP only.`);
         return;
       }
@@ -91,7 +97,13 @@ export function ImageUploader({
 
   const disabled = Boolean(progress) || currentCount >= maxFiles;
   return (
-    <div className={compact ? "inline-flex" : "rounded-2xl border border-dashed bg-muted/50 p-5"}>
+    <div
+      className={
+        compact
+          ? "inline-flex"
+          : "rounded-2xl border border-dashed bg-muted/50 p-5"
+      }
+    >
       <input
         ref={inputRef}
         type="file"
@@ -101,20 +113,40 @@ export function ImageUploader({
         onChange={(event) => chooseFiles(event.target.files)}
       />
       {compact ? (
-        <Button type="button" variant="outline" disabled={disabled} onClick={() => inputRef.current?.click()}>
-          {progress ? <LoaderCircle className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          onClick={() => inputRef.current?.click()}
+        >
+          {progress ? (
+            <LoaderCircle className="size-4 animate-spin" />
+          ) : (
+            <ImagePlus className="size-4" />
+          )}
           {progress || "Upload image"}
         </Button>
       ) : (
         <div className="flex flex-col items-center text-center">
           <span className="mb-3 rounded-2xl bg-white p-3 text-primary shadow-sm">
-            {progress ? <LoaderCircle className="size-6 animate-spin" /> : <UploadCloud className="size-6" />}
+            {progress ? (
+              <LoaderCircle className="size-6 animate-spin" />
+            ) : (
+              <UploadCloud className="size-6" />
+            )}
           </span>
           <p className="text-sm font-bold">{progress || "Add screenshots"}</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            JPEG, PNG, or WebP · up to {maxBytes / 1024 / 1024} MB each · {currentCount}/{maxFiles} used
+            JPEG, PNG, or WebP · up to {maxBytes / 1024 / 1024} MB each ·{" "}
+            {currentCount}/{maxFiles} used
           </p>
-          <Button type="button" size="sm" className="mt-4" disabled={disabled} onClick={() => inputRef.current?.click()}>
+          <Button
+            type="button"
+            size="sm"
+            className="mt-4"
+            disabled={disabled}
+            onClick={() => inputRef.current?.click()}
+          >
             Choose {kind === "avatar" ? "avatar" : "images"}
           </Button>
         </div>

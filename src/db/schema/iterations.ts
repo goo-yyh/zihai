@@ -16,12 +16,16 @@ import {
 import { user } from "./auth";
 import { projects } from "./projects";
 
-export const iterationStatus = pgEnum("iteration_status", [
+export const ITERATION_STATUSES = [
   "draft",
   "pending",
   "approved",
   "rejected",
-]);
+] as const;
+
+export type IterationStatus = (typeof ITERATION_STATUSES)[number];
+
+export const iterationStatus = pgEnum("iteration_status", ITERATION_STATUSES);
 
 export const projectIterations = pgTable(
   "project_iterations",

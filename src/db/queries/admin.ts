@@ -5,36 +5,44 @@ import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   account,
+  ITERATION_STATUSES,
   iterationImages,
   moderationLogs,
   projectImages,
   projectIterations,
+  PROJECT_STATUSES,
   projects,
   user,
 } from "@/db/schema";
 
 export async function getAdminStats() {
-  const [users, allProjects, pendingProjects, approvedProjects, rejectedProjects, pendingIterations] =
-    await Promise.all([
-      db.select({ value: count() }).from(user),
-      db.select({ value: count() }).from(projects),
-      db
-        .select({ value: count() })
-        .from(projects)
-        .where(eq(projects.status, "pending")),
-      db
-        .select({ value: count() })
-        .from(projects)
-        .where(eq(projects.status, "approved")),
-      db
-        .select({ value: count() })
-        .from(projects)
-        .where(eq(projects.status, "rejected")),
-      db
-        .select({ value: count() })
-        .from(projectIterations)
-        .where(eq(projectIterations.status, "pending")),
-    ]);
+  const [
+    users,
+    allProjects,
+    pendingProjects,
+    approvedProjects,
+    rejectedProjects,
+    pendingIterations,
+  ] = await Promise.all([
+    db.select({ value: count() }).from(user),
+    db.select({ value: count() }).from(projects),
+    db
+      .select({ value: count() })
+      .from(projects)
+      .where(eq(projects.status, "pending")),
+    db
+      .select({ value: count() })
+      .from(projects)
+      .where(eq(projects.status, "approved")),
+    db
+      .select({ value: count() })
+      .from(projects)
+      .where(eq(projects.status, "rejected")),
+    db
+      .select({ value: count() })
+      .from(projectIterations)
+      .where(eq(projectIterations.status, "pending")),
+  ]);
 
   return {
     users: users[0]?.value ?? 0,
@@ -47,11 +55,7 @@ export async function getAdminStats() {
 }
 
 export async function getAdminProjects(status?: string) {
-  const statusFilter = ["draft", "pending", "approved", "rejected", "archived"].includes(
-    status ?? "",
-  )
-    ? (status as "draft" | "pending" | "approved" | "rejected" | "archived")
-    : undefined;
+  const statusFilter = PROJECT_STATUSES.find((value) => value === status);
 
   return db
     .select({
@@ -119,11 +123,7 @@ export async function getAdminProject(projectId: string) {
 }
 
 export async function getAdminIterations(status?: string) {
-  const statusFilter = ["draft", "pending", "approved", "rejected"].includes(
-    status ?? "",
-  )
-    ? (status as "draft" | "pending" | "approved" | "rejected")
-    : undefined;
+  const statusFilter = ITERATION_STATUSES.find((value) => value === status);
 
   return db
     .select({
@@ -139,8 +139,13 @@ export async function getAdminIterations(status?: string) {
     .from(projectIterations)
     .innerJoin(projects, eq(projectIterations.projectId, projects.id))
     .innerJoin(user, eq(projectIterations.ownerId, user.id))
-    .where(statusFilter ? eq(projectIterations.status, statusFilter) : undefined)
-    .orderBy(desc(projectIterations.submittedAt), desc(projectIterations.createdAt));
+    .where(
+      statusFilter ? eq(projectIterations.status, statusFilter) : undefined,
+    )
+    .orderBy(
+      desc(projectIterations.submittedAt),
+      desc(projectIterations.createdAt),
+    );
 }
 
 export async function getAdminIteration(iterationId: string) {
