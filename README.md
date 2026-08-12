@@ -23,7 +23,7 @@ The image count is enforced twice: in the authenticated upload flow and in Postg
 
 ## Local setup
 
-Requirements: Node.js 20+, pnpm 11, a Neon PostgreSQL database, a Vercel Blob public store, and OAuth apps for GitHub and Google.
+Requirements: Node.js 22.13+ (Node 24 recommended), pnpm 11, a Neon PostgreSQL database, a Vercel Blob public store, and OAuth apps for GitHub and Google.
 
 ```bash
 pnpm install
