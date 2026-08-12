@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f8f4;
+  --foreground: #161a16;
+  --card: #ffffff;
+  --card-foreground: #161a16;
+  --muted: #eef0e9;
+  --muted-foreground: #697069;
+  --border: #dde1d8;
+  --primary: #6d43f2;
+  --primary-foreground: #ffffff;
+  --accent: #d9ff67;
+  --accent-foreground: #1b2209;
+  --danger: #c63d4f;
+  --ring: #8a6af5;
+  --radius: 0.9rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-danger: var(--danger);
+  --color-ring: var(--ring);
+  --font-sans: "Inter", "SF Pro Text", "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% -8%, rgb(217 255 103 / 22%), transparent 24rem),
+    radial-gradient(circle at 92% 2%, rgb(109 67 242 / 12%), transparent 28rem),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  outline-color: var(--ring);
+}
+
+::selection {
+  background: rgb(109 67 242 / 22%);
+}
+
+.dot-grid {
+  background-image: radial-gradient(rgb(22 26 22 / 12%) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.prose-zihai {
+  color: #313831;
+  line-height: 1.8;
+}
+
+.prose-zihai h1,
+.prose-zihai h2,
+.prose-zihai h3 {
+  color: #161a16;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  margin: 1.35em 0 0.55em;
+}
+
+.prose-zihai p,
+.prose-zihai ul,
+.prose-zihai ol {
+  margin: 0.85em 0;
+}
+
+.prose-zihai ul,
+.prose-zihai ol {
+  padding-left: 1.4em;
+}
+
+.prose-zihai ul {
+  list-style: disc;
+}
+
+.prose-zihai ol {
+  list-style: decimal;
+}
+
+.prose-zihai code {
+  border-radius: 0.35rem;
+  background: #eef0e9;
+  padding: 0.12rem 0.34rem;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.prose-zihai a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
