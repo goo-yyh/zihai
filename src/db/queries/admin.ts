@@ -1,6 +1,17 @@
 import "server-only";
 
-import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  ilike,
+  lt,
+  or,
+  sql,
+  type SQLWrapper,
+} from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -14,50 +25,88 @@ import {
   projects,
   user,
 } from "@/db/schema";
+import {
+  createCursorPage,
+  decodePageCursor,
+  DEFAULT_ADMIN_PAGE_SIZE,
+  normalizePageSize,
+  type CursorIdKind,
+  type PageCursor,
+} from "@/lib/pagination";
 
-export async function getAdminStats() {
-  const [
-    users,
-    allProjects,
-    pendingProjects,
-    approvedProjects,
-    rejectedProjects,
-    pendingIterations,
-  ] = await Promise.all([
-    db.select({ value: count() }).from(user),
-    db.select({ value: count() }).from(projects),
-    db
-      .select({ value: count() })
-      .from(projects)
-      .where(eq(projects.status, "pending")),
-    db
-      .select({ value: count() })
-      .from(projects)
-      .where(eq(projects.status, "approved")),
-    db
-      .select({ value: count() })
-      .from(projects)
-      .where(eq(projects.status, "rejected")),
-    db
-      .select({ value: count() })
-      .from(projectIterations)
-      .where(eq(projectIterations.status, "pending")),
-  ]);
+type AdminPageOptions = {
+  cursor?: string;
+  pageSize?: number;
+};
 
+type AuditLogFilters = {
+  search?: string;
+  targetType?: "project" | "iteration" | "user";
+};
+
+function keysetCondition(
+  sortColumn: SQLWrapper,
+  idColumn: SQLWrapper,
+  cursor: PageCursor | null,
+) {
+  if (!cursor) return undefined;
+
+  const sortValue = new Date(cursor.sortValue);
+  if (cursor.direction === "previous") {
+    return or(
+      gt(sortColumn, sortValue),
+      and(eq(sortColumn, sortValue), gt(idColumn, cursor.id)),
+    );
+  }
+
+  return or(
+    lt(sortColumn, sortValue),
+    and(eq(sortColumn, sortValue), lt(idColumn, cursor.id)),
+  );
+}
+
+function paginationOptions(options: AdminPageOptions, idKind: CursorIdKind) {
   return {
-    users: users[0]?.value ?? 0,
-    projects: allProjects[0]?.value ?? 0,
-    pendingProjects: pendingProjects[0]?.value ?? 0,
-    approvedProjects: approvedProjects[0]?.value ?? 0,
-    rejectedProjects: rejectedProjects[0]?.value ?? 0,
-    pendingIterations: pendingIterations[0]?.value ?? 0,
+    cursor: decodePageCursor(options.cursor, idKind),
+    pageSize: normalizePageSize(options.pageSize ?? DEFAULT_ADMIN_PAGE_SIZE),
   };
 }
 
-export async function getAdminProjects(status?: string) {
-  const statusFilter = PROJECT_STATUSES.find((value) => value === status);
+export async function getAdminStats() {
+  const [stats] = await db
+    .select({
+      users: sql<number>`(select count(*)::int from ${user})`,
+      projects: sql<number>`count(*)::int`,
+      pendingProjects: sql<number>`count(*) filter (where ${projects.status} = 'pending')::int`,
+      approvedProjects: sql<number>`count(*) filter (where ${projects.status} = 'approved')::int`,
+      rejectedProjects: sql<number>`count(*) filter (where ${projects.status} = 'rejected')::int`,
+      pendingIterations: sql<number>`(
+        select count(*)::int
+        from ${projectIterations}
+        where ${projectIterations.status} = 'pending'
+      )`,
+    })
+    .from(projects);
 
-  return db
+  return {
+    users: stats?.users ?? 0,
+    projects: stats?.projects ?? 0,
+    pendingProjects: stats?.pendingProjects ?? 0,
+    approvedProjects: stats?.approvedProjects ?? 0,
+    rejectedProjects: stats?.rejectedProjects ?? 0,
+    pendingIterations: stats?.pendingIterations ?? 0,
+  };
+}
+
+export async function getAdminProjects(
+  status?: string,
+  options: AdminPageOptions = {},
+) {
+  const statusFilter = PROJECT_STATUSES.find((value) => value === status);
+  const { cursor, pageSize } = paginationOptions(options, "uuid");
+  const previous = cursor?.direction === "previous";
+
+  const rows = await db
     .select({
       id: projects.id,
       name: projects.name,
@@ -71,8 +120,24 @@ export async function getAdminProjects(status?: string) {
     })
     .from(projects)
     .innerJoin(user, eq(projects.ownerId, user.id))
-    .where(statusFilter ? eq(projects.status, statusFilter) : undefined)
-    .orderBy(desc(projects.submittedAt), desc(projects.updatedAt));
+    .where(
+      and(
+        statusFilter ? eq(projects.status, statusFilter) : undefined,
+        keysetCondition(projects.updatedAt, projects.id, cursor),
+      ),
+    )
+    .orderBy(
+      previous ? asc(projects.updatedAt) : desc(projects.updatedAt),
+      previous ? asc(projects.id) : desc(projects.id),
+    )
+    .limit(pageSize + 1);
+
+  return createCursorPage(
+    rows,
+    pageSize,
+    cursor,
+    (project) => project.updatedAt,
+  );
 }
 
 export async function getAdminProject(projectId: string) {
@@ -122,10 +187,15 @@ export async function getAdminProject(projectId: string) {
   return { ...project, images, logs };
 }
 
-export async function getAdminIterations(status?: string) {
+export async function getAdminIterations(
+  status?: string,
+  options: AdminPageOptions = {},
+) {
   const statusFilter = ITERATION_STATUSES.find((value) => value === status);
+  const { cursor, pageSize } = paginationOptions(options, "uuid");
+  const previous = cursor?.direction === "previous";
 
-  return db
+  const rows = await db
     .select({
       id: projectIterations.id,
       projectId: projectIterations.projectId,
@@ -134,18 +204,36 @@ export async function getAdminIterations(status?: string) {
       description: projectIterations.description,
       status: projectIterations.status,
       submittedAt: projectIterations.submittedAt,
+      updatedAt: projectIterations.updatedAt,
       ownerUsername: user.username,
     })
     .from(projectIterations)
     .innerJoin(projects, eq(projectIterations.projectId, projects.id))
     .innerJoin(user, eq(projectIterations.ownerId, user.id))
     .where(
-      statusFilter ? eq(projectIterations.status, statusFilter) : undefined,
+      and(
+        statusFilter ? eq(projectIterations.status, statusFilter) : undefined,
+        keysetCondition(
+          projectIterations.updatedAt,
+          projectIterations.id,
+          cursor,
+        ),
+      ),
     )
     .orderBy(
-      desc(projectIterations.submittedAt),
-      desc(projectIterations.createdAt),
-    );
+      previous
+        ? asc(projectIterations.updatedAt)
+        : desc(projectIterations.updatedAt),
+      previous ? asc(projectIterations.id) : desc(projectIterations.id),
+    )
+    .limit(pageSize + 1);
+
+  return createCursorPage(
+    rows,
+    pageSize,
+    cursor,
+    (iteration) => iteration.updatedAt,
+  );
 }
 
 export async function getAdminIteration(iterationId: string) {
@@ -196,15 +284,20 @@ export async function getAdminIteration(iterationId: string) {
   return { ...iteration, images, logs };
 }
 
-export async function getAdminUsers(search?: string) {
+export async function getAdminUsers(
+  search?: string,
+  options: AdminPageOptions = {},
+) {
   const filter = search?.trim()
     ? or(
         ilike(user.email, `%${search.trim()}%`),
         ilike(user.username, `%${search.trim()}%`),
       )
     : undefined;
+  const { cursor, pageSize } = paginationOptions(options, "text");
+  const previous = cursor?.direction === "previous";
 
-  return db
+  const rows = await db
     .select({
       id: user.id,
       email: user.email,
@@ -220,52 +313,80 @@ export async function getAdminUsers(search?: string) {
     .from(user)
     .leftJoin(projects, eq(projects.ownerId, user.id))
     .leftJoin(account, eq(account.userId, user.id))
-    .where(filter)
+    .where(and(filter, keysetCondition(user.createdAt, user.id, cursor)))
     .groupBy(user.id)
-    .orderBy(desc(user.createdAt));
+    .orderBy(
+      previous ? asc(user.createdAt) : desc(user.createdAt),
+      previous ? asc(user.id) : desc(user.id),
+    )
+    .limit(pageSize + 1);
+
+  return createCursorPage(
+    rows,
+    pageSize,
+    cursor,
+    (profile) => profile.createdAt,
+  );
 }
 
 export async function getAdminUser(userId: string) {
-  const [profile] = await db
-    .select({
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      image: user.image,
-      role: user.role,
-      banned: user.banned,
-      banReason: user.banReason,
-      banExpires: user.banExpires,
-      onboardingCompleted: user.onboardingCompleted,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      providers: sql<string>`coalesce(string_agg(distinct ${account.providerId}, ', '), '')`,
-    })
-    .from(user)
-    .leftJoin(account, eq(account.userId, user.id))
-    .where(eq(user.id, userId))
-    .groupBy(user.id)
-    .limit(1);
+  const [profileRows, ownedProjects] = await Promise.all([
+    db
+      .select({
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        image: user.image,
+        role: user.role,
+        banned: user.banned,
+        banReason: user.banReason,
+        banExpires: user.banExpires,
+        onboardingCompleted: user.onboardingCompleted,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        providers: sql<string>`coalesce(string_agg(distinct ${account.providerId}, ', '), '')`,
+      })
+      .from(user)
+      .leftJoin(account, eq(account.userId, user.id))
+      .where(eq(user.id, userId))
+      .groupBy(user.id)
+      .limit(1),
+    db
+      .select({
+        id: projects.id,
+        name: projects.name,
+        slug: projects.slug,
+        status: projects.status,
+        updatedAt: projects.updatedAt,
+      })
+      .from(projects)
+      .where(eq(projects.ownerId, userId))
+      .orderBy(desc(projects.updatedAt)),
+  ]);
+  const profile = profileRows[0];
 
   if (!profile) return null;
-
-  const ownedProjects = await db
-    .select({
-      id: projects.id,
-      name: projects.name,
-      slug: projects.slug,
-      status: projects.status,
-      updatedAt: projects.updatedAt,
-    })
-    .from(projects)
-    .where(eq(projects.ownerId, userId))
-    .orderBy(desc(projects.updatedAt));
 
   return { ...profile, projects: ownedProjects };
 }
 
-export async function getAuditLogs() {
-  return db
+export async function getAuditLogs(
+  filters: AuditLogFilters = {},
+  options: AdminPageOptions = {},
+) {
+  const { cursor, pageSize } = paginationOptions(options, "uuid");
+  const previous = cursor?.direction === "previous";
+  const search = filters.search?.trim();
+  const searchFilter = search
+    ? or(
+        ilike(moderationLogs.action, `%${search}%`),
+        ilike(moderationLogs.targetId, `%${search}%`),
+        ilike(moderationLogs.reason, `%${search}%`),
+        ilike(user.email, `%${search}%`),
+        ilike(user.username, `%${search}%`),
+      )
+    : undefined;
+  const rows = await db
     .select({
       id: moderationLogs.id,
       action: moderationLogs.action,
@@ -279,6 +400,20 @@ export async function getAuditLogs() {
     })
     .from(moderationLogs)
     .leftJoin(user, eq(moderationLogs.adminId, user.id))
-    .orderBy(desc(moderationLogs.createdAt))
-    .limit(500);
+    .where(
+      and(
+        filters.targetType
+          ? eq(moderationLogs.targetType, filters.targetType)
+          : undefined,
+        searchFilter,
+        keysetCondition(moderationLogs.createdAt, moderationLogs.id, cursor),
+      ),
+    )
+    .orderBy(
+      previous ? asc(moderationLogs.createdAt) : desc(moderationLogs.createdAt),
+      previous ? asc(moderationLogs.id) : desc(moderationLogs.id),
+    )
+    .limit(pageSize + 1);
+
+  return createCursorPage(rows, pageSize, cursor, (log) => log.createdAt);
 }

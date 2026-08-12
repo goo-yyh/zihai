@@ -95,31 +95,35 @@ export async function updateProjectAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const [existing] = await db
-      .select({ status: projects.status, slug: projects.slug })
-      .from(projects)
-      .where(
-        and(
-          eq(projects.id, parsedId.data),
-          eq(projects.ownerId, session.user.id),
-        ),
-      )
-      .limit(1);
-    if (!existing) throw new UserFacingError("Project not found.");
+    const existing = await db.transaction(async (tx) => {
+      const [ownedProject] = await tx
+        .select({ status: projects.status, slug: projects.slug })
+        .from(projects)
+        .where(
+          and(
+            eq(projects.id, parsedId.data),
+            eq(projects.ownerId, session.user.id),
+          ),
+        )
+        .for("update");
+      if (!ownedProject) throw new UserFacingError("Project not found.");
 
-    await db
-      .update(projects)
-      .set({
-        ...parsed.data,
-        ...contentEditPatch(existing.status),
-        publishedAt: null,
-      })
-      .where(
-        and(
-          eq(projects.id, parsedId.data),
-          eq(projects.ownerId, session.user.id),
-        ),
-      );
+      await tx
+        .update(projects)
+        .set({
+          ...parsed.data,
+          ...contentEditPatch(ownedProject.status),
+          publishedAt: null,
+        })
+        .where(
+          and(
+            eq(projects.id, parsedId.data),
+            eq(projects.ownerId, session.user.id),
+          ),
+        );
+
+      return ownedProject;
+    });
 
     revalidateProjectWorkspace(parsedId.data);
     revalidatePublicProject(existing.slug, session.user.username);
@@ -140,29 +144,34 @@ export async function submitProjectAction(projectId: string) {
   const session = await assertOnboardedUser();
   const id = idSchema.parse(projectId);
 
-  const [project] = await db
-    .select({ status: projects.status })
-    .from(projects)
-    .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)))
-    .limit(1);
-  if (!project) throw new UserFacingError("Project not found.");
-  assertSubmittable(project.status, "project");
+  await db.transaction(async (tx) => {
+    // Upload callbacks lock the same project row, so the image-count check and
+    // submission transition observe one serialized state.
+    const [project] = await tx
+      .select({ status: projects.status })
+      .from(projects)
+      .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)))
+      .for("update");
+    if (!project) throw new UserFacingError("Project not found.");
+    assertSubmittable(project.status, "project");
 
-  const [images] = await db
-    .select({ value: count() })
-    .from(projectImages)
-    .where(eq(projectImages.projectId, id));
-  assertImageCount(images?.value ?? 0, "Project");
+    const [images] = await tx
+      .select({ value: count() })
+      .from(projectImages)
+      .where(eq(projectImages.projectId, id));
+    assertImageCount(images?.value ?? 0, "Project");
 
-  await db
-    .update(projects)
-    .set({
-      status: "pending",
-      rejectionReason: null,
-      submittedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)));
+    const now = new Date();
+    await tx
+      .update(projects)
+      .set({
+        status: "pending",
+        rejectionReason: null,
+        submittedAt: now,
+        updatedAt: now,
+      })
+      .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)));
+  });
 
   revalidateProjectWorkspace(id);
   redirect("/dashboard?submitted=project");

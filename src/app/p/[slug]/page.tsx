@@ -10,7 +10,10 @@ import { LikeButton } from "@/components/project/like-button";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getPublicProject } from "@/db/queries/public";
+import {
+  getPublicProject,
+  getPublicProjectMetadata,
+} from "@/db/queries/public";
 import { getSession } from "@/lib/session";
 import { SITE_DESCRIPTION } from "@/lib/site";
 import { formatDate, truncate } from "@/lib/utils";
@@ -19,7 +22,7 @@ export async function generateMetadata({
   params,
 }: PageProps<"/p/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const project = await getPublicProject(slug);
+  const project = await getPublicProjectMetadata(slug);
   if (!project)
     return {
       title: "Project not found",
@@ -35,13 +38,13 @@ export async function generateMetadata({
     openGraph: {
       title: project.name,
       description,
-      images: project.images[0] ? [{ url: project.images[0].url }] : undefined,
+      images: [{ url: project.imageUrl }],
     },
     twitter: {
       card: "summary_large_image",
       title: project.name,
       description,
-      images: project.images[0] ? [project.images[0].url] : undefined,
+      images: [project.imageUrl],
     },
   };
 }

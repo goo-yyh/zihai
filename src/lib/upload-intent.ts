@@ -5,15 +5,15 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 import { getServerEnv } from "@/lib/env";
-import { uploadKindSchema } from "@/lib/validations";
+import { ALLOWED_IMAGE_TYPES, UPLOAD_KINDS } from "@/lib/image-policy";
 
 const signedUploadIntentSchema = z.object({
-  kind: uploadKindSchema,
+  kind: z.enum(UPLOAD_KINDS),
   userId: z.string().min(1),
   pathname: z.string().min(1),
   projectId: z.uuid().optional(),
   iterationId: z.uuid().optional(),
-  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  contentType: z.enum(ALLOWED_IMAGE_TYPES),
   expiresAt: z.number().int().positive(),
 });
 

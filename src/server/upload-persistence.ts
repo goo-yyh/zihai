@@ -15,8 +15,8 @@ import {
   iterationContentEditPatch,
 } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
+import { ALLOWED_IMAGE_TYPES } from "@/lib/image-policy";
 import type { UploadIntent } from "@/lib/upload-intent";
-import { ALLOWED_IMAGE_TYPES } from "@/lib/validations";
 import { deleteBlobsBestEffort, inspectBlob, uploadLimit } from "@/server/blob";
 import { validateUploadOwnership } from "@/server/upload-policy";
 

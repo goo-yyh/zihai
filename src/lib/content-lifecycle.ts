@@ -1,7 +1,8 @@
 import { UserFacingError } from "@/lib/errors";
+import { MAX_CONTENT_IMAGES } from "@/lib/image-policy";
 
 export const MIN_CONTENT_IMAGES = 1;
-export const MAX_CONTENT_IMAGES = 3;
+export { MAX_CONTENT_IMAGES } from "@/lib/image-policy";
 
 export type ModeratedContentStatus =
   "draft" | "pending" | "approved" | "rejected";

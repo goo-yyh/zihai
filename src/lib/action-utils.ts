@@ -1,3 +1,5 @@
+import { APIError } from "better-auth";
+import { USERNAME_ERROR_CODES } from "better-auth/plugins";
 import type { ZodError } from "zod";
 
 import { isUserFacingError } from "@/lib/errors";
@@ -19,14 +21,11 @@ export function safeActionError(
     return { status: "error", message: error.message };
   }
 
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    if (
-      message.includes("username") &&
-      (message.includes("taken") || message.includes("exist"))
-    ) {
-      return { status: "error", message: "Username already taken." };
-    }
+  if (
+    error instanceof APIError &&
+    error.body?.code === USERNAME_ERROR_CODES.USERNAME_IS_ALREADY_TAKEN.code
+  ) {
+    return { status: "error", message: "Username already taken." };
   }
 
   console.error("Server action failed", error);

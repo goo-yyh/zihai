@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CursorPagination } from "@/components/admin/cursor-pagination";
 import { Badge } from "@/components/ui/badge";
 import { getAdminProjects } from "@/db/queries/admin";
 import { requireAdmin } from "@/lib/session";
@@ -18,14 +19,15 @@ export default async function AdminProjectsPage({
   searchParams,
 }: PageProps<"/admin/projects">) {
   await requireAdmin();
-  const { status } = await searchParams;
+  const { status, cursor } = await searchParams;
   const active =
     typeof status === "string" &&
     statuses.includes(status as (typeof statuses)[number])
       ? status
       : "all";
-  const projects = await getAdminProjects(
+  const projectPage = await getAdminProjects(
     active === "all" ? undefined : active,
+    { cursor: typeof cursor === "string" ? cursor : undefined },
   );
   return (
     <div className="space-y-6">
@@ -67,7 +69,7 @@ export default async function AdminProjectsPage({
             </tr>
           </thead>
           <tbody>
-            {projects.map((project) => (
+            {projectPage.items.map((project) => (
               <tr key={project.id} className="border-b last:border-0">
                 <td className="px-4 py-4 font-bold">{project.name}</td>
                 <td className="px-4 py-4 text-muted-foreground">
@@ -91,12 +93,17 @@ export default async function AdminProjectsPage({
             ))}
           </tbody>
         </table>
-        {!projects.length ? (
+        {!projectPage.items.length ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
             No projects in this view.
           </p>
         ) : null}
       </div>
+      <CursorPagination
+        page={projectPage}
+        basePath="/admin/projects"
+        preservedParams={{ status: active === "all" ? undefined : active }}
+      />
     </div>
   );
 }

@@ -3,12 +3,10 @@ import "server-only";
 import { del, head } from "@vercel/blob";
 
 import { getServerEnv } from "@/lib/env";
-import type { UploadIntent } from "@/lib/upload-intent";
+import { imageUploadPolicy, type UploadKind } from "@/lib/image-policy";
 
-const MEBIBYTE = 1024 * 1024;
-
-export function uploadLimit(kind: UploadIntent["kind"]) {
-  return kind === "avatar" ? 2 * MEBIBYTE : 5 * MEBIBYTE;
+export function uploadLimit(kind: UploadKind) {
+  return imageUploadPolicy(kind).maxBytes;
 }
 
 export async function inspectBlob(url: string) {

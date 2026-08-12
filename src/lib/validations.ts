@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { UPLOAD_KINDS } from "@/lib/image-policy";
+
 export const RESERVED_USERNAMES = new Set([
   "admin",
   "api",
@@ -110,23 +112,13 @@ export const rejectionSchema = z.object({
   reason: z.string().trim().min(3).max(2000),
 });
 
-export const uploadKindSchema = z.enum([
-  "avatar",
-  "project-image",
-  "iteration-image",
-]);
+export const uploadKindSchema = z.enum(UPLOAD_KINDS);
 
 export const uploadPayloadSchema = z.object({
   kind: uploadKindSchema,
   projectId: z.uuid().optional(),
   iterationId: z.uuid().optional(),
 });
-
-export const ALLOWED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-] as const;
 
 export function normalizeUrl(value: string) {
   const url = new URL(value.trim());

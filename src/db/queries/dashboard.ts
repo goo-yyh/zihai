@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -93,23 +93,19 @@ export async function getOwnedIteration(iterationId: string, ownerId: string) {
 }
 
 export async function getImagePathnamesForProject(projectId: string) {
-  const iterations = await db
-    .select({ id: projectIterations.id })
-    .from(projectIterations)
-    .where(eq(projectIterations.projectId, projectId));
-  const iterationIds = iterations.map((item) => item.id);
-
   const [projectRows, iterationRows] = await Promise.all([
     db
       .select({ pathname: projectImages.blobPathname })
       .from(projectImages)
       .where(eq(projectImages.projectId, projectId)),
-    iterationIds.length
-      ? db
-          .select({ pathname: iterationImages.blobPathname })
-          .from(iterationImages)
-          .where(inArray(iterationImages.iterationId, iterationIds))
-      : Promise.resolve([]),
+    db
+      .select({ pathname: iterationImages.blobPathname })
+      .from(iterationImages)
+      .innerJoin(
+        projectIterations,
+        eq(iterationImages.iterationId, projectIterations.id),
+      )
+      .where(eq(projectIterations.projectId, projectId)),
   ]);
 
   return [...projectRows, ...iterationRows].map((item) => item.pathname);

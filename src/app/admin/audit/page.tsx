@@ -1,18 +1,62 @@
+import { Search } from "lucide-react";
+
+import { CursorPagination } from "@/components/admin/cursor-pagination";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { getAuditLogs } from "@/db/queries/admin";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
-export default async function AuditPage() {
+export default async function AuditPage({
+  searchParams,
+}: PageProps<"/admin/audit">) {
   await requireAdmin();
-  const logs = await getAuditLogs();
+  const { cursor, q, target } = await searchParams;
+  const search = typeof q === "string" ? q.slice(0, 100) : "";
+  const targetType =
+    target === "project" || target === "iteration" || target === "user"
+      ? target
+      : undefined;
+  const logPage = await getAuditLogs(
+    { search, targetType },
+    { cursor: typeof cursor === "string" ? cursor : undefined },
+  );
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-black tracking-tight">Audit log</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          The latest 500 moderation and access-control events.
+          Moderation and access-control events, newest first.
         </p>
       </div>
+      <form
+        className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_auto]"
+        action="/admin/audit"
+      >
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            name="q"
+            defaultValue={search}
+            className="pl-9"
+            placeholder="Search action, target, admin, or reason"
+          />
+        </div>
+        <select
+          name="target"
+          defaultValue={targetType || ""}
+          className="h-11 rounded-xl border bg-white px-3.5 text-sm shadow-sm focus:border-primary focus:outline-2 focus:outline-offset-1 focus:outline-ring"
+          aria-label="Target type"
+        >
+          <option value="">All target types</option>
+          <option value="project">Projects</option>
+          <option value="iteration">Iterations</option>
+          <option value="user">Users</option>
+        </select>
+        <Button type="submit" variant="outline">
+          Filter
+        </Button>
+      </form>
       <div className="overflow-x-auto rounded-2xl border bg-white">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="border-b bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
@@ -25,7 +69,7 @@ export default async function AuditPage() {
             </tr>
           </thead>
           <tbody>
-            {logs.map((log) => (
+            {logPage.items.map((log) => (
               <tr key={log.id} className="border-b last:border-0">
                 <td className="px-4 py-4 font-bold">
                   {log.action.replaceAll("_", " ")}
@@ -46,12 +90,20 @@ export default async function AuditPage() {
             ))}
           </tbody>
         </table>
-        {!logs.length ? (
+        {!logPage.items.length ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
             No moderation actions recorded yet.
           </p>
         ) : null}
       </div>
+      <CursorPagination
+        page={logPage}
+        basePath="/admin/audit"
+        preservedParams={{
+          q: search || undefined,
+          target: targetType,
+        }}
+      />
     </div>
   );
 }

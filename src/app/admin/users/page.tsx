@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import Link from "next/link";
 
+import { CursorPagination } from "@/components/admin/cursor-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +13,11 @@ export default async function AdminUsersPage({
   searchParams,
 }: PageProps<"/admin/users">) {
   await requireAdmin();
-  const { q } = await searchParams;
+  const { q, cursor } = await searchParams;
   const search = typeof q === "string" ? q.slice(0, 100) : "";
-  const users = await getAdminUsers(search);
+  const userPage = await getAdminUsers(search, {
+    cursor: typeof cursor === "string" ? cursor : undefined,
+  });
   return (
     <div className="space-y-6">
       <div>
@@ -50,7 +53,7 @@ export default async function AdminUsersPage({
             </tr>
           </thead>
           <tbody>
-            {users.map((profile) => (
+            {userPage.items.map((profile) => (
               <tr key={profile.id} className="border-b last:border-0">
                 <td className="px-4 py-4">
                   <p className="font-bold">
@@ -95,12 +98,17 @@ export default async function AdminUsersPage({
             ))}
           </tbody>
         </table>
-        {!users.length ? (
+        {!userPage.items.length ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
             No users match this search.
           </p>
         ) : null}
       </div>
+      <CursorPagination
+        page={userPage}
+        basePath="/admin/users"
+        preservedParams={{ q: search || undefined }}
+      />
     </div>
   );
 }

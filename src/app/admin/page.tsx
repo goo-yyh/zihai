@@ -17,10 +17,11 @@ import { formatDate } from "@/lib/utils";
 
 export default async function AdminPage() {
   await requireAdmin();
-  const [stats, pending] = await Promise.all([
+  const [stats, pendingPage] = await Promise.all([
     getAdminStats(),
-    getAdminProjects("pending"),
+    getAdminProjects("pending", { pageSize: 8 }),
   ]);
+  const pending = pendingPage.items;
   const cards = [
     ["Users", stats.users, Users],
     ["All projects", stats.projects, FolderKanban],
@@ -62,7 +63,7 @@ export default async function AdminPage() {
         </div>
         {pending.length ? (
           <div className="overflow-hidden rounded-2xl border bg-white">
-            {pending.slice(0, 8).map((project) => (
+            {pending.map((project) => (
               <Link
                 href={`/admin/projects/${project.id}`}
                 key={project.id}

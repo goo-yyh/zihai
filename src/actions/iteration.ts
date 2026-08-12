@@ -49,34 +49,36 @@ export async function createIterationAction(
 
   let iterationId: string;
   try {
-    const [project] = await db
-      .select({ id: projects.id, status: projects.status })
-      .from(projects)
-      .where(
-        and(
-          eq(projects.id, parsedProjectId.data),
-          eq(projects.ownerId, session.user.id),
-        ),
-      )
-      .limit(1);
-    if (!project) throw new UserFacingError("Project not found.");
-    if (project.status !== "approved") {
-      throw new UserFacingError(
-        "Iterations can only be added to approved projects.",
-      );
-    }
+    iterationId = await db.transaction(async (tx) => {
+      const [project] = await tx
+        .select({ id: projects.id, status: projects.status })
+        .from(projects)
+        .where(
+          and(
+            eq(projects.id, parsedProjectId.data),
+            eq(projects.ownerId, session.user.id),
+          ),
+        )
+        .for("update");
+      if (!project) throw new UserFacingError("Project not found.");
+      if (project.status !== "approved") {
+        throw new UserFacingError(
+          "Iterations can only be added to approved projects.",
+        );
+      }
 
-    const [iteration] = await db
-      .insert(projectIterations)
-      .values({
-        projectId: project.id,
-        ownerId: session.user.id,
-        versionLabel: parsed.data.versionLabel || null,
-        description: parsed.data.description,
-      })
-      .returning({ id: projectIterations.id });
-    if (!iteration) throw new Error("Insert returned no iteration.");
-    iterationId = iteration.id;
+      const [iteration] = await tx
+        .insert(projectIterations)
+        .values({
+          projectId: project.id,
+          ownerId: session.user.id,
+          versionLabel: parsed.data.versionLabel || null,
+          description: parsed.data.description,
+        })
+        .returning({ id: projectIterations.id });
+      if (!iteration) throw new Error("Insert returned no iteration.");
+      return iteration.id;
+    });
   } catch (error) {
     return safeActionError(error, "Unable to create the iteration.");
   }
@@ -101,36 +103,40 @@ export async function updateIterationAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const [existing] = await db
-      .select({
-        status: projectIterations.status,
-        projectId: projectIterations.projectId,
-        projectSlug: projects.slug,
-      })
-      .from(projectIterations)
-      .innerJoin(projects, eq(projectIterations.projectId, projects.id))
-      .where(
-        and(
-          eq(projectIterations.id, parsedId.data),
-          eq(projectIterations.ownerId, session.user.id),
-        ),
-      )
-      .limit(1);
-    if (!existing) throw new UserFacingError("Iteration not found.");
+    const existing = await db.transaction(async (tx) => {
+      const [ownedIteration] = await tx
+        .select({
+          status: projectIterations.status,
+          projectId: projectIterations.projectId,
+          projectSlug: projects.slug,
+        })
+        .from(projectIterations)
+        .innerJoin(projects, eq(projectIterations.projectId, projects.id))
+        .where(
+          and(
+            eq(projectIterations.id, parsedId.data),
+            eq(projectIterations.ownerId, session.user.id),
+          ),
+        )
+        .for("update");
+      if (!ownedIteration) throw new UserFacingError("Iteration not found.");
 
-    await db
-      .update(projectIterations)
-      .set({
-        versionLabel: parsed.data.versionLabel || null,
-        description: parsed.data.description,
-        ...iterationContentEditPatch(existing.status),
-      })
-      .where(
-        and(
-          eq(projectIterations.id, parsedId.data),
-          eq(projectIterations.ownerId, session.user.id),
-        ),
-      );
+      await tx
+        .update(projectIterations)
+        .set({
+          versionLabel: parsed.data.versionLabel || null,
+          description: parsed.data.description,
+          ...iterationContentEditPatch(ownedIteration.status),
+        })
+        .where(
+          and(
+            eq(projectIterations.id, parsedId.data),
+            eq(projectIterations.ownerId, session.user.id),
+          ),
+        );
+
+      return ownedIteration;
+    });
 
     revalidateIterationWorkspace(existing.projectId, parsedId.data);
     revalidateProjectDetail(existing.projectSlug);
@@ -151,49 +157,56 @@ export async function submitIterationAction(iterationId: string) {
   const session = await assertOnboardedUser();
   const id = idSchema.parse(iterationId);
 
-  const [iteration] = await db
-    .select({
-      projectId: projectIterations.projectId,
-      status: projectIterations.status,
-      projectStatus: projects.status,
-    })
-    .from(projectIterations)
-    .innerJoin(projects, eq(projectIterations.projectId, projects.id))
-    .where(
-      and(
-        eq(projectIterations.id, id),
-        eq(projectIterations.ownerId, session.user.id),
-      ),
-    )
-    .limit(1);
-  if (!iteration) throw new UserFacingError("Iteration not found.");
-  if (iteration.projectStatus !== "approved") {
-    throw new UserFacingError(
-      "The project must be approved before submitting an iteration.",
-    );
-  }
-  assertSubmittable(iteration.status, "iteration");
+  const iteration = await db.transaction(async (tx) => {
+    // Upload callbacks lock the same iteration row, so image persistence
+    // cannot race between this count check and the submission transition.
+    const [ownedIteration] = await tx
+      .select({
+        projectId: projectIterations.projectId,
+        status: projectIterations.status,
+        projectStatus: projects.status,
+      })
+      .from(projectIterations)
+      .innerJoin(projects, eq(projectIterations.projectId, projects.id))
+      .where(
+        and(
+          eq(projectIterations.id, id),
+          eq(projectIterations.ownerId, session.user.id),
+        ),
+      )
+      .for("update");
+    if (!ownedIteration) throw new UserFacingError("Iteration not found.");
+    if (ownedIteration.projectStatus !== "approved") {
+      throw new UserFacingError(
+        "The project must be approved before submitting an iteration.",
+      );
+    }
+    assertSubmittable(ownedIteration.status, "iteration");
 
-  const [images] = await db
-    .select({ value: count() })
-    .from(iterationImages)
-    .where(eq(iterationImages.iterationId, id));
-  assertImageCount(images?.value ?? 0, "Iteration");
+    const [images] = await tx
+      .select({ value: count() })
+      .from(iterationImages)
+      .where(eq(iterationImages.iterationId, id));
+    assertImageCount(images?.value ?? 0, "Iteration");
 
-  await db
-    .update(projectIterations)
-    .set({
-      status: "pending",
-      rejectionReason: null,
-      submittedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(projectIterations.id, id),
-        eq(projectIterations.ownerId, session.user.id),
-      ),
-    );
+    const now = new Date();
+    await tx
+      .update(projectIterations)
+      .set({
+        status: "pending",
+        rejectionReason: null,
+        submittedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(projectIterations.id, id),
+          eq(projectIterations.ownerId, session.user.id),
+        ),
+      );
+
+    return ownedIteration;
+  });
 
   revalidateIterationWorkspace(iteration.projectId, id);
   redirect(

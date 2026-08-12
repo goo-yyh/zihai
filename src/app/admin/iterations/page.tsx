@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CursorPagination } from "@/components/admin/cursor-pagination";
 import { Badge } from "@/components/ui/badge";
 import { getAdminIterations } from "@/db/queries/admin";
 import { requireAdmin } from "@/lib/session";
@@ -11,14 +12,15 @@ export default async function AdminIterationsPage({
   searchParams,
 }: PageProps<"/admin/iterations">) {
   await requireAdmin();
-  const { status } = await searchParams;
+  const { status, cursor } = await searchParams;
   const active =
     typeof status === "string" &&
     statuses.includes(status as (typeof statuses)[number])
       ? status
       : "all";
-  const iterations = await getAdminIterations(
+  const iterationPage = await getAdminIterations(
     active === "all" ? undefined : active,
+    { cursor: typeof cursor === "string" ? cursor : undefined },
   );
   return (
     <div className="space-y-6">
@@ -49,7 +51,7 @@ export default async function AdminIterationsPage({
         ))}
       </nav>
       <div className="space-y-3">
-        {iterations.map((iteration) => (
+        {iterationPage.items.map((iteration) => (
           <Link
             key={iteration.id}
             href={`/admin/iterations/${iteration.id}`}
@@ -75,12 +77,17 @@ export default async function AdminIterationsPage({
             <Badge variant={iteration.status}>{iteration.status}</Badge>
           </Link>
         ))}
-        {!iterations.length ? (
+        {!iterationPage.items.length ? (
           <p className="rounded-2xl border border-dashed bg-white/60 p-8 text-center text-sm text-muted-foreground">
             No iterations in this view.
           </p>
         ) : null}
       </div>
+      <CursorPagination
+        page={iterationPage}
+        basePath="/admin/iterations"
+        preservedParams={{ status: active === "all" ? undefined : active }}
+      />
     </div>
   );
 }

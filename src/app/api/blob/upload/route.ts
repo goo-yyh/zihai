@@ -5,8 +5,9 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { getServerEnv } from "@/lib/env";
 import { publicErrorMessage, UserFacingError } from "@/lib/errors";
+import { ALLOWED_IMAGE_TYPES } from "@/lib/image-policy";
 import { verifyUploadIntent } from "@/lib/upload-intent";
-import { ALLOWED_IMAGE_TYPES, uploadKindSchema } from "@/lib/validations";
+import { uploadKindSchema } from "@/lib/validations";
 import { deleteBlobsBestEffort, uploadLimit } from "@/server/blob";
 import {
   revalidateIterationWorkspace,

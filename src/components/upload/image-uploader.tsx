@@ -7,10 +7,11 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { ALLOWED_IMAGE_TYPES, type uploadKindSchema } from "@/lib/validations";
-import type { z } from "zod";
-
-type UploadKind = z.infer<typeof uploadKindSchema>;
+import {
+  ALLOWED_IMAGE_TYPES,
+  imageUploadPolicy,
+  type UploadKind,
+} from "@/lib/image-policy";
 
 export function ImageUploader({
   kind,
@@ -28,8 +29,7 @@ export function ImageUploader({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<string | null>(null);
-  const maxFiles = kind === "avatar" ? 1 : 3;
-  const maxBytes = kind === "avatar" ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
+  const { maxFiles, maxBytes } = imageUploadPolicy(kind);
 
   async function chooseFiles(files: FileList | null) {
     if (!files?.length) return;

@@ -60,6 +60,28 @@ export async function getPopularProjects(limit = 6) {
     .limit(limit);
 }
 
+export async function getPublicProjectMetadata(slug: string) {
+  const [project] = await db
+    .select({
+      name: projects.name,
+      slug: projects.slug,
+      description: projects.description,
+      imageUrl: projectImages.blobUrl,
+    })
+    .from(projects)
+    .innerJoin(
+      projectImages,
+      and(
+        eq(projectImages.projectId, projects.id),
+        eq(projectImages.sortOrder, 0),
+      ),
+    )
+    .where(and(eq(projects.slug, slug), eq(projects.status, "approved")))
+    .limit(1);
+
+  return project ?? null;
+}
+
 export async function getPublicProject(slug: string, viewerId?: string) {
   const [project] = await db
     .select({
@@ -142,6 +164,15 @@ export async function getPublicProject(slug: string, viewerId?: string) {
         .where(inArray(iterationImages.iterationId, iterationIds))
         .orderBy(asc(iterationImages.sortOrder))
     : [];
+  const imagesByIteration = new Map<
+    string,
+    (typeof allIterationImages)[number][]
+  >();
+  for (const image of allIterationImages) {
+    const images = imagesByIteration.get(image.iterationId) ?? [];
+    images.push(image);
+    imagesByIteration.set(image.iterationId, images);
+  }
 
   return {
     ...project,
@@ -150,11 +181,24 @@ export async function getPublicProject(slug: string, viewerId?: string) {
     viewerLiked: viewerLike.length > 0,
     iterations: approvedIterations.map((iteration) => ({
       ...iteration,
-      images: allIterationImages.filter(
-        (image) => image.iterationId === iteration.id,
-      ),
+      images: imagesByIteration.get(iteration.id) ?? [],
     })),
   };
+}
+
+export async function getPublicProfileMetadata(username: string) {
+  const [profile] = await db
+    .select({ username: user.username })
+    .from(user)
+    .where(
+      and(
+        eq(user.username, username.toLowerCase()),
+        eq(user.onboardingCompleted, true),
+      ),
+    )
+    .limit(1);
+
+  return profile?.username ? { username: profile.username } : null;
 }
 
 export async function getPublicProfile(username: string) {

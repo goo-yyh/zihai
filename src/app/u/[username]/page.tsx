@@ -4,14 +4,17 @@ import { notFound } from "next/navigation";
 
 import { ProjectGrid } from "@/components/project/project-grid";
 import { Avatar } from "@/components/ui/avatar";
-import { getPublicProfile } from "@/db/queries/public";
+import {
+  getPublicProfile,
+  getPublicProfileMetadata,
+} from "@/db/queries/public";
 import { formatDate } from "@/lib/utils";
 
 export async function generateMetadata({
   params,
 }: PageProps<"/u/[username]">): Promise<Metadata> {
   const { username } = await params;
-  const profile = await getPublicProfile(username);
+  const profile = await getPublicProfileMetadata(username);
   if (!profile)
     return {
       title: "Builder not found",
