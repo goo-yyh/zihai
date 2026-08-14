@@ -22,19 +22,10 @@ describe("parseServerEnv", () => {
     );
   });
 
-  it("supplies non-secret defaults only during a production build", () => {
-    const environment = parseServerEnv({
-      NEXT_PHASE: "phase-production-build",
-    });
-
-    expect(environment.DATABASE_URL).toContain(".invalid");
-    expect(environment.BETTER_AUTH_SECRET.length).toBeGreaterThanOrEqual(32);
-  });
-
-  it("does not replace invalid values explicitly supplied to a build", () => {
+  it("rejects invalid values", () => {
     expect(() =>
       parseServerEnv({
-        NEXT_PHASE: "phase-production-build",
+        ...validEnvironment,
         BETTER_AUTH_URL: "not-a-url",
       }),
     ).toThrow("Missing or invalid server environment: BETTER_AUTH_URL");

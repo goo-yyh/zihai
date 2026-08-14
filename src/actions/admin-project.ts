@@ -6,7 +6,7 @@ import { and, count, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { moderationLogs, projectImages, projects, user } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
 import { assertImageCount } from "@/lib/content-lifecycle";
@@ -22,7 +22,7 @@ import type { ActionState } from "@/types/actions";
 const idSchema = z.uuid();
 
 async function ownerUsername(ownerId: string) {
-  const [owner] = await db
+  const [owner] = await getDb()
     .select({ username: user.username })
     .from(user)
     .where(eq(user.id, ownerId))
@@ -34,7 +34,7 @@ export async function approveProjectAction(projectId: string) {
   const session = await assertAdmin();
   const id = idSchema.parse(projectId);
 
-  const project = await db.transaction(async (tx) => {
+  const project = await getDb().transaction(async (tx) => {
     const [pendingProject] = await tx
       .select({
         status: projects.status,
@@ -93,7 +93,7 @@ export async function rejectProjectAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const project = await db.transaction(async (tx) => {
+    const project = await getDb().transaction(async (tx) => {
       const [pendingProject] = await tx
         .select({
           status: projects.status,

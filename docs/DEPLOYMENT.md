@@ -41,10 +41,10 @@ The initial migration includes concurrency-safe image-count triggers and integri
 pnpm check
 ```
 
-The production build uses non-secret placeholders only while Next.js collects
-dynamic route configuration. Every deployed runtime still requires the real
-server environment variables from this document; a successful build does not
-prove that OAuth, PostgreSQL, or Blob access is configured.
+The production build does not initialize the database or authentication service.
+Every deployed runtime still requires the real server environment variables from
+this document; a successful build does not prove that OAuth, PostgreSQL, or Blob
+access is configured.
 
 Deploy the same commit verified by CI. After deployment:
 

@@ -13,7 +13,7 @@ import {
   type SQLWrapper,
 } from "drizzle-orm";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   account,
   ITERATION_STATUSES,
@@ -73,7 +73,7 @@ function paginationOptions(options: AdminPageOptions, idKind: CursorIdKind) {
 }
 
 export async function getAdminStats() {
-  const [stats] = await db
+  const [stats] = await getDb()
     .select({
       users: sql<number>`(select count(*)::int from ${user})`,
       projects: sql<number>`count(*)::int`,
@@ -106,7 +106,7 @@ export async function getAdminProjects(
   const { cursor, pageSize } = paginationOptions(options, "uuid");
   const previous = cursor?.direction === "previous";
 
-  const rows = await db
+  const rows = await getDb()
     .select({
       id: projects.id,
       name: projects.name,
@@ -141,7 +141,7 @@ export async function getAdminProjects(
 }
 
 export async function getAdminProject(projectId: string) {
-  const [project] = await db
+  const [project] = await getDb()
     .select({
       id: projects.id,
       name: projects.name,
@@ -167,12 +167,12 @@ export async function getAdminProject(projectId: string) {
   if (!project) return null;
 
   const [images, logs] = await Promise.all([
-    db
+    getDb()
       .select()
       .from(projectImages)
       .where(eq(projectImages.projectId, projectId))
       .orderBy(projectImages.sortOrder),
-    db
+    getDb()
       .select()
       .from(moderationLogs)
       .where(
@@ -195,7 +195,7 @@ export async function getAdminIterations(
   const { cursor, pageSize } = paginationOptions(options, "uuid");
   const previous = cursor?.direction === "previous";
 
-  const rows = await db
+  const rows = await getDb()
     .select({
       id: projectIterations.id,
       projectId: projectIterations.projectId,
@@ -237,7 +237,7 @@ export async function getAdminIterations(
 }
 
 export async function getAdminIteration(iterationId: string) {
-  const [iteration] = await db
+  const [iteration] = await getDb()
     .select({
       id: projectIterations.id,
       projectId: projectIterations.projectId,
@@ -264,12 +264,12 @@ export async function getAdminIteration(iterationId: string) {
   if (!iteration) return null;
 
   const [images, logs] = await Promise.all([
-    db
+    getDb()
       .select()
       .from(iterationImages)
       .where(eq(iterationImages.iterationId, iterationId))
       .orderBy(iterationImages.sortOrder),
-    db
+    getDb()
       .select()
       .from(moderationLogs)
       .where(
@@ -297,7 +297,7 @@ export async function getAdminUsers(
   const { cursor, pageSize } = paginationOptions(options, "text");
   const previous = cursor?.direction === "previous";
 
-  const rows = await db
+  const rows = await getDb()
     .select({
       id: user.id,
       email: user.email,
@@ -331,7 +331,7 @@ export async function getAdminUsers(
 
 export async function getAdminUser(userId: string) {
   const [profileRows, ownedProjects] = await Promise.all([
-    db
+    getDb()
       .select({
         id: user.id,
         email: user.email,
@@ -351,7 +351,7 @@ export async function getAdminUser(userId: string) {
       .where(eq(user.id, userId))
       .groupBy(user.id)
       .limit(1),
-    db
+    getDb()
       .select({
         id: projects.id,
         name: projects.name,
@@ -386,7 +386,7 @@ export async function getAuditLogs(
         ilike(user.username, `%${search}%`),
       )
     : undefined;
-  const rows = await db
+  const rows = await getDb()
     .select({
       id: moderationLogs.id,
       action: moderationLogs.action,

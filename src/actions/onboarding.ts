@@ -7,10 +7,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { account, user } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { safeReturnPath } from "@/lib/navigation";
 import { assertUser } from "@/lib/session";
 import { passwordSchema, usernameSchema } from "@/lib/validations";
@@ -46,12 +46,12 @@ export async function completeOnboardingAction(
   try {
     const requestHeaders = await headers();
     const [freshUser, credential] = await Promise.all([
-      db
+      getDb()
         .select({ image: user.image })
         .from(user)
         .where(eq(user.id, session.user.id))
         .limit(1),
-      db
+      getDb()
         .select({ id: account.id })
         .from(account)
         .where(
@@ -69,7 +69,7 @@ export async function completeOnboardingAction(
       };
     }
 
-    await auth.api.updateUser({
+    await getAuth().api.updateUser({
       headers: requestHeaders,
       body: {
         name: parsed.data.username,
@@ -78,13 +78,13 @@ export async function completeOnboardingAction(
       },
     });
     if (!credential[0]) {
-      await auth.api.setPassword({
+      await getAuth().api.setPassword({
         headers: requestHeaders,
         body: { newPassword: parsed.data.password },
       });
     }
 
-    await db
+    await getDb()
       .update(user)
       .set({ onboardingCompleted: true, updatedAt: new Date() })
       .where(eq(user.id, session.user.id));

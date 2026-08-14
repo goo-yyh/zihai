@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, eq, max } from "drizzle-orm";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -68,14 +68,14 @@ export async function persistUpload(
   const metadata = await verifiedBlobMetadata(blob, intent);
 
   if (intent.kind === "avatar") {
-    const [existing] = await db
+    const [existing] = await getDb()
       .select({ pathname: user.avatarPathname, username: user.username })
       .from(user)
       .where(eq(user.id, intent.userId))
       .limit(1);
     if (!existing) throw new UserFacingError("User not found.");
 
-    await db
+    await getDb()
       .update(user)
       .set({
         image: blob.url,
@@ -93,7 +93,7 @@ export async function persistUpload(
   await validateUploadOwnership(intent);
 
   if (intent.kind === "project-image" && intent.projectId) {
-    const project = await db.transaction(async (tx) => {
+    const project = await getDb().transaction(async (tx) => {
       const [ownedProject] = await tx
         .select({ status: projects.status, slug: projects.slug })
         .from(projects)
@@ -125,7 +125,7 @@ export async function persistUpload(
 
       return ownedProject;
     });
-    const [owner] = await db
+    const [owner] = await getDb()
       .select({ username: user.username })
       .from(user)
       .where(eq(user.id, intent.userId))
@@ -143,7 +143,7 @@ export async function persistUpload(
     throw new UserFacingError("Iteration and project are required.");
   }
 
-  const projectSlug = await db.transaction(async (tx) => {
+  const projectSlug = await getDb().transaction(async (tx) => {
     const [iteration] = await tx
       .select({
         status: projectIterations.status,

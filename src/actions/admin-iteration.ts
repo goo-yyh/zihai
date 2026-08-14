@@ -6,7 +6,7 @@ import { and, count, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   iterationImages,
   moderationLogs,
@@ -30,7 +30,7 @@ export async function approveIterationAction(iterationId: string) {
   const session = await assertAdmin();
   const id = idSchema.parse(iterationId);
 
-  const iteration = await db.transaction(async (tx) => {
+  const iteration = await getDb().transaction(async (tx) => {
     const [pendingIteration] = await tx
       .select({
         status: projectIterations.status,
@@ -96,7 +96,7 @@ export async function rejectIterationAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const iteration = await db.transaction(async (tx) => {
+    const iteration = await getDb().transaction(async (tx) => {
       const [pendingIteration] = await tx
         .select({
           status: projectIterations.status,
