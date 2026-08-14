@@ -168,7 +168,7 @@ pnpm format
 pnpm check
 ```
 
-`pnpm check` 的生产构建会校验服务端环境变量；本机需要先配置 `.env.local`。CI 使用隔离的占位配置完成静态构建验证，不会连接生产服务。
+`pnpm check` 的生产构建在 Next.js 收集动态路由配置时使用仓库内置的非密钥占位值，不会连接数据库、OAuth 或 Blob 服务；启动后的服务端请求仍会严格校验全部必需变量。本地功能验证和 Vercel Preview/Production 运行环境必须配置真实且隔离的变量，构建成功不代表运行时配置完整。
 
 ## 数据库变更
 
