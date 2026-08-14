@@ -5,7 +5,7 @@ import "server-only";
 import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { projectLikes, projects, user } from "@/db/schema";
 import { UserFacingError } from "@/lib/errors";
 import { assertOnboardedUser } from "@/lib/session";
@@ -15,7 +15,7 @@ export async function toggleLikeAction(projectId: string) {
   const current = await assertOnboardedUser();
   const id = z.uuid().parse(projectId);
 
-  const result = await db.transaction(async (tx) => {
+  const result = await getDb().transaction(async (tx) => {
     const [project] = await tx
       .select({
         id: projects.id,

@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -27,7 +27,7 @@ const cardSelection = {
 };
 
 function cardQuery(ownerId?: string) {
-  return db
+  return getDb()
     .select(cardSelection)
     .from(projects)
     .innerJoin(user, eq(projects.ownerId, user.id))
@@ -61,7 +61,7 @@ export async function getPopularProjects(limit = 6) {
 }
 
 export async function getPublicProjectMetadata(slug: string) {
-  const [project] = await db
+  const [project] = await getDb()
     .select({
       name: projects.name,
       slug: projects.slug,
@@ -83,7 +83,7 @@ export async function getPublicProjectMetadata(slug: string) {
 }
 
 export async function getPublicProject(slug: string, viewerId?: string) {
-  const [project] = await db
+  const [project] = await getDb()
     .select({
       id: projects.id,
       name: projects.name,
@@ -105,7 +105,7 @@ export async function getPublicProject(slug: string, viewerId?: string) {
   if (!project) return null;
 
   const [images, approvedIterations, likes, viewerLike] = await Promise.all([
-    db
+    getDb()
       .select({
         id: projectImages.id,
         url: projectImages.blobUrl,
@@ -114,7 +114,7 @@ export async function getPublicProject(slug: string, viewerId?: string) {
       .from(projectImages)
       .where(eq(projectImages.projectId, project.id))
       .orderBy(asc(projectImages.sortOrder)),
-    db
+    getDb()
       .select({
         id: projectIterations.id,
         versionLabel: projectIterations.versionLabel,
@@ -133,12 +133,12 @@ export async function getPublicProject(slug: string, viewerId?: string) {
         desc(projectIterations.approvedAt),
         desc(projectIterations.createdAt),
       ),
-    db
+    getDb()
       .select({ count: count() })
       .from(projectLikes)
       .where(eq(projectLikes.projectId, project.id)),
     viewerId
-      ? db
+      ? getDb()
           .select({ userId: projectLikes.userId })
           .from(projectLikes)
           .where(
@@ -153,7 +153,7 @@ export async function getPublicProject(slug: string, viewerId?: string) {
 
   const iterationIds = approvedIterations.map((item) => item.id);
   const allIterationImages = iterationIds.length
-    ? await db
+    ? await getDb()
         .select({
           id: iterationImages.id,
           iterationId: iterationImages.iterationId,
@@ -187,7 +187,7 @@ export async function getPublicProject(slug: string, viewerId?: string) {
 }
 
 export async function getPublicProfileMetadata(username: string) {
-  const [profile] = await db
+  const [profile] = await getDb()
     .select({ username: user.username })
     .from(user)
     .where(
@@ -202,7 +202,7 @@ export async function getPublicProfileMetadata(username: string) {
 }
 
 export async function getPublicProfile(username: string) {
-  const [profile] = await db
+  const [profile] = await getDb()
     .select({
       id: user.id,
       username: user.username,
@@ -229,11 +229,11 @@ export async function getPublicProfile(username: string) {
 
 export async function getSitemapEntries() {
   const [projectRows, userRows] = await Promise.all([
-    db
+    getDb()
       .select({ slug: projects.slug, updatedAt: projects.updatedAt })
       .from(projects)
       .where(eq(projects.status, "approved")),
-    db
+    getDb()
       .select({ username: user.username, updatedAt: user.updatedAt })
       .from(user)
       .where(eq(user.onboardingCompleted, true)),

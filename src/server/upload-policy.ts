@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, count, eq } from "drizzle-orm";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -50,7 +50,7 @@ export async function validateUploadOwnership(intent: UploadIntent) {
   if (intent.kind === "project-image") {
     if (!intent.projectId) throw new UserFacingError("Project is required.");
 
-    const [project] = await db
+    const [project] = await getDb()
       .select({ id: projects.id })
       .from(projects)
       .where(
@@ -62,7 +62,7 @@ export async function validateUploadOwnership(intent: UploadIntent) {
       .limit(1);
     if (!project) throw new UserFacingError("Project not found.");
 
-    const [images] = await db
+    const [images] = await getDb()
       .select({ value: count() })
       .from(projectImages)
       .where(eq(projectImages.projectId, intent.projectId));
@@ -78,7 +78,7 @@ export async function validateUploadOwnership(intent: UploadIntent) {
     throw new UserFacingError("Iteration and project are required.");
   }
 
-  const [iteration] = await db
+  const [iteration] = await getDb()
     .select({ id: projectIterations.id })
     .from(projectIterations)
     .where(
@@ -91,7 +91,7 @@ export async function validateUploadOwnership(intent: UploadIntent) {
     .limit(1);
   if (!iteration) throw new UserFacingError("Iteration not found.");
 
-  const [images] = await db
+  const [images] = await getDb()
     .select({ value: count() })
     .from(iterationImages)
     .where(eq(iterationImages.iterationId, intent.iterationId));

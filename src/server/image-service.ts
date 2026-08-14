@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, eq } from "drizzle-orm";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -44,7 +44,7 @@ export async function deleteOwnedProjectImage(
   imageId: string,
   ownerId: string,
 ) {
-  const [image] = await db
+  const [image] = await getDb()
     .select({
       id: projectImages.id,
       pathname: projectImages.blobPathname,
@@ -61,7 +61,7 @@ export async function deleteOwnedProjectImage(
   // guarantees a successful action never leaves an orphaned object.
   await deleteBlobs(image.pathname);
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     const [project] = await tx
       .select({ status: projects.status })
       .from(projects)
@@ -100,7 +100,7 @@ export async function reorderOwnedProjectImages(
   orderedImageIds: string[],
   ownerId: string,
 ) {
-  return db.transaction(async (tx) => {
+  return getDb().transaction(async (tx) => {
     const [project] = await tx
       .select({ status: projects.status, slug: projects.slug })
       .from(projects)
@@ -136,7 +136,7 @@ export async function deleteOwnedIterationImage(
   imageId: string,
   ownerId: string,
 ) {
-  const [image] = await db
+  const [image] = await getDb()
     .select({
       id: iterationImages.id,
       pathname: iterationImages.blobPathname,
@@ -161,7 +161,7 @@ export async function deleteOwnedIterationImage(
 
   await deleteBlobs(image.pathname);
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     const [iteration] = await tx
       .select({ status: projectIterations.status })
       .from(projectIterations)
@@ -207,7 +207,7 @@ export async function reorderOwnedIterationImages(
   orderedImageIds: string[],
   ownerId: string,
 ) {
-  return db.transaction(async (tx) => {
+  return getDb().transaction(async (tx) => {
     const [iteration] = await tx
       .select({
         status: projectIterations.status,

@@ -53,6 +53,10 @@ Server modules begin with `import "server-only"` and must not be imported by cli
 
 `schema` defines storage and inferred database types. `queries` contains named, screen-oriented read models. Reusable reads belong here instead of in `page.tsx`; mutations with broader business meaning belong in an Action or server service. Large administrative collections use bounded keyset pagination with a timestamp plus stable ID tie-breaker; filters and search terms remain part of the page URL while cursors only describe position.
 
+The database client is created lazily through `getDb()`. Importing a query or
+Action module during route discovery does not read runtime credentials; the first
+database operation still validates the complete server environment.
+
 ### `src/lib`
 
 `lib` contains focused shared rules and utilities. In particular, `content-lifecycle.ts` is the single source of truth for what happens when moderated public content changes, while `image-policy.ts` owns the MIME, file-count, and byte limits shared by browser and server upload code. Do not duplicate those rules in Actions, upload callbacks, or components.
@@ -60,6 +64,10 @@ Server modules begin with `import "server-only"` and must not be imported by cli
 ## Authentication and authorization
 
 Better Auth owns users, sessions, OAuth accounts, credentials, bans, and role-compatible fields.
+
+The Better Auth server instance follows the same request-time boundary through
+`getAuth()`, so builds can inspect route modules without initializing OAuth or the
+database.
 
 - `requireUser`, `requireOnboardedUser`, and `requireAdmin` guard pages with redirects.
 - `assertUser`, `assertOnboardedUser`, and `assertAdmin` guard mutations with errors.

@@ -6,7 +6,7 @@ import { and, count, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { getImagePathnamesForProject } from "@/db/queries/dashboard";
 import { projectImages, projects } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
@@ -33,7 +33,7 @@ async function createUniqueSlug(name: string) {
 
   for (let attempt = 0; attempt < 25; attempt += 1) {
     const slug = withSlugSuffix(base, attempt);
-    const [existing] = await db
+    const [existing] = await getDb()
       .select({ id: projects.id })
       .from(projects)
       .where(eq(projects.slug, slug))
@@ -63,7 +63,7 @@ export async function createProjectAction(
 
   let projectId: string;
   try {
-    const [project] = await db
+    const [project] = await getDb()
       .insert(projects)
       .values({
         ownerId: session.user.id,
@@ -95,7 +95,7 @@ export async function updateProjectAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const existing = await db.transaction(async (tx) => {
+    const existing = await getDb().transaction(async (tx) => {
       const [ownedProject] = await tx
         .select({ status: projects.status, slug: projects.slug })
         .from(projects)
@@ -144,7 +144,7 @@ export async function submitProjectAction(projectId: string) {
   const session = await assertOnboardedUser();
   const id = idSchema.parse(projectId);
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     // Upload callbacks lock the same project row, so the image-count check and
     // submission transition observe one serialized state.
     const [project] = await tx
@@ -181,7 +181,7 @@ export async function deleteProjectAction(projectId: string) {
   const session = await assertOnboardedUser();
   const id = idSchema.parse(projectId);
 
-  const [project] = await db
+  const [project] = await getDb()
     .select({ slug: projects.slug })
     .from(projects)
     .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)))
@@ -189,7 +189,7 @@ export async function deleteProjectAction(projectId: string) {
   if (!project) throw new UserFacingError("Project not found.");
 
   await deleteBlobs(await getImagePathnamesForProject(id));
-  await db
+  await getDb()
     .delete(projects)
     .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)));
 

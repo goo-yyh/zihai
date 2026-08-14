@@ -13,12 +13,11 @@ const serverEnvSchema = z.object({
   BLOB_READ_WRITE_TOKEN: z.string().min(1),
 });
 
-let cachedEnv: z.infer<typeof serverEnvSchema> | undefined;
+export function parseServerEnv(
+  environment: Readonly<Record<string, string | undefined>>,
+) {
+  const parsed = serverEnvSchema.safeParse(environment);
 
-export function getServerEnv() {
-  if (cachedEnv) return cachedEnv;
-
-  const parsed = serverEnvSchema.safeParse(process.env);
   if (!parsed.success) {
     const keys = parsed.error.issues.map((issue) => issue.path.join("."));
     throw new Error(
@@ -26,6 +25,14 @@ export function getServerEnv() {
     );
   }
 
-  cachedEnv = parsed.data;
+  return parsed.data;
+}
+
+let cachedEnv: z.infer<typeof serverEnvSchema> | undefined;
+
+export function getServerEnv() {
+  if (cachedEnv) return cachedEnv;
+
+  cachedEnv = parseServerEnv(process.env);
   return cachedEnv;
 }

@@ -4,12 +4,13 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { UserFacingError } from "@/lib/errors";
 
-export const getSession = cache(async () =>
-  auth.api.getSession({ headers: await headers() }),
-);
+export const getSession = cache(async () => {
+  const requestHeaders = await headers();
+  return getAuth().api.getSession({ headers: requestHeaders });
+});
 
 export async function requireUser() {
   const current = await getSession();
@@ -30,7 +31,8 @@ export async function requireAdmin() {
 }
 
 export async function assertUser() {
-  const current = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const current = await getAuth().api.getSession({ headers: requestHeaders });
   if (!current) throw new UserFacingError("Unauthorized");
   return current;
 }

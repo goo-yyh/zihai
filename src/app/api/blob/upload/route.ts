@@ -2,7 +2,7 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { getServerEnv } from "@/lib/env";
 import { publicErrorMessage, UserFacingError } from "@/lib/errors";
 import { ALLOWED_IMAGE_TYPES } from "@/lib/image-policy";
@@ -46,7 +46,7 @@ function refreshUploadConsumers(upload: PersistedUpload) {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session)
     return Response.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -90,7 +90,9 @@ export async function POST(request: NextRequest) {
       body,
       token: getServerEnv().BLOB_READ_WRITE_TOKEN,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        const session = await auth.api.getSession({ headers: request.headers });
+        const session = await getAuth().api.getSession({
+          headers: request.headers,
+        });
         if (!session) throw new UserFacingError("Unauthorized");
 
         const intent = await authorizeUpload(pathname, clientPayload, {

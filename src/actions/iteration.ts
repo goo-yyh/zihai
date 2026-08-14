@@ -6,7 +6,7 @@ import { and, count, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { iterationImages, projectIterations, projects } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
 import {
@@ -49,7 +49,7 @@ export async function createIterationAction(
 
   let iterationId: string;
   try {
-    iterationId = await db.transaction(async (tx) => {
+    iterationId = await getDb().transaction(async (tx) => {
       const [project] = await tx
         .select({ id: projects.id, status: projects.status })
         .from(projects)
@@ -103,7 +103,7 @@ export async function updateIterationAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const existing = await db.transaction(async (tx) => {
+    const existing = await getDb().transaction(async (tx) => {
       const [ownedIteration] = await tx
         .select({
           status: projectIterations.status,
@@ -157,7 +157,7 @@ export async function submitIterationAction(iterationId: string) {
   const session = await assertOnboardedUser();
   const id = idSchema.parse(iterationId);
 
-  const iteration = await db.transaction(async (tx) => {
+  const iteration = await getDb().transaction(async (tx) => {
     // Upload callbacks lock the same iteration row, so image persistence
     // cannot race between this count check and the submission transition.
     const [ownedIteration] = await tx
@@ -218,7 +218,7 @@ export async function deleteIterationAction(iterationId: string) {
   const session = await assertOnboardedUser();
   const id = idSchema.parse(iterationId);
 
-  const [iteration] = await db
+  const [iteration] = await getDb()
     .select({
       projectId: projectIterations.projectId,
       projectSlug: projects.slug,
@@ -234,12 +234,12 @@ export async function deleteIterationAction(iterationId: string) {
     .limit(1);
   if (!iteration) throw new UserFacingError("Iteration not found.");
 
-  const paths = await db
+  const paths = await getDb()
     .select({ pathname: iterationImages.blobPathname })
     .from(iterationImages)
     .where(eq(iterationImages.iterationId, id));
   await deleteBlobs(paths.map(({ pathname }) => pathname));
-  await db
+  await getDb()
     .delete(projectIterations)
     .where(
       and(

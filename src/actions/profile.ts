@@ -5,7 +5,7 @@ import "server-only";
 import { headers } from "next/headers";
 
 import { safeActionError, validationError } from "@/lib/action-utils";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { assertOnboardedUser } from "@/lib/session";
 import { usernameSchema } from "@/lib/validations";
 import { revalidateUserPresentation } from "@/server/cache";
@@ -20,7 +20,7 @@ export async function updateProfileAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    await auth.api.updateUser({
+    await getAuth().api.updateUser({
       headers: await headers(),
       body: {
         name: parsed.data,

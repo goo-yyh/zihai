@@ -6,6 +6,14 @@ import { getServerEnv } from "@/lib/env";
 
 import { schema } from "./schema";
 
-const env = getServerEnv();
+function createDatabase() {
+  return drizzle(getServerEnv().DATABASE_URL, { schema });
+}
 
-export const db = drizzle(env.DATABASE_URL, { schema });
+type Database = ReturnType<typeof createDatabase>;
+let cachedDatabase: Database | undefined;
+
+export function getDb() {
+  cachedDatabase ??= createDatabase();
+  return cachedDatabase;
+}
