@@ -1,13 +1,18 @@
-import { Check, Code2, ExternalLink } from "lucide-react";
+import { Archive, Check, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { approveProjectAction } from "@/actions/admin-project";
+import {
+  approveProjectAction,
+  archiveProjectAction,
+  republishProjectAction,
+} from "@/actions/admin-project";
 import { RejectionForm } from "@/components/admin/review-form";
 import { Avatar } from "@/components/ui/avatar";
+import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,14 +57,14 @@ export default async function AdminProjectPage({
           {project.websiteUrl ? (
             <Button asChild variant="outline">
               <a href={project.websiteUrl} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-4" /> {t("Inspect website")}
+                <ChromeIcon className="size-4" /> {t("Inspect website")}
               </a>
             </Button>
           ) : null}
           {project.githubUrl ? (
             <Button asChild variant="outline">
               <a href={project.githubUrl} target="_blank" rel="noreferrer">
-                <Code2 className="size-4" /> {t("Inspect repository")}
+                <GitHubIcon className="size-4" /> {t("Inspect repository")}
               </a>
             </Button>
           ) : null}
@@ -133,6 +138,42 @@ export default async function AdminProjectPage({
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
           <strong>{t("Rejection reason:")}</strong> {project.rejectionReason}
         </div>
+      ) : null}
+      {project.status === "approved" ? (
+        <form
+          action={archiveProjectAction.bind(null, project.id)}
+          className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4"
+        >
+          <p className="font-bold text-amber-900">
+            {t("Archive this project")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-amber-800">
+            {t(
+              "This immediately hides the project from the homepage, profile, and sitemap. You can republish it later.",
+            )}
+          </p>
+          <Button type="submit" variant="outline" className="mt-4">
+            <Archive className="size-4" /> {t("Archive")}
+          </Button>
+        </form>
+      ) : null}
+      {project.status === "archived" ? (
+        <form
+          action={republishProjectAction.bind(null, project.id)}
+          className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4"
+        >
+          <p className="font-bold text-emerald-900">
+            {t("Republish this project")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-emerald-800">
+            {t(
+              "This puts the archived project back on the homepage and profile after re-checking its images.",
+            )}
+          </p>
+          <Button type="submit" className="mt-4">
+            <RefreshCw className="size-4" /> {t("Republish")}
+          </Button>
+        </form>
       ) : null}
       {project.logs.length ? (
         <Card>
