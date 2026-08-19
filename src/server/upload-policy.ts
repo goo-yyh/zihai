@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { MAX_CONTENT_IMAGES } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
+import { assertFeatureEnabled } from "@/lib/features";
 import {
   extensionForContentType,
   signUploadIntent,
@@ -62,6 +63,18 @@ export async function validateUploadOwnership(intent: UploadIntent) {
       .limit(1);
     if (!project) throw new UserFacingError("Project not found.");
 
+    const [existingImage] = await getDb()
+      .select({ id: projectImages.id })
+      .from(projectImages)
+      .where(
+        and(
+          eq(projectImages.projectId, intent.projectId),
+          eq(projectImages.blobPathname, intent.pathname),
+        ),
+      )
+      .limit(1);
+    if (existingImage) return;
+
     const [images] = await getDb()
       .select({ value: count() })
       .from(projectImages)
@@ -74,6 +87,7 @@ export async function validateUploadOwnership(intent: UploadIntent) {
     return;
   }
 
+  assertFeatureEnabled("iterations");
   if (!intent.iterationId || !intent.projectId) {
     throw new UserFacingError("Iteration and project are required.");
   }
@@ -90,6 +104,18 @@ export async function validateUploadOwnership(intent: UploadIntent) {
     )
     .limit(1);
   if (!iteration) throw new UserFacingError("Iteration not found.");
+
+  const [existingImage] = await getDb()
+    .select({ id: iterationImages.id })
+    .from(iterationImages)
+    .where(
+      and(
+        eq(iterationImages.iterationId, intent.iterationId),
+        eq(iterationImages.blobPathname, intent.pathname),
+      ),
+    )
+    .limit(1);
+  if (existingImage) return;
 
   const [images] = await getDb()
     .select({ value: count() })

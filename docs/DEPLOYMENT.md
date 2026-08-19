@@ -28,10 +28,21 @@ Set the matching client IDs and secrets in the Vercel Production environment. Ad
 Run migrations from a controlled release job or trusted workstation before directing production traffic to a schema-dependent release:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm db:check
-pnpm db:migrate
+make install
+make vercel-version
+make vercel-link
+make db-check-production
+make db-migrate-production CONFIRM_PRODUCTION=yes
 ```
+
+The Preview database uses the `staging` branch environment variables by default:
+
+```bash
+make db-check-preview
+make db-migrate-preview
+```
+
+Set `PREVIEW_BRANCH=feature-x` to target another Preview branch. Production mutations require `CONFIRM_PRODUCTION=yes`; the guard is intentional and must not be removed from automation.
 
 The initial migration includes concurrency-safe image-count triggers and integrity constraints beyond the generated Drizzle schema. Review generated migrations before applying future schema changes; do not edit a migration after it has reached production.
 

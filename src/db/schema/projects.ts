@@ -61,8 +61,8 @@ export const projects = pgTable(
     index("projects_created_at_idx").on(table.createdAt),
     index("projects_published_at_idx").on(table.publishedAt),
     check(
-      "projects_url_xor",
-      sql`num_nonnulls(${table.websiteUrl}, ${table.githubUrl}) = 1`,
+      "projects_url_required",
+      sql`num_nonnulls(${table.websiteUrl}, ${table.githubUrl}) >= 1`,
     ),
   ],
 );

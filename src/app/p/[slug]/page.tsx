@@ -1,59 +1,37 @@
-import { CalendarDays, Code2, ExternalLink } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { ProjectImageCarousel } from "@/components/project/project-image-carousel";
 import { LikeButton } from "@/components/project/like-button";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
-import {
-  getPublicProject,
-  getPublicProjectMetadata,
-} from "@/db/queries/public";
+import { getPublicProject, getViewerProjectLike } from "@/db/queries/public";
+import { isFeatureEnabled } from "@/lib/features";
 import { getSession } from "@/lib/session";
+import { getTranslations } from "@/lib/i18n-server";
 import { SITE_DESCRIPTION } from "@/lib/site";
 import { formatDate, truncate } from "@/lib/utils";
 
-export async function generateMetadata({
-  params,
-}: PageProps<"/p/[slug]">): Promise<Metadata> {
-  const { slug } = await params;
-  const project = await getPublicProjectMetadata(slug);
-  if (!project)
-    return {
-      title: "Project not found",
-      robots: { index: false, follow: false },
-    };
-  const description =
-    truncate(project.description.replace(/[#*_`>\[\]]/g, ""), 155) ||
-    SITE_DESCRIPTION;
-  return {
-    title: project.name,
-    description,
-    alternates: { canonical: `/p/${project.slug}` },
-    openGraph: {
-      title: project.name,
-      description,
-      images: [{ url: project.imageUrl }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: project.name,
-      description,
-      images: [project.imageUrl],
-    },
-  };
-}
-
-export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
-  const [{ slug }, session] = await Promise.all([params, getSession()]);
-  const project = await getPublicProject(slug, session?.user.id);
-  if (!project) notFound();
-  const destination = project.githubUrl || project.websiteUrl!;
+async function ProjectLikeControl({
+  projectId,
+  slug,
+  likeCount,
+}: {
+  projectId: string;
+  slug: string;
+  likeCount: number;
+}) {
+  const session = await getSession();
+  const viewerLiked = session
+    ? await getViewerProjectLike(slug, session.user.id)
+    : false;
   const access = !session
     ? "login"
     : session.user.onboardingCompleted
@@ -61,13 +39,68 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
       : "onboarding";
 
   return (
+    <LikeButton
+      projectId={projectId}
+      initialLiked={viewerLiked}
+      initialCount={likeCount}
+      nextPath={`/p/${slug}`}
+      access={access}
+    />
+  );
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps<"/p/[slug]">): Promise<Metadata> {
+  const { slug } = await params;
+  const [project, { t }] = await Promise.all([
+    getPublicProject(slug),
+    getTranslations(),
+  ]);
+  if (!project)
+    return {
+      title: t("Project not found"),
+      robots: { index: false, follow: false },
+    };
+  const description =
+    truncate(project.description.replace(/[#*_`>\[\]]/g, ""), 155) ||
+    SITE_DESCRIPTION;
+  const imageUrl = project.images[0]?.url;
+  return {
+    title: project.name,
+    description,
+    alternates: { canonical: `/p/${project.slug}` },
+    openGraph: {
+      title: project.name,
+      description,
+      images: imageUrl ? [{ url: imageUrl }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: project.name,
+      description,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
+  };
+}
+
+export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
+  const projectPromise = params.then(({ slug }) => getPublicProject(slug));
+  const [{ slug }, project, { locale, t }] = await Promise.all([
+    params,
+    projectPromise,
+    getTranslations(),
+  ]);
+  if (!project) notFound();
+  const iterationsEnabled = isFeatureEnabled("iterations");
+
+  return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="grid gap-9 lg:grid-cols-[1fr_19rem]">
         <main className="min-w-0">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <Badge variant="approved">Approved launch</Badge>
-              <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] sm:text-5xl">
+              <h1 className="text-4xl font-black tracking-[-0.04em] sm:text-5xl">
                 {project.name}
               </h1>
               <Link
@@ -76,58 +109,59 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
               >
                 <Avatar
                   src={project.ownerImage}
-                  alt={project.ownerUsername || "Builder"}
+                  alt={project.ownerUsername || t("Builder")}
                   size={30}
                 />{" "}
                 @{project.ownerUsername}
               </Link>
             </div>
             <div className="flex gap-2">
-              <LikeButton
-                projectId={project.id}
-                initialLiked={project.viewerLiked}
-                initialCount={project.likeCount}
-                nextPath={`/p/${project.slug}`}
-                access={access}
-              />
-              <Button asChild>
-                <a href={destination} target="_blank" rel="noopener noreferrer">
-                  {project.githubUrl ? (
-                    <Code2 className="size-4" />
-                  ) : (
-                    <ExternalLink className="size-4" />
-                  )}{" "}
-                  {project.githubUrl ? "View code" : "Visit product"}
-                </a>
-              </Button>
+              <Suspense
+                fallback={
+                  <div
+                    aria-hidden="true"
+                    className="h-9 w-16 animate-pulse rounded-xl bg-muted"
+                  />
+                }
+              >
+                <ProjectLikeControl
+                  projectId={project.id}
+                  slug={slug}
+                  likeCount={project.likeCount}
+                />
+              </Suspense>
+              {project.websiteUrl ? (
+                <Button asChild variant="outline">
+                  <a
+                    href={project.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ChromeIcon className="size-4" /> {t("Visit product")}
+                  </a>
+                </Button>
+              ) : null}
+              {project.githubUrl ? (
+                <Button
+                  asChild
+                  variant={project.websiteUrl ? "outline" : "default"}
+                >
+                  <a
+                    href={project.githubUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <GitHubIcon className="size-4" /> {t("View code")}
+                  </a>
+                </Button>
+              ) : null}
             </div>
           </div>
 
-          <div className="mt-9 grid gap-3 sm:grid-cols-2">
-            {project.images.map((image, index) => (
-              <div
-                key={image.id}
-                className={
-                  index === 0
-                    ? "relative aspect-[16/9] overflow-hidden rounded-2xl border bg-muted sm:col-span-2"
-                    : "relative aspect-[16/10] overflow-hidden rounded-2xl border bg-muted"
-                }
-              >
-                <Image
-                  src={image.url}
-                  alt={`${project.name} screenshot ${index + 1}`}
-                  fill
-                  priority={index === 0}
-                  sizes={
-                    index === 0
-                      ? "(max-width: 1024px) 100vw, 760px"
-                      : "(max-width: 640px) 100vw, 380px"
-                  }
-                  className="object-cover"
-                />
-              </div>
-            ))}
-          </div>
+          <ProjectImageCarousel
+            images={project.images}
+            projectName={project.name}
+          />
 
           <article className="prose-zihai mt-10 rounded-2xl border bg-white p-6 sm:p-8">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -135,14 +169,14 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
             </ReactMarkdown>
           </article>
 
-          {project.iterations.length ? (
+          {iterationsEnabled && project.iterations.length ? (
             <section className="mt-12">
               <div className="mb-6">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
-                  Build log
+                  {t("Build log")}
                 </p>
                 <h2 className="mt-2 text-3xl font-black tracking-tight">
-                  Iterations
+                  {t("Iterations")}
                 </h2>
               </div>
               <div className="space-y-6">
@@ -154,19 +188,20 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="font-mono text-xs font-bold text-primary">
-                          UPDATE{" "}
+                          {t("UPDATE")}{" "}
                           {String(project.iterations.length - index).padStart(
                             2,
                             "0",
                           )}
                         </p>
                         <h3 className="mt-1 text-xl font-black">
-                          {iteration.versionLabel || "Product update"}
+                          {iteration.versionLabel || t("Product update")}
                         </h3>
                       </div>
                       <span className="text-xs text-muted-foreground">
                         {formatDate(
                           iteration.approvedAt || iteration.createdAt,
+                          locale,
                         )}
                       </span>
                     </div>
@@ -179,7 +214,7 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
                           >
                             <Image
                               src={image.url}
-                              alt={`${iteration.versionLabel || "Iteration"} screenshot ${imageIndex + 1}`}
+                              alt={`${iteration.versionLabel || t("Iteration")} ${t("Screenshot {number}", { number: imageIndex + 1 })}`}
                               fill
                               sizes="(max-width: 640px) 100vw, 250px"
                               className="object-cover"
@@ -203,12 +238,12 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-2xl border bg-white p-5">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
-              Builder
+              {t("Builder")}
             </p>
             <div className="mt-4 flex items-center gap-3">
               <Avatar
                 src={project.ownerImage}
-                alt={project.ownerUsername || "Builder"}
+                alt={project.ownerUsername || t("Builder")}
                 size={48}
               />
               <div>
@@ -219,17 +254,17 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
                   @{project.ownerUsername}
                 </Link>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Joined {formatDate(project.ownerCreatedAt)}
+                  {t("Joined")} {formatDate(project.ownerCreatedAt, locale)}
                 </p>
               </div>
             </div>
           </div>
           <div className="rounded-2xl border bg-white p-5 text-sm">
             <div className="flex items-center gap-2 font-bold">
-              <CalendarDays className="size-4 text-primary" /> Published
+              <CalendarDays className="size-4 text-primary" /> {t("Published")}
             </div>
             <p className="mt-2 text-muted-foreground">
-              {formatDate(project.publishedAt)}
+              {formatDate(project.publishedAt, locale)}
             </p>
           </div>
         </aside>

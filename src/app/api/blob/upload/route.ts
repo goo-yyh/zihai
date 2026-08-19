@@ -9,18 +9,8 @@ import { ALLOWED_IMAGE_TYPES } from "@/lib/image-policy";
 import { verifyUploadIntent } from "@/lib/upload-intent";
 import { uploadKindSchema } from "@/lib/validations";
 import { deleteBlobsBestEffort, uploadLimit } from "@/server/blob";
-import {
-  revalidateIterationWorkspace,
-  revalidateProjectDetail,
-  revalidateProjectWorkspace,
-  revalidatePublicProject,
-  revalidateUserPresentation,
-} from "@/server/cache";
+import { completeUpload } from "@/server/upload-completion";
 import { authorizeUpload, issueUploadIntent } from "@/server/upload-policy";
-import {
-  persistUpload,
-  type PersistedUpload,
-} from "@/server/upload-persistence";
 
 const issueIntentSchema = z.object({
   kind: uploadKindSchema,
@@ -28,22 +18,6 @@ const issueIntentSchema = z.object({
   iterationId: z.uuid().optional(),
   contentType: z.enum(ALLOWED_IMAGE_TYPES),
 });
-
-function refreshUploadConsumers(upload: PersistedUpload) {
-  if (upload.kind === "avatar") {
-    revalidateUserPresentation(upload.username);
-    return;
-  }
-
-  if (upload.kind === "project-image") {
-    revalidateProjectWorkspace(upload.projectId);
-    revalidatePublicProject(upload.projectSlug, upload.ownerUsername);
-    return;
-  }
-
-  revalidateIterationWorkspace(upload.projectId, upload.iterationId);
-  revalidateProjectDetail(upload.projectSlug);
-}
 
 export async function GET(request: NextRequest) {
   const session = await getAuth().api.getSession({ headers: request.headers });
@@ -113,21 +87,7 @@ export async function POST(request: NextRequest) {
           await deleteBlobsBestEffort(blob.pathname);
           throw new UserFacingError("Missing upload intent.");
         }
-
-        let persisted: PersistedUpload;
-        try {
-          persisted = await persistUpload(
-            blob,
-            verifyUploadIntent(tokenPayload),
-          );
-        } catch (error) {
-          await deleteBlobsBestEffort(blob.pathname);
-          throw error;
-        }
-
-        // Cache invalidation happens only after persistence succeeds. A cache
-        // failure must never trigger compensation that deletes a referenced Blob.
-        refreshUploadConsumers(persisted);
+        await completeUpload(blob, verifyUploadIntent(tokenPayload));
       },
     });
 

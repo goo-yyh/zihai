@@ -15,6 +15,7 @@ import {
   iterationContentEditPatch,
 } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
+import { assertFeatureEnabled } from "@/lib/features";
 import { assertOnboardedUser } from "@/lib/session";
 import { iterationInputSchema } from "@/lib/validations";
 import { deleteBlobs } from "@/server/blob";
@@ -39,6 +40,7 @@ export async function createIterationAction(
   formData: FormData,
 ): Promise<ActionState> {
   const session = await assertOnboardedUser();
+  assertFeatureEnabled("iterations");
   const parsedProjectId = idSchema.safeParse(projectId);
   if (!parsedProjectId.success) {
     return { status: "error", message: "Invalid project." };
@@ -94,6 +96,7 @@ export async function updateIterationAction(
   formData: FormData,
 ): Promise<ActionState> {
   const session = await assertOnboardedUser();
+  assertFeatureEnabled("iterations");
   const parsedId = idSchema.safeParse(iterationId);
   if (!parsedId.success) {
     return { status: "error", message: "Invalid iteration." };
@@ -155,6 +158,7 @@ export async function updateIterationAction(
 
 export async function submitIterationAction(iterationId: string) {
   const session = await assertOnboardedUser();
+  assertFeatureEnabled("iterations");
   const id = idSchema.parse(iterationId);
 
   const iteration = await getDb().transaction(async (tx) => {
@@ -216,6 +220,7 @@ export async function submitIterationAction(iterationId: string) {
 
 export async function deleteIterationAction(iterationId: string) {
   const session = await assertOnboardedUser();
+  assertFeatureEnabled("iterations");
   const id = idSchema.parse(iterationId);
 
   const [iteration] = await getDb()

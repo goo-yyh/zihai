@@ -1,6 +1,18 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  ilike,
+  or,
+  type SQL,
+} from "drizzle-orm";
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 import { getDb } from "@/db";
 import {
@@ -11,7 +23,20 @@ import {
   projects,
   user,
 } from "@/db/schema";
+import {
+  projectSearchPatterns,
+  PUBLIC_PROJECT_PAGE_SIZE,
+} from "@/lib/project-discovery";
+import {
+  PUBLIC_PROJECT_DETAILS_TAG,
+  PUBLIC_PROJECT_LIST_TAG,
+  PUBLIC_SITEMAP_TAG,
+  publicProfileTag,
+  publicProjectTag,
+} from "@/lib/cache-tags";
+import type { PublicProjectPage, PublicProjectSort } from "@/types/projects";
 
+const likeCount = count(projectLikes.userId);
 const cardSelection = {
   id: projects.id,
   name: projects.name,
@@ -19,14 +44,13 @@ const cardSelection = {
   description: projects.description,
   websiteUrl: projects.websiteUrl,
   githubUrl: projects.githubUrl,
-  publishedAt: projects.publishedAt,
   imageUrl: projectImages.blobUrl,
   ownerUsername: user.username,
   ownerImage: user.image,
-  likeCount: sql<number>`count(${projectLikes.userId})::int`,
+  likeCount,
 };
 
-function cardQuery(ownerId?: string) {
+function cardQuery(filter: SQL | undefined) {
   return getDb()
     .select(cardSelection)
     .from(projects)
@@ -39,36 +63,32 @@ function cardQuery(ownerId?: string) {
       ),
     )
     .leftJoin(projectLikes, eq(projectLikes.projectId, projects.id))
-    .where(
-      ownerId
-        ? and(eq(projects.status, "approved"), eq(projects.ownerId, ownerId))
-        : eq(projects.status, "approved"),
-    )
+    .where(filter)
     .groupBy(projects.id, projectImages.blobUrl, user.username, user.image);
 }
 
-export async function getLatestProjects(limit = 12) {
-  return cardQuery().orderBy(desc(projects.publishedAt)).limit(limit);
+function publicProjectFilter(query: string) {
+  return and(
+    eq(projects.status, "approved"),
+    ...projectSearchPatterns(query).map((pattern) =>
+      or(ilike(projects.name, pattern), ilike(projects.description, pattern)),
+    ),
+  );
 }
 
-export async function getPopularProjects(limit = 6) {
-  return cardQuery()
-    .orderBy(
-      desc(sql`count(${projectLikes.userId})`),
-      desc(projects.publishedAt),
-    )
-    .limit(limit);
-}
-
-export async function getPublicProjectMetadata(slug: string) {
-  const [project] = await getDb()
-    .select({
-      name: projects.name,
-      slug: projects.slug,
-      description: projects.description,
-      imageUrl: projectImages.blobUrl,
-    })
+async function queryPublicProjects({
+  sort,
+  query,
+  page,
+}: {
+  sort: PublicProjectSort;
+  query: string;
+  page: number;
+}): Promise<PublicProjectPage> {
+  const baseQuery = getDb()
+    .select(cardSelection)
     .from(projects)
+    .innerJoin(user, eq(projects.ownerId, user.id))
     .innerJoin(
       projectImages,
       and(
@@ -76,14 +96,59 @@ export async function getPublicProjectMetadata(slug: string) {
         eq(projectImages.sortOrder, 0),
       ),
     )
-    .where(and(eq(projects.slug, slug), eq(projects.status, "approved")))
-    .limit(1);
+    .leftJoin(projectLikes, eq(projectLikes.projectId, projects.id))
+    .where(publicProjectFilter(query))
+    .groupBy(projects.id, projectImages.blobUrl, user.username, user.image);
+  const orderedQuery =
+    sort === "hot"
+      ? baseQuery.orderBy(
+          desc(likeCount),
+          desc(projects.publishedAt),
+          desc(projects.id),
+        )
+      : baseQuery.orderBy(desc(projects.publishedAt), desc(projects.id));
+  const rowsQuery = orderedQuery
+    .limit(PUBLIC_PROJECT_PAGE_SIZE + 1)
+    .offset((page - 1) * PUBLIC_PROJECT_PAGE_SIZE);
+  const totalQuery = getDb()
+    .select({ value: countDistinct(projects.id) })
+    .from(projects)
+    .innerJoin(user, eq(projects.ownerId, user.id))
+    .innerJoin(
+      projectImages,
+      and(
+        eq(projectImages.projectId, projects.id),
+        eq(projectImages.sortOrder, 0),
+      ),
+    )
+    .where(publicProjectFilter(query));
+  const [rows, totals] = await getDb().batch([rowsQuery, totalQuery]);
+  const hasMore = rows.length > PUBLIC_PROJECT_PAGE_SIZE;
 
-  return project ?? null;
+  return {
+    items: rows.slice(0, PUBLIC_PROJECT_PAGE_SIZE),
+    nextPage: hasMore ? page + 1 : null,
+    totalCount: totals[0]?.value ?? 0,
+  };
 }
 
-export async function getPublicProject(slug: string, viewerId?: string) {
-  const [project] = await getDb()
+const getCachedPublicProjects = unstable_cache(
+  queryPublicProjects,
+  ["public-project-list"],
+  {
+    revalidate: 300,
+    tags: [PUBLIC_PROJECT_LIST_TAG],
+  },
+);
+
+export const getPublicProjects = cache(getCachedPublicProjects);
+
+async function queryPublicProject(slug: string) {
+  const projectFilter = and(
+    eq(projects.slug, slug),
+    eq(projects.status, "approved"),
+  );
+  const projectQuery = getDb()
     .select({
       id: projects.id,
       name: projects.name,
@@ -99,71 +164,67 @@ export async function getPublicProject(slug: string, viewerId?: string) {
     })
     .from(projects)
     .innerJoin(user, eq(projects.ownerId, user.id))
-    .where(and(eq(projects.slug, slug), eq(projects.status, "approved")))
+    .where(projectFilter)
     .limit(1);
+  const imagesQuery = getDb()
+    .select({
+      id: projectImages.id,
+      url: projectImages.blobUrl,
+      sortOrder: projectImages.sortOrder,
+    })
+    .from(projectImages)
+    .innerJoin(projects, eq(projectImages.projectId, projects.id))
+    .where(projectFilter)
+    .orderBy(asc(projectImages.sortOrder));
+  const iterationsQuery = getDb()
+    .select({
+      id: projectIterations.id,
+      versionLabel: projectIterations.versionLabel,
+      description: projectIterations.description,
+      approvedAt: projectIterations.approvedAt,
+      createdAt: projectIterations.createdAt,
+    })
+    .from(projectIterations)
+    .innerJoin(projects, eq(projectIterations.projectId, projects.id))
+    .where(and(projectFilter, eq(projectIterations.status, "approved")))
+    .orderBy(
+      desc(projectIterations.approvedAt),
+      desc(projectIterations.createdAt),
+    );
+  const iterationImagesQuery = getDb()
+    .select({
+      id: iterationImages.id,
+      iterationId: iterationImages.iterationId,
+      url: iterationImages.blobUrl,
+      sortOrder: iterationImages.sortOrder,
+    })
+    .from(iterationImages)
+    .innerJoin(
+      projectIterations,
+      eq(iterationImages.iterationId, projectIterations.id),
+    )
+    .innerJoin(projects, eq(projectIterations.projectId, projects.id))
+    .where(and(projectFilter, eq(projectIterations.status, "approved")))
+    .orderBy(asc(iterationImages.sortOrder));
+  const likesQuery = getDb()
+    .select({ count: count() })
+    .from(projectLikes)
+    .innerJoin(projects, eq(projectLikes.projectId, projects.id))
+    .where(projectFilter);
 
+  // neon-http sends the statements as one transaction request, avoiding a
+  // separate network roundtrip for each public detail relation.
+  const [projectRows, images, approvedIterations, allIterationImages, likes] =
+    await getDb().batch([
+      projectQuery,
+      imagesQuery,
+      iterationsQuery,
+      iterationImagesQuery,
+      likesQuery,
+    ]);
+  const project = projectRows[0];
   if (!project) return null;
 
-  const [images, approvedIterations, likes, viewerLike] = await Promise.all([
-    getDb()
-      .select({
-        id: projectImages.id,
-        url: projectImages.blobUrl,
-        sortOrder: projectImages.sortOrder,
-      })
-      .from(projectImages)
-      .where(eq(projectImages.projectId, project.id))
-      .orderBy(asc(projectImages.sortOrder)),
-    getDb()
-      .select({
-        id: projectIterations.id,
-        versionLabel: projectIterations.versionLabel,
-        description: projectIterations.description,
-        approvedAt: projectIterations.approvedAt,
-        createdAt: projectIterations.createdAt,
-      })
-      .from(projectIterations)
-      .where(
-        and(
-          eq(projectIterations.projectId, project.id),
-          eq(projectIterations.status, "approved"),
-        ),
-      )
-      .orderBy(
-        desc(projectIterations.approvedAt),
-        desc(projectIterations.createdAt),
-      ),
-    getDb()
-      .select({ count: count() })
-      .from(projectLikes)
-      .where(eq(projectLikes.projectId, project.id)),
-    viewerId
-      ? getDb()
-          .select({ userId: projectLikes.userId })
-          .from(projectLikes)
-          .where(
-            and(
-              eq(projectLikes.projectId, project.id),
-              eq(projectLikes.userId, viewerId),
-            ),
-          )
-          .limit(1)
-      : Promise.resolve([]),
-  ]);
-
-  const iterationIds = approvedIterations.map((item) => item.id);
-  const allIterationImages = iterationIds.length
-    ? await getDb()
-        .select({
-          id: iterationImages.id,
-          iterationId: iterationImages.iterationId,
-          url: iterationImages.blobUrl,
-          sortOrder: iterationImages.sortOrder,
-        })
-        .from(iterationImages)
-        .where(inArray(iterationImages.iterationId, iterationIds))
-        .orderBy(asc(iterationImages.sortOrder))
-    : [];
   const imagesByIteration = new Map<
     string,
     (typeof allIterationImages)[number][]
@@ -178,7 +239,6 @@ export async function getPublicProject(slug: string, viewerId?: string) {
     ...project,
     images,
     likeCount: likes[0]?.count ?? 0,
-    viewerLiked: viewerLike.length > 0,
     iterations: approvedIterations.map((iteration) => ({
       ...iteration,
       images: imagesByIteration.get(iteration.id) ?? [],
@@ -186,23 +246,38 @@ export async function getPublicProject(slug: string, viewerId?: string) {
   };
 }
 
-export async function getPublicProfileMetadata(username: string) {
-  const [profile] = await getDb()
-    .select({ username: user.username })
-    .from(user)
+export const getPublicProject = cache(async (slug: string) => {
+  const getCachedProject = unstable_cache(
+    () => queryPublicProject(slug),
+    ["public-project", slug],
+    {
+      revalidate: 3600,
+      tags: [PUBLIC_PROJECT_DETAILS_TAG, publicProjectTag(slug)],
+    },
+  );
+  return getCachedProject();
+});
+
+export async function getViewerProjectLike(slug: string, viewerId: string) {
+  const [like] = await getDb()
+    .select({ userId: projectLikes.userId })
+    .from(projectLikes)
+    .innerJoin(projects, eq(projectLikes.projectId, projects.id))
     .where(
       and(
-        eq(user.username, username.toLowerCase()),
-        eq(user.onboardingCompleted, true),
+        eq(projects.slug, slug),
+        eq(projects.status, "approved"),
+        eq(projectLikes.userId, viewerId),
       ),
     )
     .limit(1);
 
-  return profile?.username ? { username: profile.username } : null;
+  return Boolean(like);
 }
 
-export async function getPublicProfile(username: string) {
-  const [profile] = await getDb()
+async function queryPublicProfile(username: string) {
+  const normalizedUsername = username.toLowerCase();
+  const profileQuery = getDb()
     .select({
       id: user.id,
       username: user.username,
@@ -212,23 +287,43 @@ export async function getPublicProfile(username: string) {
     .from(user)
     .where(
       and(
-        eq(user.username, username.toLowerCase()),
+        eq(user.username, normalizedUsername),
         eq(user.onboardingCompleted, true),
       ),
     )
     .limit(1);
-
+  const profileProjectsQuery = cardQuery(
+    and(
+      eq(projects.status, "approved"),
+      eq(user.username, normalizedUsername),
+      eq(user.onboardingCompleted, true),
+    ),
+  ).orderBy(desc(projects.publishedAt));
+  const [profiles, profileProjects] = await getDb().batch([
+    profileQuery,
+    profileProjectsQuery,
+  ]);
+  const profile = profiles[0];
   if (!profile?.username) return null;
 
-  const profileProjects = await cardQuery(profile.id).orderBy(
-    desc(projects.publishedAt),
-  );
-
-  return { ...profile, projects: profileProjects };
+  return { ...profile, username: profile.username, projects: profileProjects };
 }
 
-export async function getSitemapEntries() {
-  const [projectRows, userRows] = await Promise.all([
+export const getPublicProfile = cache(async (username: string) => {
+  const normalizedUsername = username.toLowerCase();
+  const getCachedProfile = unstable_cache(
+    () => queryPublicProfile(normalizedUsername),
+    ["public-profile", normalizedUsername],
+    {
+      revalidate: 600,
+      tags: [publicProfileTag(normalizedUsername)],
+    },
+  );
+  return getCachedProfile();
+});
+
+async function querySitemapEntries() {
+  const [projectRows, userRows] = await getDb().batch([
     getDb()
       .select({ slug: projects.slug, updatedAt: projects.updatedAt })
       .from(projects)
@@ -247,3 +342,9 @@ export async function getSitemapEntries() {
     ),
   };
 }
+
+export const getSitemapEntries = unstable_cache(
+  querySitemapEntries,
+  ["public-sitemap"],
+  { revalidate: 3600, tags: [PUBLIC_SITEMAP_TAG] },
+);

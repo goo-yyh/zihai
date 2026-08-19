@@ -20,7 +20,7 @@ import type { UploadIntent } from "@/lib/upload-intent";
 import { deleteBlobsBestEffort, inspectBlob, uploadLimit } from "@/server/blob";
 import { validateUploadOwnership } from "@/server/upload-policy";
 
-type UploadedBlob = {
+export type UploadedBlob = {
   url: string;
   pathname: string;
 };
@@ -106,6 +106,18 @@ export async function persistUpload(
         .for("update");
       if (!ownedProject) throw new UserFacingError("Project not found.");
 
+      const [existingImage] = await tx
+        .select({ id: projectImages.id })
+        .from(projectImages)
+        .where(
+          and(
+            eq(projectImages.projectId, intent.projectId!),
+            eq(projectImages.blobPathname, blob.pathname),
+          ),
+        )
+        .limit(1);
+      if (existingImage) return ownedProject;
+
       const [position] = await tx
         .select({ value: max(projectImages.sortOrder) })
         .from(projectImages)
@@ -160,6 +172,18 @@ export async function persistUpload(
       )
       .for("update");
     if (!iteration) throw new UserFacingError("Iteration not found.");
+
+    const [existingImage] = await tx
+      .select({ id: iterationImages.id })
+      .from(iterationImages)
+      .where(
+        and(
+          eq(iterationImages.iterationId, intent.iterationId!),
+          eq(iterationImages.blobPathname, blob.pathname),
+        ),
+      )
+      .limit(1);
+    if (existingImage) return iteration.projectSlug;
 
     const [position] = await tx
       .select({ value: max(iterationImages.sortOrder) })

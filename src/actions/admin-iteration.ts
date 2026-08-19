@@ -16,6 +16,7 @@ import {
 import { safeActionError, validationError } from "@/lib/action-utils";
 import { assertImageCount } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
+import { assertFeatureEnabled } from "@/lib/features";
 import { assertAdmin } from "@/lib/session";
 import { rejectionSchema } from "@/lib/validations";
 import {
@@ -28,6 +29,7 @@ const idSchema = z.uuid();
 
 export async function approveIterationAction(iterationId: string) {
   const session = await assertAdmin();
+  assertFeatureEnabled("iterations");
   const id = idSchema.parse(iterationId);
 
   const iteration = await getDb().transaction(async (tx) => {
@@ -91,6 +93,7 @@ export async function rejectIterationAction(
   formData: FormData,
 ): Promise<ActionState> {
   const session = await assertAdmin();
+  assertFeatureEnabled("iterations");
   const id = idSchema.parse(iterationId);
   const parsed = rejectionSchema.safeParse({ reason: formData.get("reason") });
   if (!parsed.success) return validationError(parsed.error);

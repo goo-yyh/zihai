@@ -5,6 +5,7 @@ import {
   ListChecks,
   Users,
   XCircle,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -12,33 +13,43 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getAdminProjects, getAdminStats } from "@/db/queries/admin";
+import { isFeatureEnabled } from "@/lib/features";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
 export default async function AdminPage() {
-  await requireAdmin();
-  const [stats, pendingPage] = await Promise.all([
+  const [, stats, pendingPage, { locale, t }] = await Promise.all([
+    requireAdmin(),
     getAdminStats(),
     getAdminProjects("pending", { pageSize: 8 }),
+    getTranslations(),
   ]);
   const pending = pendingPage.items;
-  const cards = [
+  const iterationCards: Array<[string, number, LucideIcon]> = isFeatureEnabled(
+    "iterations",
+  )
+    ? [["Pending iterations", stats.pendingIterations, ListChecks]]
+    : [];
+  const cards: Array<[string, number, LucideIcon]> = [
     ["Users", stats.users, Users],
     ["All projects", stats.projects, FolderKanban],
     ["Pending projects", stats.pendingProjects, Clock3],
-    ["Pending iterations", stats.pendingIterations, ListChecks],
+    ...iterationCards,
     ["Approved", stats.approvedProjects, CheckCircle2],
     ["Rejected", stats.rejectedProjects, XCircle],
-  ] as const;
+  ];
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-sm font-semibold text-primary">Review operations</p>
+        <p className="text-sm font-semibold text-primary">
+          {t("Review operations")}
+        </p>
         <h1 className="mt-1 text-3xl font-black tracking-tight">
-          Admin overview
+          {t("Admin overview")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Moderate launches, iterations, access, and platform safety.
+          {t("Moderate launches, access, and platform safety.")}
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -46,7 +57,7 @@ export default async function AdminPage() {
           <Card key={label} className="p-5">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-muted-foreground">
-                {label}
+                {t(label)}
               </p>
               <Icon className="size-4 text-primary" />
             </div>
@@ -56,9 +67,9 @@ export default async function AdminPage() {
       </div>
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-black">Pending projects</h2>
+          <h2 className="text-xl font-black">{t("Pending projects")}</h2>
           <Button asChild size="sm" variant="outline">
-            <Link href="/admin/projects?status=pending">Open queue</Link>
+            <Link href="/admin/projects?status=pending">{t("Open queue")}</Link>
           </Button>
         </div>
         {pending.length ? (
@@ -72,8 +83,10 @@ export default async function AdminPage() {
                 <div>
                   <p className="font-bold">{project.name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    @{project.ownerUsername || project.ownerEmail} · submitted{" "}
-                    {formatDate(project.submittedAt)}
+                    {t("@{owner} · submitted {date}", {
+                      owner: project.ownerUsername || project.ownerEmail,
+                      date: formatDate(project.submittedAt, locale),
+                    })}
                   </p>
                 </div>
                 <Badge variant="pending">pending</Badge>
@@ -82,7 +95,7 @@ export default async function AdminPage() {
           </div>
         ) : (
           <Card className="p-8 text-center text-sm text-muted-foreground">
-            The project queue is clear.
+            {t("The project queue is clear.")}
           </Card>
         )}
       </section>

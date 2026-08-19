@@ -1,0 +1,2 @@
+ALTER TABLE "projects" DROP CONSTRAINT "projects_url_xor";--> statement-breakpoint
+ALTER TABLE "projects" ADD CONSTRAINT "projects_url_required" CHECK (num_nonnulls("projects"."website_url", "projects"."github_url") >= 1);

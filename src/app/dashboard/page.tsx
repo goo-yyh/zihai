@@ -13,11 +13,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getUserProjects } from "@/db/queries/dashboard";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireOnboardedUser } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
 export default async function DashboardPage() {
-  const session = await requireOnboardedUser();
+  const [session, { locale, t }] = await Promise.all([
+    requireOnboardedUser(),
+    getTranslations(),
+  ]);
   const projects = await getUserProjects(session.user.id);
   const stats = {
     total: projects.length,
@@ -35,18 +39,20 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">
-            Builder dashboard
+            {t("Builder dashboard")}
           </p>
           <h1 className="mt-1 text-3xl font-black tracking-tight">
-            Welcome back, @{session.user.username}
+            {t("Welcome back, @{username}", {
+              username: session.user.username || "",
+            })}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Manage launches and share what changed next.
+            {t("Manage launches and share what changed next.")}
           </p>
         </div>
         <Button asChild>
           <Link href="/submit">
-            <Plus className="size-4" /> New project
+            <Plus className="size-4" /> {t("New project")}
           </Link>
         </Button>
       </div>
@@ -63,7 +69,7 @@ export default async function DashboardPage() {
           <Card key={String(label)} className="p-5">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-muted-foreground">
-                {String(label)}
+                {t(String(label))}
               </span>
               <Icon className="size-4 text-primary" />
             </div>
@@ -74,12 +80,12 @@ export default async function DashboardPage() {
 
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-black">Recent projects</h2>
+          <h2 className="text-xl font-black">{t("Recent projects")}</h2>
           <Link
             href="/dashboard/projects"
             className="flex items-center gap-1 text-sm font-bold text-primary"
           >
-            View all <ArrowRight className="size-4" />
+            {t("View all")} <ArrowRight className="size-4" />
           </Link>
         </div>
         {projects.length ? (
@@ -93,7 +99,9 @@ export default async function DashboardPage() {
                 <div>
                   <p className="font-bold">{project.name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Updated {formatDate(project.updatedAt)}
+                    {t("Updated {date}", {
+                      date: formatDate(project.updatedAt, locale),
+                    })}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -107,12 +115,12 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <Card className="p-8 text-center">
-            <p className="font-bold">Your first launch starts here.</p>
+            <p className="font-bold">{t("Your first launch starts here.")}</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Create a project, add screenshots, then send it for review.
+              {t("Create a project, add screenshots, then send it for review.")}
             </p>
             <Button asChild className="mt-5">
-              <Link href="/submit">Create project</Link>
+              <Link href="/submit">{t("Create project")}</Link>
             </Button>
           </Card>
         )}

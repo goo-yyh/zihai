@@ -9,7 +9,7 @@ import { getDb } from "@/db";
 import { projectLikes, projects, user } from "@/db/schema";
 import { UserFacingError } from "@/lib/errors";
 import { assertOnboardedUser } from "@/lib/session";
-import { revalidatePublicProject } from "@/server/cache";
+import { revalidateProjectLike } from "@/server/cache";
 
 export async function toggleLikeAction(projectId: string) {
   const current = await assertOnboardedUser();
@@ -74,6 +74,6 @@ export async function toggleLikeAction(projectId: string) {
     };
   });
 
-  revalidatePublicProject(result.slug, result.ownerUsername);
+  revalidateProjectLike(result.slug, result.ownerUsername);
   return { liked: result.liked, count: result.count };
 }

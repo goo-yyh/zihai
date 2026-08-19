@@ -2,12 +2,16 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireAdmin } from "@/lib/session";
 
-export const metadata: Metadata = {
-  title: { default: "Admin", template: "%s — zihAI Admin" },
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslations();
+  return {
+    title: { default: t("Admin"), template: `%s — zihAI ${t("Admin")}` },
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function AdminLayout({
   children,

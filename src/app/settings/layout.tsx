@@ -2,12 +2,16 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireOnboardedUser } from "@/lib/session";
 
-export const metadata: Metadata = {
-  title: { default: "Settings", template: "%s — zihAI" },
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslations();
+  return {
+    title: { default: t("Settings"), template: "%s — zihAI" },
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function SettingsLayout({
   children,

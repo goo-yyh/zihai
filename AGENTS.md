@@ -29,7 +29,7 @@ These rules are non-negotiable unless the product specification changes:
 
 - Accounts are created only through GitHub or Google OAuth.
 - Onboarding must finish before projects, iterations, or likes can be created.
-- A project has exactly one destination: website URL XOR GitHub repository URL.
+- A project has at least one destination: website URL, GitHub repository URL, or both.
 - A project or iteration has one to three images.
 - Draft, pending, rejected, and archived content is not public.
 - Editing approved public fields returns that resource to pending review.
@@ -38,7 +38,7 @@ These rules are non-negotiable unless the product specification changes:
 - At least one administrator must always exist.
 - Every public user-authored field is moderated before publication.
 
-The database is the final enforcement layer for XOR URLs, unique likes, owner relationships, and concurrent image limits.
+The database is the final enforcement layer for required project destinations, unique likes, owner relationships, and concurrent image limits.
 
 ## Architecture boundaries
 
@@ -171,7 +171,7 @@ Also apply the relevant checks below:
 
 - Validation or lifecycle change: add/update Vitest cases.
 - Schema change: `pnpm db:generate`, inspect SQL, `pnpm db:check`.
-- Auth change: test both OAuth providers, onboarding, username login, and unauthorized calls.
+- Auth change: test both OAuth providers, OAuth-only login, onboarding contact-email defaults and requirements, and unauthorized calls.
 - Upload change: test MIME, size, count, ownership, callback compensation, replacement cleanup, and cache refresh.
 - Moderation change: test pending-only review, concurrent review behavior, public visibility, rejection reason, and audit entry.
 - Responsive UI change: inspect mobile, tablet, and desktop layouts.

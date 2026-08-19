@@ -12,13 +12,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAdminIteration } from "@/db/queries/admin";
+import { isFeatureEnabled } from "@/lib/features";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
 export default async function AdminIterationPage({
   params,
 }: PageProps<"/admin/iterations/[id]">) {
-  const [{ id }] = await Promise.all([params, requireAdmin()]);
+  if (!isFeatureEnabled("iterations")) notFound();
+
+  const [{ id }, , { locale, t }] = await Promise.all([
+    params,
+    requireAdmin(),
+    getTranslations(),
+  ]);
   const iteration = await getAdminIteration(id);
   if (!iteration) notFound();
   return (
@@ -27,12 +35,12 @@ export default async function AdminIterationPage({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-3xl font-black tracking-tight">
-              {iteration.versionLabel || "Untitled iteration"}
+              {iteration.versionLabel || t("Untitled iteration")}
             </h1>
             <Badge variant={iteration.status}>{iteration.status}</Badge>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            For {iteration.projectName}
+            {t("for {project}", { project: iteration.projectName })}
           </p>
           <Link
             href={`/admin/users/${encodeURIComponent(iteration.ownerId)}`}
@@ -49,7 +57,7 @@ export default async function AdminIterationPage({
         {iteration.projectStatus === "approved" ? (
           <Button asChild variant="outline">
             <Link href={`/p/${iteration.projectSlug}`} target="_blank">
-              <ExternalLink className="size-4" /> Public project
+              <ExternalLink className="size-4" /> {t("Public project")}
             </Link>
           </Button>
         ) : null}
@@ -62,7 +70,7 @@ export default async function AdminIterationPage({
           >
             <Image
               src={image.blobUrl}
-              alt={`Iteration screenshot ${index + 1}`}
+              alt={t("Iteration screenshot {number}", { number: index + 1 })}
               fill
               sizes="(max-width: 640px) 100vw, 280px"
               className="object-cover"
@@ -72,7 +80,7 @@ export default async function AdminIterationPage({
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>What changed</CardTitle>
+          <CardTitle>{t("What changed?")}</CardTitle>
         </CardHeader>
         <CardContent>
           <article className="prose-zihai">
@@ -89,10 +97,10 @@ export default async function AdminIterationPage({
         ].map(([label, value]) => (
           <Card key={String(label)} className="p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              {String(label)}
+              {t(String(label))}
             </p>
             <p className="mt-2 text-sm font-semibold">
-              {formatDate(value as Date | null)}
+              {formatDate(value as Date | null, locale)}
             </p>
           </Card>
         ))}
@@ -103,25 +111,29 @@ export default async function AdminIterationPage({
             action={approveIterationAction.bind(null, iteration.id)}
             className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4"
           >
-            <p className="font-bold text-emerald-900">Approve iteration</p>
+            <p className="font-bold text-emerald-900">
+              {t("Approve iteration")}
+            </p>
             <p className="mt-2 text-sm leading-6 text-emerald-800">
-              This update will be added to the project’s public build log.
+              {t(
+                "This update will be added to the project’s public build log.",
+              )}
             </p>
             <Button type="submit" className="mt-4">
-              <Check className="size-4" /> Approve
+              <Check className="size-4" /> {t("Approve")}
             </Button>
           </form>
           <RejectionForm kind="iteration" resourceId={iteration.id} />
         </div>
       ) : iteration.rejectionReason ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-          <strong>Rejection reason:</strong> {iteration.rejectionReason}
+          <strong>{t("Rejection reason:")}</strong> {iteration.rejectionReason}
         </div>
       ) : null}
       {iteration.logs.length ? (
         <Card>
           <CardHeader>
-            <CardTitle>Moderation history</CardTitle>
+            <CardTitle>{t("Moderation history")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {iteration.logs.map((log) => (
@@ -134,7 +146,7 @@ export default async function AdminIterationPage({
                   {log.reason ? ` — ${log.reason}` : ""}
                 </span>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatDate(log.createdAt)}
+                  {formatDate(log.createdAt, locale)}
                 </span>
               </div>
             ))}

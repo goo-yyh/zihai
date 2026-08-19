@@ -5,24 +5,30 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getUserProjects } from "@/db/queries/dashboard";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireOnboardedUser } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
 export default async function ProjectsPage() {
-  const session = await requireOnboardedUser();
+  const [session, { locale, t }] = await Promise.all([
+    requireOnboardedUser(),
+    getTranslations(),
+  ]);
   const projects = await getUserProjects(session.user.id);
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">My projects</h1>
+          <h1 className="text-3xl font-black tracking-tight">
+            {t("My projects")}
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Draft, submit, and keep every launch moving.
+            {t("Draft, submit, and keep every launch moving.")}
           </p>
         </div>
         <Button asChild>
           <Link href="/submit">
-            <Plus className="size-4" /> New project
+            <Plus className="size-4" /> {t("New project")}
           </Link>
         </Button>
       </div>
@@ -39,19 +45,23 @@ export default async function ProjectsPage() {
                   <Badge variant={project.status}>{project.status}</Badge>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Updated {formatDate(project.updatedAt)} ·{" "}
-                  <Heart className="inline size-3.5" /> {project.likeCount}{" "}
-                  likes
+                  {t("Updated {date} · {count} likes", {
+                    date: formatDate(project.updatedAt, locale),
+                    count: project.likeCount,
+                  })}{" "}
+                  <Heart className="inline size-3.5" />
                 </p>
                 {project.rejectionReason ? (
                   <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800">
-                    Reviewer: {project.rejectionReason}
+                    {t("Reviewer: {reason}", {
+                      reason: project.rejectionReason,
+                    })}
                   </p>
                 ) : null}
               </div>
               <Button asChild variant="outline">
                 <Link href={`/dashboard/projects/${project.id}/edit`}>
-                  <Pencil className="size-4" /> Manage
+                  <Pencil className="size-4" /> {t("Manage")}
                 </Link>
               </Button>
             </article>
@@ -60,11 +70,13 @@ export default async function ProjectsPage() {
       ) : (
         <EmptyState
           icon={Plus}
-          title="No projects yet"
-          description="Create your first AI product listing and prepare it for review."
+          title={t("No projects yet")}
+          description={t(
+            "Create your first AI product listing and prepare it for review.",
+          )}
           action={
             <Button asChild>
-              <Link href="/submit">Create project</Link>
+              <Link href="/submit">{t("Create project")}</Link>
             </Button>
           }
         />

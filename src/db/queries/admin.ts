@@ -115,7 +115,7 @@ export async function getAdminProjects(
       submittedAt: projects.submittedAt,
       updatedAt: projects.updatedAt,
       ownerId: projects.ownerId,
-      ownerEmail: user.email,
+      ownerEmail: sql<string>`coalesce(${user.contactEmail}, ${user.email})`,
       ownerUsername: user.username,
     })
     .from(projects)
@@ -141,7 +141,7 @@ export async function getAdminProjects(
 }
 
 export async function getAdminProject(projectId: string) {
-  const [project] = await getDb()
+  const projectQuery = getDb()
     .select({
       id: projects.id,
       name: projects.name,
@@ -155,7 +155,7 @@ export async function getAdminProject(projectId: string) {
       approvedAt: projects.approvedAt,
       publishedAt: projects.publishedAt,
       ownerId: projects.ownerId,
-      ownerEmail: user.email,
+      ownerEmail: sql<string>`coalesce(${user.contactEmail}, ${user.email})`,
       ownerUsername: user.username,
       ownerImage: user.image,
     })
@@ -163,26 +163,28 @@ export async function getAdminProject(projectId: string) {
     .innerJoin(user, eq(projects.ownerId, user.id))
     .where(eq(projects.id, projectId))
     .limit(1);
-
-  if (!project) return null;
-
-  const [images, logs] = await Promise.all([
-    getDb()
-      .select()
-      .from(projectImages)
-      .where(eq(projectImages.projectId, projectId))
-      .orderBy(projectImages.sortOrder),
-    getDb()
-      .select()
-      .from(moderationLogs)
-      .where(
-        and(
-          eq(moderationLogs.targetType, "project"),
-          eq(moderationLogs.targetId, projectId),
-        ),
-      )
-      .orderBy(desc(moderationLogs.createdAt)),
+  const imagesQuery = getDb()
+    .select()
+    .from(projectImages)
+    .where(eq(projectImages.projectId, projectId))
+    .orderBy(projectImages.sortOrder);
+  const logsQuery = getDb()
+    .select()
+    .from(moderationLogs)
+    .where(
+      and(
+        eq(moderationLogs.targetType, "project"),
+        eq(moderationLogs.targetId, projectId),
+      ),
+    )
+    .orderBy(desc(moderationLogs.createdAt));
+  const [projectRows, images, logs] = await getDb().batch([
+    projectQuery,
+    imagesQuery,
+    logsQuery,
   ]);
+  const project = projectRows[0];
+  if (!project) return null;
 
   return { ...project, images, logs };
 }
@@ -237,7 +239,7 @@ export async function getAdminIterations(
 }
 
 export async function getAdminIteration(iterationId: string) {
-  const [iteration] = await getDb()
+  const iterationQuery = getDb()
     .select({
       id: projectIterations.id,
       projectId: projectIterations.projectId,
@@ -251,7 +253,7 @@ export async function getAdminIteration(iterationId: string) {
       submittedAt: projectIterations.submittedAt,
       approvedAt: projectIterations.approvedAt,
       ownerId: projectIterations.ownerId,
-      ownerEmail: user.email,
+      ownerEmail: sql<string>`coalesce(${user.contactEmail}, ${user.email})`,
       ownerUsername: user.username,
       ownerImage: user.image,
     })
@@ -260,26 +262,28 @@ export async function getAdminIteration(iterationId: string) {
     .innerJoin(user, eq(projectIterations.ownerId, user.id))
     .where(eq(projectIterations.id, iterationId))
     .limit(1);
-
-  if (!iteration) return null;
-
-  const [images, logs] = await Promise.all([
-    getDb()
-      .select()
-      .from(iterationImages)
-      .where(eq(iterationImages.iterationId, iterationId))
-      .orderBy(iterationImages.sortOrder),
-    getDb()
-      .select()
-      .from(moderationLogs)
-      .where(
-        and(
-          eq(moderationLogs.targetType, "iteration"),
-          eq(moderationLogs.targetId, iterationId),
-        ),
-      )
-      .orderBy(desc(moderationLogs.createdAt)),
+  const imagesQuery = getDb()
+    .select()
+    .from(iterationImages)
+    .where(eq(iterationImages.iterationId, iterationId))
+    .orderBy(iterationImages.sortOrder);
+  const logsQuery = getDb()
+    .select()
+    .from(moderationLogs)
+    .where(
+      and(
+        eq(moderationLogs.targetType, "iteration"),
+        eq(moderationLogs.targetId, iterationId),
+      ),
+    )
+    .orderBy(desc(moderationLogs.createdAt));
+  const [iterationRows, images, logs] = await getDb().batch([
+    iterationQuery,
+    imagesQuery,
+    logsQuery,
   ]);
+  const iteration = iterationRows[0];
+  if (!iteration) return null;
 
   return { ...iteration, images, logs };
 }
@@ -291,6 +295,7 @@ export async function getAdminUsers(
   const filter = search?.trim()
     ? or(
         ilike(user.email, `%${search.trim()}%`),
+        ilike(user.contactEmail, `%${search.trim()}%`),
         ilike(user.username, `%${search.trim()}%`),
       )
     : undefined;
@@ -301,6 +306,7 @@ export async function getAdminUsers(
     .select({
       id: user.id,
       email: user.email,
+      contactEmail: user.contactEmail,
       username: user.username,
       image: user.image,
       role: user.role,
@@ -330,11 +336,12 @@ export async function getAdminUsers(
 }
 
 export async function getAdminUser(userId: string) {
-  const [profileRows, ownedProjects] = await Promise.all([
+  const [profileRows, ownedProjects] = await getDb().batch([
     getDb()
       .select({
         id: user.id,
         email: user.email,
+        contactEmail: user.contactEmail,
         username: user.username,
         image: user.image,
         role: user.role,

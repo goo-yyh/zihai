@@ -1,24 +1,34 @@
 import { Boxes } from "lucide-react";
 import Link from "next/link";
 
-import {
-  ProjectCard,
-  type ProjectCardData,
-} from "@/components/project/project-card";
+import { ProjectCard } from "@/components/project/project-card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { getTranslations } from "@/lib/i18n-server";
+import type { ProjectCardData } from "@/types/projects";
 
-export function ProjectGrid({ projects }: { projects: ProjectCardData[] }) {
+export async function ProjectGrid({
+  projects,
+  showEmptyAction = true,
+}: {
+  projects: ProjectCardData[];
+  showEmptyAction?: boolean;
+}) {
+  const { t } = await getTranslations();
   if (!projects.length) {
     return (
       <EmptyState
         icon={Boxes}
-        title="The launchpad is ready"
-        description="No approved products yet. Be the first builder to submit one for review."
+        title={t("The launchpad is ready")}
+        description={t(
+          "No approved products yet. Be the first builder to submit one for review.",
+        )}
         action={
-          <Button asChild>
-            <Link href="/submit">Submit a project</Link>
-          </Button>
+          showEmptyAction ? (
+            <Button asChild>
+              <Link href="/submit">{t("Submit a project")}</Link>
+            </Button>
+          ) : undefined
         }
       />
     );
