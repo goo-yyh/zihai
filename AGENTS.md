@@ -30,7 +30,7 @@ These rules are non-negotiable unless the product specification changes:
 - Accounts are created only through GitHub or Google OAuth.
 - Onboarding must finish before projects, iterations, or likes can be created.
 - A project has at least one destination: website URL, GitHub repository URL, or both.
-- A project or iteration has one to three images.
+- A project or iteration has one to five images.
 - Draft, pending, rejected, and archived content is not public.
 - Editing approved public fields returns that resource to pending review.
 - A pending iteration does not unpublish its approved project.

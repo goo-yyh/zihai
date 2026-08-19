@@ -6,7 +6,7 @@ import { and, count, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getDb } from "@/db";
+import { getDb, withTransaction } from "@/db";
 import { getImagePathnamesForProject } from "@/db/queries/dashboard";
 import { projectImages, projects } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
@@ -95,7 +95,7 @@ export async function updateProjectAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const existing = await getDb().transaction(async (tx) => {
+    const existing = await withTransaction(async (tx) => {
       const [ownedProject] = await tx
         .select({ status: projects.status, slug: projects.slug })
         .from(projects)
@@ -144,7 +144,7 @@ export async function submitProjectAction(projectId: string) {
   const session = await assertOnboardedUser();
   const id = idSchema.parse(projectId);
 
-  await getDb().transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     // Upload callbacks lock the same project row, so the image-count check and
     // submission transition observe one serialized state.
     const [project] = await tx

@@ -34,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { locale } = await getTranslations();
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className="flex min-h-screen flex-col antialiased">
         <I18nProvider locale={locale}>
           <SiteHeader />

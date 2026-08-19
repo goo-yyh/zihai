@@ -1,9 +1,10 @@
 "use client";
 
-import { Code2, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { useState } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
+import { GitHubIcon } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 
@@ -38,7 +39,7 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
           {loading === "github" ? (
             <LoaderCircle className="size-4 animate-spin" />
           ) : (
-            <Code2 className="size-4" />
+            <GitHubIcon className="size-4" />
           )}
           {t("Continue with GitHub")}
         </Button>

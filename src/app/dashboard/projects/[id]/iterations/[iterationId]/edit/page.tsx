@@ -82,7 +82,7 @@ export default async function EditIterationPage({
         <CardHeader>
           <CardTitle>{t("Screenshots")}</CardTitle>
           <CardDescription>
-            {t("Add 1–3 images that make the improvement visible.")}
+            {t("Add 1–5 images that make the improvement visible.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">

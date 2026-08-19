@@ -264,7 +264,78 @@ function createSeedData(now: Date, approverId: string) {
     }),
   );
 
-  return { users, projects: seededProjects };
+  const heroProject = seededProjects[0];
+  const iterationNotes = [
+    {
+      versionLabel: "v1.0.9",
+      description:
+        "优化了灵感推荐的排序算法，重复主题的合并准确率明显提升，并修复了移动端卡片布局溢出的问题。",
+    },
+    {
+      versionLabel: "v1.0.8",
+      description:
+        "新增灵感收藏夹功能，支持按标签分组管理，收藏内容现在会跨设备同步。",
+    },
+    {
+      versionLabel: "v1.0.7",
+      description:
+        "接入新的语义检索模型，搜索响应时间从 1.2 秒降低到 400 毫秒以内。",
+    },
+    {
+      versionLabel: "v1.0.6",
+      description:
+        "支持从网页剪藏灵感，自动提取正文和关键词，粘贴链接即可一键保存。",
+    },
+    {
+      versionLabel: "v1.0.5",
+      description:
+        "推出每周灵感回顾邮件，汇总本周收集的高质量方向，帮助创作者持续跟进。",
+    },
+    {
+      versionLabel: "v1.0.4",
+      description:
+        "重构了标签系统，支持多级标签和批量整理，同时优化了深色模式下的对比度。",
+    },
+    {
+      versionLabel: "v1.0.3",
+      description:
+        "新增团队空间：可以邀请伙伴共同维护一个灵感库，并看到彼此的评论。",
+    },
+    {
+      versionLabel: "v1.0.2",
+      description: "上线公开的灵感看板，把整理好的方向一键分享给朋友收集反馈。",
+    },
+    {
+      versionLabel: "v1.0.1",
+      description:
+        "修复了导入导出时中文标签乱码的问题，并补充了批量导入 CSV 的入口。",
+    },
+    {
+      versionLabel: "v1.0.0",
+      description:
+        "第一个正式版本：支持灵感收集、自动归类和每日精选推荐，欢迎反馈。",
+    },
+  ];
+  const iterations = heroProject
+    ? iterationNotes.map((note, index) => {
+        const approvedAt = new Date(
+          now.getTime() - (index + 1) * 36 * 60 * 60 * 1000,
+        );
+        return {
+          id: stableUuid(
+            `${SEED_PREFIX}-iteration-${heroProject.slug}-${note.versionLabel}`,
+          ),
+          projectId: heroProject.id,
+          ownerId: heroProject.ownerId,
+          versionLabel: note.versionLabel,
+          description: note.description,
+          approvedAt,
+          createdAt: new Date(approvedAt.getTime() - 60 * 60 * 1000),
+        };
+      })
+    : [];
+
+  return { users, projects: seededProjects, iterations };
 }
 
 async function main() {
@@ -392,15 +463,36 @@ async function main() {
         `,
       ),
       ...images.map(
+        // WHERE NOT EXISTS keeps re-seeding idempotent: the enforce_project_image_limit
+        // trigger fires per inserted row, so already-present pathnames must be
+        // filtered out before insert instead of relying on ON CONFLICT.
         (image) => transaction`
           INSERT INTO "project_images" (
             "project_id", "blob_url", "blob_pathname", "mime_type",
             "size_bytes", "sort_order"
-          ) VALUES (
-            ${image.projectId}, ${image.url}, ${image.pathname}, 'image/png',
-            ${image.sizeBytes}, ${image.sortOrder}
           )
-          ON CONFLICT ("blob_pathname") DO NOTHING
+          SELECT ${image.projectId}, ${image.url}, ${image.pathname}, 'image/png',
+            ${image.sizeBytes}, ${image.sortOrder}
+          WHERE NOT EXISTS (
+            SELECT 1 FROM "project_images"
+            WHERE "blob_pathname" = ${image.pathname}
+          )
+        `,
+      ),
+      ...seed.iterations.map(
+        (iteration) => transaction`
+          INSERT INTO "project_iterations" (
+            "id", "project_id", "owner_id", "version_label", "description",
+            "status", "rejection_reason", "submitted_at", "approved_at",
+            "approved_by", "created_at", "updated_at"
+          ) VALUES (
+            ${iteration.id}, ${iteration.projectId}, ${iteration.ownerId},
+            ${iteration.versionLabel}, ${iteration.description}, 'approved', NULL,
+            ${iteration.createdAt.toISOString()}, ${iteration.approvedAt.toISOString()},
+            ${approverId}, ${iteration.createdAt.toISOString()},
+            ${iteration.approvedAt.toISOString()}
+          )
+          ON CONFLICT ("id") DO NOTHING
         `,
       ),
     ]);

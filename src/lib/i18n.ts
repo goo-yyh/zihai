@@ -33,6 +33,41 @@ const zhCN: Record<string, string> = {
   Iterations: "迭代",
   Users: "用户",
   "Audit log": "审计日志",
+  Feedback: "建议反馈",
+  "Suggestions submitted by signed-in users, newest first.":
+    "登录用户提交的建议，按时间倒序排列。",
+  From: "来自",
+  "No feedback yet.": "还没有收到建议。",
+  "Send feedback": "提建议",
+  "Tell us what could be better. Plain text only.":
+    "告诉我们哪里可以做得更好，纯文本即可。",
+  "Share your suggestion…": "写下你的建议…",
+  "Your suggestion": "你的建议",
+  Send: "发送",
+  Cancel: "取消",
+  "Sending…": "发送中…",
+  "Submitting…": "提交中…",
+  "Unable to submit the project.": "项目提交失败，请稍后再试。",
+  "Submitted for review.": "已提交审核，请等待管理员处理。",
+  "Project deleted.": "项目已删除。",
+  "Unable to delete the project.": "项目删除失败，请稍后再试。",
+  "Deleting…": "删除中…",
+  "Thanks for your feedback!": "感谢你的反馈！",
+  "Feedback sent.": "反馈已提交。",
+  "Unable to send feedback.": "反馈提交失败，请稍后再试。",
+  "Feedback must be at least 1 character.": "建议内容至少需要 1 个字符。",
+  "Feedback must be at most 2,000 characters.": "建议内容最多 2,000 个字符。",
+  "Archive this project": "下架这个项目",
+  "This immediately hides the project from the homepage, profile, and sitemap. You can republish it later.":
+    "这会立即在首页、个人主页和站点地图中隐藏该项目。之后可以随时重新上架。",
+  Archive: "下架",
+  "Republish this project": "重新上架这个项目",
+  "This puts the archived project back on the homepage and profile after re-checking its images.":
+    "在重新检查项目图片后，把已下架的项目重新放回首页和个人主页。",
+  Republish: "重新上架",
+  "Only approved projects can be archived.": "只有已上架的项目才能下架。",
+  "Only archived projects can be republished.":
+    "只有已下架的项目才能重新上架。",
   "Built with AI. Shipped by humans.": "AI 辅助构建，由人类完成交付。",
   "Find the next useful thing.": "发现下一个真正有用的产品。",
   "A curated launchpad for independent AI products. Discover what builders are shipping, follow every iteration, and support the work you want to see win.":
@@ -118,6 +153,10 @@ const zhCN: Record<string, string> = {
   "Go to image {number}": "查看第 {number} 张图片",
   "Image {current} of {total}": "第 {current} 张，共 {total} 张",
   "Build log": "构建日志",
+  "Recent updates": "最近更新",
+  "More to explore": "更多推荐",
+  "All updates": "全部更新",
+  Close: "关闭",
   UPDATE: "更新",
   "Product update": "产品更新",
   Iteration: "迭代",
@@ -162,8 +201,8 @@ const zhCN: Record<string, string> = {
   "Saving an approved listing automatically returns it to review.":
     "保存已批准的产品信息后，会自动重新进入审核。",
   Screenshots: "截图",
-  "Add between 1 and 3 images. The first image becomes the listing cover.":
-    "添加 1–3 张图片，第一张将作为产品封面。",
+  "Add between 1 and 5 images. The first image becomes the listing cover.":
+    "添加 1–5 张图片，第一张将作为产品封面。",
   "Publish meaningful updates after the project itself is approved.":
     "项目获批后，可以发布有意义的更新。",
   "New iteration": "新建迭代",
@@ -187,8 +226,8 @@ const zhCN: Record<string, string> = {
   "Iteration story": "迭代故事",
   "Editing an approved iteration sends it back to review.":
     "编辑已批准的迭代后，会重新进入审核。",
-  "Add 1–3 images that make the improvement visible.":
-    "添加 1–3 张能够直观展示改进的图片。",
+  "Add 1–5 images that make the improvement visible.":
+    "添加 1–5 张能够直观展示改进的图片。",
   "Review controls": "审核操作",
   "Only approved parent projects can receive new iterations.":
     "只有已批准的上级项目才能添加新迭代。",
@@ -196,8 +235,8 @@ const zhCN: Record<string, string> = {
     "确定永久删除此迭代和全部已上传图片吗？",
   "New launch": "新产品发布",
   "Show us what you built": "展示你构建的产品",
-  "Start with the story and destination. You will add 1–3 screenshots before submitting for human review.":
-    "先填写产品故事和目标链接，提交人工审核前还需要添加 1–3 张截图。",
+  "Start with the story and destination. You will add 1–5 screenshots before submitting for human review.":
+    "先填写产品故事和目标链接，提交人工审核前还需要添加 1–5 张截图。",
   "Project details": "项目详情",
   "Add a public website, a public GitHub repository, or both.":
     "请至少填写公开网站或公开 GitHub 仓库中的一个，也可以同时填写。",
@@ -424,9 +463,9 @@ const zhCN: Record<string, string> = {
   "Invalid request body.": "请求内容无效。",
   "Missing upload intent.": "缺少上传意图。",
   "Project is required.": "必须指定项目。",
-  "A project can have at most 3 images.": "一个项目最多可以有 3 张图片。",
+  "A project can have at most 5 images.": "一个项目最多可以有 5 张图片。",
   "Iteration and project are required.": "必须指定迭代和项目。",
-  "An iteration can have at most 3 images.": "一个迭代最多可以有 3 张图片。",
+  "An iteration can have at most 5 images.": "一个迭代最多可以有 5 张图片。",
   "Complete onboarding first.": "请先完成账户设置。",
   "Upload intent is required.": "必须提供上传意图。",
   "Upload intent mismatch.": "上传意图不匹配。",
@@ -449,8 +488,8 @@ const zhCN: Record<string, string> = {
     "只能提交草稿或已拒绝的项目。",
   "Only draft or rejected iterations can be submitted.":
     "只能提交草稿或已拒绝的迭代。",
-  "Project must have between 1 and 3 images.": "项目必须包含 1–3 张图片。",
-  "Iteration must have between 1 and 3 images.": "迭代必须包含 1–3 张图片。",
+  "Project must have between 1 and 5 images.": "项目必须包含 1–5 张图片。",
+  "Iteration must have between 1 and 5 images.": "迭代必须包含 1–5 张图片。",
   "The project must be approved before submitting an iteration.":
     "提交迭代前，项目必须先获得批准。",
   "Project name must be at least 2 characters.": "项目名称至少需要 2 个字符。",

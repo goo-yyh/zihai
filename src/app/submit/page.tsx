@@ -35,7 +35,7 @@ export default async function SubmitPage() {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
           {t(
-            "Start with the story and destination. You will add 1–3 screenshots before submitting for human review.",
+            "Start with the story and destination. You will add 1–5 screenshots before submitting for human review.",
           )}
         </p>
       </div>
