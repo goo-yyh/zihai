@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  feedbackSchema,
   normalizeGithubUrl,
   projectInputSchema,
   uploadCompletionSchema,
@@ -136,6 +137,21 @@ describe("uploadCompletionSchema", () => {
         ...validCompletion,
         clientPayload: "",
       }).success,
+    ).toBe(false);
+  });
+});
+
+describe("feedbackSchema", () => {
+  it("accepts trimmed plain-text content within limits", () => {
+    expect(
+      feedbackSchema.safeParse({ content: "  希望增加深色模式  " }).success,
+    ).toBe(true);
+  });
+
+  it("rejects empty and oversized content", () => {
+    expect(feedbackSchema.safeParse({ content: "   " }).success).toBe(false);
+    expect(
+      feedbackSchema.safeParse({ content: "x".repeat(2001) }).success,
     ).toBe(false);
   });
 });

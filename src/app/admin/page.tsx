@@ -3,6 +3,7 @@ import {
   Clock3,
   FolderKanban,
   ListChecks,
+  Mailbox,
   Users,
   XCircle,
   type LucideIcon,
@@ -38,6 +39,7 @@ export default async function AdminPage() {
     ...iterationCards,
     ["Approved", stats.approvedProjects, CheckCircle2],
     ["Rejected", stats.rejectedProjects, XCircle],
+    ["Feedback", stats.feedback, Mailbox],
   ];
   return (
     <div className="space-y-8">

@@ -16,6 +16,7 @@ import {
 import { getDb } from "@/db";
 import {
   account,
+  feedback,
   ITERATION_STATUSES,
   iterationImages,
   moderationLogs,
@@ -85,6 +86,7 @@ export async function getAdminStats() {
         from ${projectIterations}
         where ${projectIterations.status} = 'pending'
       )`,
+      feedback: sql<number>`(select count(*)::int from ${feedback})`,
     })
     .from(projects);
 
@@ -95,6 +97,7 @@ export async function getAdminStats() {
     approvedProjects: stats?.approvedProjects ?? 0,
     rejectedProjects: stats?.rejectedProjects ?? 0,
     pendingIterations: stats?.pendingIterations ?? 0,
+    feedback: stats?.feedback ?? 0,
   };
 }
 
@@ -423,4 +426,30 @@ export async function getAuditLogs(
     .limit(pageSize + 1);
 
   return createCursorPage(rows, pageSize, cursor, (log) => log.createdAt);
+}
+
+export async function getAdminFeedback(options: AdminPageOptions = {}) {
+  const { cursor, pageSize } = paginationOptions(options, "uuid");
+  const previous = cursor?.direction === "previous";
+
+  const rows = await getDb()
+    .select({
+      id: feedback.id,
+      content: feedback.content,
+      createdAt: feedback.createdAt,
+      userId: feedback.userId,
+      userEmail: user.email,
+      userUsername: user.username,
+      userImage: user.image,
+    })
+    .from(feedback)
+    .innerJoin(user, eq(feedback.userId, user.id))
+    .where(keysetCondition(feedback.createdAt, feedback.id, cursor))
+    .orderBy(
+      previous ? asc(feedback.createdAt) : desc(feedback.createdAt),
+      previous ? asc(feedback.id) : desc(feedback.id),
+    )
+    .limit(pageSize + 1);
+
+  return createCursorPage(rows, pageSize, cursor, (entry) => entry.createdAt);
 }

@@ -135,6 +135,14 @@ export const rejectionSchema = z.object({
     .max(2000, "Rejection reason must be at most 2,000 characters."),
 });
 
+export const feedbackSchema = z.object({
+  content: z
+    .string()
+    .trim()
+    .min(1, "Feedback must be at least 1 character.")
+    .max(2000, "Feedback must be at most 2,000 characters."),
+});
+
 export const uploadKindSchema = z.enum(UPLOAD_KINDS);
 
 export const uploadPayloadSchema = z.object({

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { logoutAction } from "@/actions/security";
 import { AccountMenu } from "@/components/account-menu";
+import { FeedbackButton } from "@/components/feedback-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { GitHubIcon } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ async function AccountNav() {
 
   return (
     <div className="flex items-center gap-1.5">
+      <FeedbackButton />
       {session.user.onboardingCompleted ? (
         <>
           {session.user.role === "admin" ? (

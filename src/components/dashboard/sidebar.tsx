@@ -3,6 +3,7 @@ import {
   FileClock,
   LayoutDashboard,
   ListChecks,
+  Mailbox,
   Settings,
   Shield,
   Users,
@@ -26,6 +27,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/projects", label: "Projects", icon: ClipboardCheck },
   { href: "/admin/iterations", label: "Iterations", icon: ListChecks },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/feedback", label: "Feedback", icon: Mailbox },
   { href: "/admin/audit", label: "Audit log", icon: FileClock },
 ];
 
@@ -42,7 +44,9 @@ export async function Sidebar({
       item.href !== "/admin/iterations" || isFeatureEnabled("iterations"),
   );
   return (
-    <aside className={cn("w-full lg:w-56", className)}>
+    <aside
+      className={cn("w-full lg:sticky lg:top-20 lg:h-fit lg:w-56", className)}
+    >
       <nav className="flex gap-2 overflow-x-auto lg:flex-col">
         {items.map((item) => {
           const Icon = item.icon;
