@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, eq, max } from "drizzle-orm";
 
-import { getDb } from "@/db";
+import { getDb, withTransaction } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -65,7 +65,13 @@ export async function persistUpload(
     throw new UserFacingError("Upload pathname mismatch.");
   }
 
-  const metadata = await verifiedBlobMetadata(blob, intent);
+  // The two checks are independent network calls (Blob metadata HEAD and the
+  // ownership read), so they run concurrently instead of paying two round
+  // trips back to back.
+  const metadataTask = verifiedBlobMetadata(blob, intent);
+  const ownershipTask =
+    intent.kind === "avatar" ? null : validateUploadOwnership(intent);
+  const metadata = await metadataTask;
 
   if (intent.kind === "avatar") {
     const [existing] = await getDb()
@@ -90,10 +96,10 @@ export async function persistUpload(
     return { kind: "avatar", username: existing.username };
   }
 
-  await validateUploadOwnership(intent);
+  await ownershipTask;
 
   if (intent.kind === "project-image" && intent.projectId) {
-    const project = await getDb().transaction(async (tx) => {
+    const project = await withTransaction(async (tx) => {
       const [ownedProject] = await tx
         .select({ status: projects.status, slug: projects.slug })
         .from(projects)
@@ -155,7 +161,7 @@ export async function persistUpload(
     throw new UserFacingError("Iteration and project are required.");
   }
 
-  const projectSlug = await getDb().transaction(async (tx) => {
+  const projectSlug = await withTransaction(async (tx) => {
     const [iteration] = await tx
       .select({
         status: projectIterations.status,

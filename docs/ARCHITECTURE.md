@@ -60,6 +60,19 @@ The database client is created lazily through `getDb()`. Importing a query or
 Action module during route discovery does not read runtime credentials; the first
 database operation still validates the complete server environment.
 
+`getDb()` uses the neon-http driver: stateless HTTP queries with low latency and
+`db.batch()` support, but no interactive transactions — the method is removed
+from its public type so misuse fails at compile time. Interactive transactions
+use `withTransaction()` from `src/db/index.ts` instead. It drives a
+`@neondatabase/serverless` WebSocket pool over the same pooled `DATABASE_URL`,
+creates the pool per call, and closes it in `finally` because WebSocket
+connections cannot outlive a serverless request. Neon's pooler pins one backend
+for the whole `BEGIN..COMMIT` window, so `FOR UPDATE`,
+`pg_advisory_xact_lock`, and rollback semantics are preserved. Real-database
+integration tests for this contract live in `src/db/integration.test.ts` and run
+only with `RUN_DB_IT=1` plus a `DATABASE_TEST_URL` whose database name ends with
+`_test`.
+
 ### `src/lib`
 
 `lib` contains focused shared rules and utilities. In particular, `content-lifecycle.ts` is the single source of truth for what happens when moderated public content changes, while `image-policy.ts` owns the MIME, file-count, and byte limits shared by browser and server upload code. Do not duplicate those rules in Actions, upload callbacks, or components.

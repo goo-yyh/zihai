@@ -7,7 +7,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getDb } from "@/db";
+import { getDb, withTransaction } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -81,7 +81,7 @@ export async function deleteAccountAction(formData: FormData) {
   }
 
   await getAuth().api.signOut({ headers: await headers() });
-  await getDb().transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(948217431)`);
     const [freshUser] = await tx
       .select({ role: user.role })
