@@ -1,15 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { createProjectAction, updateProjectAction } from "@/actions/project";
-import { FieldError, FormMessage } from "@/components/forms/form-message";
+import { FieldError } from "@/components/forms/form-message";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { useI18n } from "@/components/i18n-provider";
+import { useReviewActions } from "@/components/project/review-submit";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { initialActionState } from "@/types/actions";
+import { initialActionState, type ActionState } from "@/types/actions";
 
 type ProjectValues = {
   id?: string;
@@ -19,15 +21,62 @@ type ProjectValues = {
   githubUrl?: string | null;
 };
 
-export function ProjectForm({ project = {} }: { project?: ProjectValues }) {
+function isRedirectError(error: unknown) {
+  return (
+    error instanceof Error &&
+    "digest" in error &&
+    typeof error.digest === "string" &&
+    error.digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
+export function ProjectForm({
+  project = {},
+  formId,
+}: {
+  project?: ProjectValues;
+  // When set, the form is submitted from the edit page footer instead of an
+  // inline button, so the save state is shared with the footer button.
+  formId?: string;
+}) {
   const { t } = useI18n();
+  const { setSaving } = useReviewActions();
+  const [state, setState] = useState<ActionState>(initialActionState);
   const serverAction = project.id
     ? updateProjectAction.bind(null, project.id)
     : createProjectAction;
-  const [state, action] = useActionState(serverAction, initialActionState);
+
+  async function submit(formData: FormData) {
+    setSaving(true);
+    try {
+      const result = await serverAction(initialActionState, formData);
+      setState(result);
+      if (result.status === "success" && result.message) {
+        toast.success(t(result.message));
+      }
+    } catch (error) {
+      if (isRedirectError(error)) throw error;
+      setState({
+        status: "error",
+        message: "Unable to save the project.",
+      });
+      toast.error(t("Unable to save the project."));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <form action={action} className="space-y-5">
+    <form
+      id={formId}
+      action={submit}
+      // React runs form actions inside a transition that defers state
+      // updates until the action settles, so the loading flag must be set in
+      // the submit event (outside the transition) for the spinner to paint.
+      // The event only fires after native validation passes.
+      onSubmit={() => setSaving(true)}
+      className="space-y-5"
+    >
       <div className="space-y-1.5">
         <Label htmlFor="name">{t("Project name")}</Label>
         <Input
@@ -90,10 +139,11 @@ export function ProjectForm({ project = {} }: { project?: ProjectValues }) {
           </div>
         </div>
       </fieldset>
-      <FormMessage state={state} />
-      <SubmitButton pendingLabel={project.id ? "Saving…" : "Creating…"}>
-        {t(project.id ? "Save project" : "Create project")}
-      </SubmitButton>
+      {formId ? null : (
+        <SubmitButton pendingLabel={project.id ? "Saving…" : "Creating…"}>
+          {t(project.id ? "Save project" : "Create project")}
+        </SubmitButton>
+      )}
     </form>
   );
 }

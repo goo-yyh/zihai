@@ -1,11 +1,16 @@
-import { Code2, ExternalLink, Plus, Send, Trash2 } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { deleteProjectAction, submitProjectAction } from "@/actions/project";
-import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { ImageManager } from "@/components/project/image-manager";
 import { ProjectForm } from "@/components/project/project-form";
+import {
+  DeleteProjectButton,
+  ReviewSubmitBarrier,
+  SaveProjectButton,
+  SubmitReviewForm,
+} from "@/components/project/review-submit";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +44,7 @@ export default async function EditProjectPage({
     project.images.length >= 1;
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-7 pb-24">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -84,127 +89,109 @@ export default async function EditProjectPage({
         </p>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("Listing")}</CardTitle>
-          <CardDescription>
-            {t(
-              "Saving an approved listing automatically returns it to review.",
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <ProjectForm project={project} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("Screenshots")}</CardTitle>
-          <CardDescription>
-            {t(
-              "Add between 1 and 3 images. The first image becomes the listing cover.",
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <ImageManager
-            kind="project-image"
-            resourceId={project.id}
-            projectId={project.id}
-            images={project.images}
-          />
-        </CardContent>
-      </Card>
-
-      {iterationsEnabled ? (
+      <ReviewSubmitBarrier>
         <Card>
-          <CardHeader className="flex-row items-start justify-between gap-4">
-            <div>
-              <CardTitle>{t("Iterations")}</CardTitle>
-              <CardDescription className="mt-1">
-                {t(
-                  "Publish meaningful updates after the project itself is approved.",
-                )}
-              </CardDescription>
-            </div>
-            {project.status === "approved" ? (
-              <Button asChild size="sm">
-                <Link href={`/dashboard/projects/${project.id}/iterations/new`}>
-                  <Plus className="size-4" /> {t("New iteration")}
-                </Link>
-              </Button>
-            ) : null}
+          <CardHeader>
+            <CardTitle>{t("Listing")}</CardTitle>
+            <CardDescription>
+              {t(
+                "Saving an approved listing automatically returns it to review.",
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            {project.iterations.length ? (
-              <div className="divide-y rounded-xl border">
-                {project.iterations.map((iteration) => (
-                  <Link
-                    key={iteration.id}
-                    href={`/dashboard/projects/${project.id}/iterations/${iteration.id}/edit`}
-                    className="flex items-center justify-between gap-3 p-4 hover:bg-muted/40"
-                  >
-                    <div>
-                      <p className="font-bold">
-                        {iteration.versionLabel || t("Untitled update")}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {formatDate(iteration.createdAt, locale)}
-                      </p>
-                    </div>
-                    <Badge variant={iteration.status}>{iteration.status}</Badge>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-                {t("No iterations yet.")}
-              </p>
-            )}
+            <ProjectForm project={project} formId="project-edit-form" />
           </CardContent>
         </Card>
-      ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-white p-5">
-        <div>
-          <p className="font-bold">{t("Ready for review?")}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t("A project needs at least one screenshot and complete details.")}
-          </p>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("Screenshots")}</CardTitle>
+            <CardDescription>
+              {t(
+                "Add between 1 and 5 images. The first image becomes the listing cover.",
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ImageManager
+              kind="project-image"
+              resourceId={project.id}
+              projectId={project.id}
+              images={project.images}
+            />
+          </CardContent>
+        </Card>
+
+        {iterationsEnabled ? (
+          <Card>
+            <CardHeader className="flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>{t("Iterations")}</CardTitle>
+                <CardDescription className="mt-1">
+                  {t(
+                    "Publish meaningful updates after the project itself is approved.",
+                  )}
+                </CardDescription>
+              </div>
+              {project.status === "approved" ? (
+                <Button asChild size="sm">
+                  <Link
+                    href={`/dashboard/projects/${project.id}/iterations/new`}
+                  >
+                    <Plus className="size-4" /> {t("New iteration")}
+                  </Link>
+                </Button>
+              ) : null}
+            </CardHeader>
+            <CardContent className="pt-4">
+              {project.iterations.length ? (
+                <div className="divide-y rounded-xl border">
+                  {project.iterations.map((iteration) => (
+                    <Link
+                      key={iteration.id}
+                      href={`/dashboard/projects/${project.id}/iterations/${iteration.id}/edit`}
+                      className="flex items-center justify-between gap-3 p-4 hover:bg-muted/40"
+                    >
+                      <div>
+                        <p className="font-bold">
+                          {iteration.versionLabel || t("Untitled update")}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatDate(iteration.createdAt, locale)}
+                        </p>
+                      </div>
+                      <Badge variant={iteration.status}>
+                        {iteration.status}
+                      </Badge>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+                  {t("No iterations yet.")}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-7xl items-center justify-end gap-2 px-4 py-3 sm:px-6 lg:px-8">
+            <SaveProjectButton formId="project-edit-form" />
+            <DeleteProjectButton
+              action={deleteProjectAction.bind(null, project.id)}
+              confirmMessage="Delete this project, all iterations, and every uploaded image permanently?"
+            />
+            {["draft", "rejected"].includes(project.status) ? (
+              <SubmitReviewForm
+                action={submitProjectAction.bind(null, project.id)}
+                canSubmit={canSubmit}
+              />
+            ) : null}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <form action={deleteProjectAction.bind(null, project.id)}>
-            <ConfirmSubmitButton
-              variant="danger"
-              message="Delete this project, all iterations, and every uploaded image permanently?"
-            >
-              <Trash2 className="size-4" /> {t("Delete")}
-            </ConfirmSubmitButton>
-          </form>
-          {["draft", "rejected"].includes(project.status) ? (
-            <form action={submitProjectAction.bind(null, project.id)}>
-              <Button type="submit" disabled={!canSubmit}>
-                <Send className="size-4" /> {t("Submit for review")}
-              </Button>
-            </form>
-          ) : null}
-          {project.websiteUrl ? (
-            <Button asChild variant="outline">
-              <a href={project.websiteUrl} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-4" /> {t("Visit product")}
-              </a>
-            </Button>
-          ) : null}
-          {project.githubUrl ? (
-            <Button asChild variant="outline">
-              <a href={project.githubUrl} target="_blank" rel="noreferrer">
-                <Code2 className="size-4" /> {t("View code")}
-              </a>
-            </Button>
-          ) : null}
-        </div>
-      </div>
+      </ReviewSubmitBarrier>
     </div>
   );
 }
