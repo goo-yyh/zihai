@@ -1,6 +1,5 @@
 import { CalendarDays } from "lucide-react";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -9,10 +8,16 @@ import remarkGfm from "remark-gfm";
 
 import { ProjectImageCarousel } from "@/components/project/project-image-carousel";
 import { LikeButton } from "@/components/project/like-button";
+import { RecentUpdates } from "@/components/project/recent-updates";
+import { RecommendedProjects } from "@/components/project/recommended-projects";
 import { Avatar } from "@/components/ui/avatar";
 import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
-import { getPublicProject, getViewerProjectLike } from "@/db/queries/public";
+import {
+  getPublicProject,
+  getRecommendationPool,
+  getViewerProjectLike,
+} from "@/db/queries/public";
 import { isFeatureEnabled } from "@/lib/features";
 import { getSession } from "@/lib/session";
 import { getTranslations } from "@/lib/i18n-server";
@@ -93,6 +98,11 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
   ]);
   if (!project) notFound();
   const iterationsEnabled = isFeatureEnabled("iterations");
+  const hasPublicIterations =
+    iterationsEnabled && project.iterations.length > 0;
+  const recommendations = hasPublicIterations
+    ? []
+    : await getRecommendationPool(slug);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
@@ -168,71 +178,6 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
               {project.description}
             </ReactMarkdown>
           </article>
-
-          {iterationsEnabled && project.iterations.length ? (
-            <section className="mt-12">
-              <div className="mb-6">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
-                  {t("Build log")}
-                </p>
-                <h2 className="mt-2 text-3xl font-black tracking-tight">
-                  {t("Iterations")}
-                </h2>
-              </div>
-              <div className="space-y-6">
-                {project.iterations.map((iteration, index) => (
-                  <article
-                    key={iteration.id}
-                    className="rounded-2xl border bg-white p-6"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="font-mono text-xs font-bold text-primary">
-                          {t("UPDATE")}{" "}
-                          {String(project.iterations.length - index).padStart(
-                            2,
-                            "0",
-                          )}
-                        </p>
-                        <h3 className="mt-1 text-xl font-black">
-                          {iteration.versionLabel || t("Product update")}
-                        </h3>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDate(
-                          iteration.approvedAt || iteration.createdAt,
-                          locale,
-                        )}
-                      </span>
-                    </div>
-                    {iteration.images.length ? (
-                      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                        {iteration.images.map((image, imageIndex) => (
-                          <div
-                            key={image.id}
-                            className="relative aspect-[16/10] overflow-hidden rounded-xl border bg-muted"
-                          >
-                            <Image
-                              src={image.url}
-                              alt={`${iteration.versionLabel || t("Iteration")} ${t("Screenshot {number}", { number: imageIndex + 1 })}`}
-                              fill
-                              sizes="(max-width: 640px) 100vw, 250px"
-                              className="object-cover"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="prose-zihai mt-5">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {iteration.description}
-                      </ReactMarkdown>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ) : null}
         </main>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
@@ -267,6 +212,26 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
               {formatDate(project.publishedAt, locale)}
             </p>
           </div>
+          {hasPublicIterations ? (
+            <RecentUpdates
+              items={project.iterations.map((iteration) => ({
+                id: iteration.id,
+                versionLabel: iteration.versionLabel,
+                description: iteration.description,
+                // neon-http returns timestamps as strings despite the Date type.
+                approvedAt: iteration.approvedAt
+                  ? new Date(iteration.approvedAt).toISOString()
+                  : null,
+                createdAt: new Date(iteration.createdAt).toISOString(),
+                images: iteration.images.map((image) => ({
+                  id: image.id,
+                  url: image.url,
+                })),
+              }))}
+            />
+          ) : (
+            <RecommendedProjects pool={recommendations} />
+          )}
         </aside>
       </div>
     </div>

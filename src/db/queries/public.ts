@@ -8,6 +8,7 @@ import {
   desc,
   eq,
   ilike,
+  ne,
   or,
   type SQL,
 } from "drizzle-orm";
@@ -142,6 +143,33 @@ const getCachedPublicProjects = unstable_cache(
 );
 
 export const getPublicProjects = cache(getCachedPublicProjects);
+
+const RECOMMENDATION_POOL_SIZE = 20;
+
+// Returns the latest approved projects as a stable ordered pool; the random
+// pick of five happens in the client component so that Server Action
+// revalidations (e.g. liking) do not reshuffle the sidebar, while a real page
+// load does.
+export const getRecommendationPool = cache(async (excludeSlug: string) => {
+  return getDb()
+    .select({
+      id: projects.id,
+      name: projects.name,
+      slug: projects.slug,
+      imageUrl: projectImages.blobUrl,
+    })
+    .from(projects)
+    .innerJoin(
+      projectImages,
+      and(
+        eq(projectImages.projectId, projects.id),
+        eq(projectImages.sortOrder, 0),
+      ),
+    )
+    .where(and(eq(projects.status, "approved"), ne(projects.slug, excludeSlug)))
+    .orderBy(desc(projects.publishedAt), desc(projects.id))
+    .limit(RECOMMENDATION_POOL_SIZE);
+});
 
 async function queryPublicProject(slug: string) {
   const projectFilter = and(
