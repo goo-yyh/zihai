@@ -55,8 +55,24 @@ export const projectIterations = pgTable(
   },
   (table) => [
     index("project_iterations_project_id_idx").on(table.projectId),
+    index("project_iterations_project_id_status_approved_at_created_at_idx").on(
+      table.projectId,
+      table.status,
+      table.approvedAt,
+      table.createdAt,
+    ),
+    index("project_iterations_project_id_owner_id_created_at_idx").on(
+      table.projectId,
+      table.ownerId,
+      table.createdAt,
+    ),
     index("project_iterations_owner_id_idx").on(table.ownerId),
     index("project_iterations_status_idx").on(table.status),
+    index("project_iterations_status_updated_at_id_idx").on(
+      table.status,
+      table.updatedAt,
+      table.id,
+    ),
     index("project_iterations_created_at_idx").on(table.createdAt),
   ],
 );

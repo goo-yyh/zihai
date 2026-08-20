@@ -1,5 +1,8 @@
+"use client";
+
 import type { ReactNode } from "react";
 
+import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 
 const variants = {
@@ -22,6 +25,7 @@ export function Badge({
   variant?: keyof typeof variants;
   className?: string;
 }) {
+  const { t } = useI18n();
   return (
     <span
       className={cn(
@@ -30,7 +34,7 @@ export function Badge({
         className,
       )}
     >
-      {children}
+      {typeof children === "string" ? t(children) : children}
     </span>
   );
 }

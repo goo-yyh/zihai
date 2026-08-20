@@ -5,11 +5,19 @@ import { useActionState } from "react";
 import { updateProfileAction } from "@/actions/profile";
 import { FieldError, FormMessage } from "@/components/forms/form-message";
 import { SubmitButton } from "@/components/forms/submit-button";
+import { useI18n } from "@/components/i18n-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { initialActionState } from "@/types/actions";
 
-export function ProfileForm({ username }: { username: string }) {
+export function ProfileForm({
+  username,
+  contactEmail,
+}: {
+  username: string;
+  contactEmail: string;
+}) {
+  const { t } = useI18n();
   const [state, action] = useActionState(
     updateProfileAction,
     initialActionState,
@@ -17,7 +25,7 @@ export function ProfileForm({ username }: { username: string }) {
   return (
     <form action={action} className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="username">Username</Label>
+        <Label htmlFor="username">{t("Username")}</Label>
         <Input
           id="username"
           name="username"
@@ -28,12 +36,30 @@ export function ProfileForm({ username }: { username: string }) {
           required
         />
         <p className="text-xs text-muted-foreground">
-          Lowercase letters, numbers, underscores, and hyphens.
+          {t("Lowercase letters, numbers, underscores, and hyphens.")}
         </p>
         <FieldError errors={state.fieldErrors?.username} />
       </div>
+      <div className="space-y-1.5 border-t pt-4">
+        <Label htmlFor="contactEmail">{t("Contact email")}</Label>
+        <Input
+          id="contactEmail"
+          name="contactEmail"
+          type="email"
+          defaultValue={contactEmail}
+          maxLength={254}
+          autoComplete="email"
+          required
+        />
+        <p className="text-xs leading-5 text-muted-foreground">
+          {t(
+            "This email is private and used only for review and account communications.",
+          )}
+        </p>
+        <FieldError errors={state.fieldErrors?.contactEmail} />
+      </div>
       <FormMessage state={state} />
-      <SubmitButton pendingLabel="Saving…">Save profile</SubmitButton>
+      <SubmitButton pendingLabel="Saving…">{t("Save profile")}</SubmitButton>
     </form>
   );
 }

@@ -69,11 +69,6 @@ select {
   background: rgb(109 67 242 / 22%);
 }
 
-.dot-grid {
-  background-image: radial-gradient(rgb(22 26 22 / 12%) 1px, transparent 1px);
-  background-size: 18px 18px;
-}
-
 .prose-zihai {
   color: #313831;
   line-height: 1.8;

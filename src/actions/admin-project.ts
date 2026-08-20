@@ -6,7 +6,7 @@ import { and, count, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getDb } from "@/db";
+import { getDb, withTransaction } from "@/db";
 import { moderationLogs, projectImages, projects, user } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
 import { assertImageCount } from "@/lib/content-lifecycle";
@@ -34,7 +34,7 @@ export async function approveProjectAction(projectId: string) {
   const session = await assertAdmin();
   const id = idSchema.parse(projectId);
 
-  const project = await getDb().transaction(async (tx) => {
+  const project = await withTransaction(async (tx) => {
     const [pendingProject] = await tx
       .select({
         status: projects.status,
@@ -93,7 +93,7 @@ export async function rejectProjectAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const project = await getDb().transaction(async (tx) => {
+    const project = await withTransaction(async (tx) => {
       const [pendingProject] = await tx
         .select({
           status: projects.status,
@@ -136,4 +136,95 @@ export async function rejectProjectAction(
   } catch (error) {
     return safeActionError(error, "Unable to reject the project.");
   }
+}
+
+export async function archiveProjectAction(projectId: string) {
+  const session = await assertAdmin();
+  const id = idSchema.parse(projectId);
+
+  const project = await withTransaction(async (tx) => {
+    const [approvedProject] = await tx
+      .select({
+        status: projects.status,
+        slug: projects.slug,
+        ownerId: projects.ownerId,
+      })
+      .from(projects)
+      .where(eq(projects.id, id))
+      .for("update");
+    if (!approvedProject) throw new UserFacingError("Project not found.");
+    if (approvedProject.status !== "approved") {
+      throw new UserFacingError("Only approved projects can be archived.");
+    }
+
+    await tx
+      .update(projects)
+      .set({
+        status: "archived",
+        publishedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(projects.id, id), eq(projects.status, "approved")));
+    await tx.insert(moderationLogs).values({
+      adminId: session.user.id,
+      targetType: "project",
+      targetId: id,
+      action: "archive_project",
+    });
+
+    return approvedProject;
+  });
+
+  revalidatePublicProject(project.slug, await ownerUsername(project.ownerId));
+  revalidateAdminContent("projects");
+  redirect(`/admin/projects/${id}?archived=1`);
+}
+
+export async function republishProjectAction(projectId: string) {
+  const session = await assertAdmin();
+  const id = idSchema.parse(projectId);
+
+  const project = await withTransaction(async (tx) => {
+    const [archivedProject] = await tx
+      .select({
+        status: projects.status,
+        slug: projects.slug,
+        ownerId: projects.ownerId,
+      })
+      .from(projects)
+      .where(eq(projects.id, id))
+      .for("update");
+    if (!archivedProject) throw new UserFacingError("Project not found.");
+    if (archivedProject.status !== "archived") {
+      throw new UserFacingError("Only archived projects can be republished.");
+    }
+
+    const [images] = await tx
+      .select({ value: count() })
+      .from(projectImages)
+      .where(eq(projectImages.projectId, id));
+    assertImageCount(images?.value ?? 0, "Project");
+
+    const now = new Date();
+    await tx
+      .update(projects)
+      .set({
+        status: "approved",
+        publishedAt: now,
+        updatedAt: now,
+      })
+      .where(and(eq(projects.id, id), eq(projects.status, "archived")));
+    await tx.insert(moderationLogs).values({
+      adminId: session.user.id,
+      targetType: "project",
+      targetId: id,
+      action: "republish_project",
+    });
+
+    return archivedProject;
+  });
+
+  revalidatePublicProject(project.slug, await ownerUsername(project.ownerId));
+  revalidateAdminContent("projects");
+  redirect(`/admin/projects/${id}?republished=1`);
 }

@@ -6,7 +6,7 @@ import { and, count, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getDb } from "@/db";
+import { withTransaction } from "@/db";
 import {
   iterationImages,
   moderationLogs,
@@ -16,6 +16,7 @@ import {
 import { safeActionError, validationError } from "@/lib/action-utils";
 import { assertImageCount } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
+import { assertFeatureEnabled } from "@/lib/features";
 import { assertAdmin } from "@/lib/session";
 import { rejectionSchema } from "@/lib/validations";
 import {
@@ -28,9 +29,10 @@ const idSchema = z.uuid();
 
 export async function approveIterationAction(iterationId: string) {
   const session = await assertAdmin();
+  assertFeatureEnabled("iterations");
   const id = idSchema.parse(iterationId);
 
-  const iteration = await getDb().transaction(async (tx) => {
+  const iteration = await withTransaction(async (tx) => {
     const [pendingIteration] = await tx
       .select({
         status: projectIterations.status,
@@ -91,12 +93,13 @@ export async function rejectIterationAction(
   formData: FormData,
 ): Promise<ActionState> {
   const session = await assertAdmin();
+  assertFeatureEnabled("iterations");
   const id = idSchema.parse(iterationId);
   const parsed = rejectionSchema.safeParse({ reason: formData.get("reason") });
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const iteration = await getDb().transaction(async (tx) => {
+    const iteration = await withTransaction(async (tx) => {
       const [pendingIteration] = await tx
         .select({
           status: projectIterations.status,

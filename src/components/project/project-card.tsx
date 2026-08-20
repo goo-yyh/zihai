@@ -1,27 +1,24 @@
-import { Code2, ExternalLink, Heart } from "lucide-react";
+"use client";
+
+import { Heart } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { useI18n } from "@/components/i18n-provider";
 import { Avatar } from "@/components/ui/avatar";
-import { truncate } from "@/lib/utils";
-
-export type ProjectCardData = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  websiteUrl: string | null;
-  githubUrl: string | null;
-  imageUrl: string;
-  ownerUsername: string | null;
-  ownerImage: string | null;
-  likeCount: number;
-};
+import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
+import type { ProjectCardData } from "@/types/projects";
 
 export function ProjectCard({ project }: { project: ProjectCardData }) {
+  const { t } = useI18n();
   return (
     <article className="group overflow-hidden rounded-2xl border bg-white shadow-[0_8px_30px_rgb(27_34_9/5%)] transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgb(27_34_9/10%)]">
-      <Link href={`/p/${project.slug}`} className="block">
+      <Link
+        href={`/p/${project.slug}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block"
+      >
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">
           <Image
             src={project.imageUrl}
@@ -30,26 +27,23 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover transition duration-500 group-hover:scale-[1.03]"
           />
-          <span className="absolute right-3 top-3 rounded-full border bg-white/90 p-2 shadow-sm backdrop-blur">
-            {project.githubUrl ? (
-              <Code2 className="size-4" />
-            ) : (
-              <ExternalLink className="size-4" />
-            )}
+          <span className="absolute right-3 top-3 flex gap-1.5 rounded-full border bg-white/90 p-2 shadow-sm backdrop-blur">
+            {project.websiteUrl ? <ChromeIcon className="size-4" /> : null}
+            {project.githubUrl ? <GitHubIcon className="size-4" /> : null}
           </span>
         </div>
         <div className="p-5">
           <h3 className="text-lg font-bold tracking-tight group-hover:text-primary">
             {project.name}
           </h3>
-          <p className="mt-2 min-h-12 text-sm leading-6 text-muted-foreground">
-            {truncate(project.description.replace(/[#*_`]/g, ""), 110)}
+          <p className="mt-2 line-clamp-3 h-[4.5rem] text-sm leading-6 text-muted-foreground">
+            {project.description.replace(/[#*_`]/g, "")}
           </p>
           <div className="mt-5 flex items-center justify-between gap-3 border-t pt-4">
             <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-muted-foreground">
               <Avatar
                 src={project.ownerImage}
-                alt={project.ownerUsername || "Builder"}
+                alt={project.ownerUsername || t("Builder")}
                 size={28}
               />
               <span className="truncate">

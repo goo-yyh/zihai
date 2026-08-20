@@ -7,6 +7,7 @@ import { admin, username } from "better-auth/plugins";
 
 import { getDb } from "@/db";
 import { account, session, user, verification } from "@/db/schema";
+import { githubFallbackEmail } from "@/lib/contact-email";
 import { getServerEnv } from "@/lib/env";
 import { getSiteUrl } from "@/lib/site";
 import { usernameSchema } from "@/lib/validations";
@@ -23,16 +24,13 @@ function createAuth() {
       provider: "pg",
       schema: { user, session, account, verification },
     }),
-    emailAndPassword: {
-      enabled: true,
-      disableSignUp: true,
-      minPasswordLength: 8,
-      maxPasswordLength: 128,
-    },
     socialProviders: {
       github: {
         clientId: env.GITHUB_CLIENT_ID,
         clientSecret: env.GITHUB_CLIENT_SECRET,
+        mapProfileToUser: (profile) => ({
+          email: profile.email?.trim() || githubFallbackEmail(profile.id),
+        }),
       },
       google: {
         clientId: env.GOOGLE_CLIENT_ID,
@@ -48,6 +46,11 @@ function createAuth() {
           input: false,
         },
         avatarPathname: {
+          type: "string",
+          required: false,
+          input: false,
+        },
+        contactEmail: {
           type: "string",
           required: false,
           input: false,

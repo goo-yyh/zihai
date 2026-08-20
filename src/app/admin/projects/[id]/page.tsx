@@ -1,27 +1,36 @@
-import { Check, Code2, ExternalLink } from "lucide-react";
+import { Archive, Check, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { approveProjectAction } from "@/actions/admin-project";
+import {
+  approveProjectAction,
+  archiveProjectAction,
+  republishProjectAction,
+} from "@/actions/admin-project";
 import { RejectionForm } from "@/components/admin/review-form";
 import { Avatar } from "@/components/ui/avatar";
+import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAdminProject } from "@/db/queries/admin";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
 export default async function AdminProjectPage({
   params,
 }: PageProps<"/admin/projects/[id]">) {
-  const [{ id }] = await Promise.all([params, requireAdmin()]);
+  const [{ id }, , { locale, t }] = await Promise.all([
+    params,
+    requireAdmin(),
+    getTranslations(),
+  ]);
   const project = await getAdminProject(id);
   if (!project) notFound();
-  const destination = project.githubUrl || project.websiteUrl!;
   return (
     <div className="space-y-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -44,16 +53,22 @@ export default async function AdminProjectPage({
             @{project.ownerUsername || project.ownerEmail}
           </Link>
         </div>
-        <Button asChild variant="outline">
-          <a href={destination} target="_blank" rel="noreferrer">
-            {project.githubUrl ? (
-              <Code2 className="size-4" />
-            ) : (
-              <ExternalLink className="size-4" />
-            )}{" "}
-            Inspect destination
-          </a>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {project.websiteUrl ? (
+            <Button asChild variant="outline">
+              <a href={project.websiteUrl} target="_blank" rel="noreferrer">
+                <ChromeIcon className="size-4" /> {t("Inspect website")}
+              </a>
+            </Button>
+          ) : null}
+          {project.githubUrl ? (
+            <Button asChild variant="outline">
+              <a href={project.githubUrl} target="_blank" rel="noreferrer">
+                <GitHubIcon className="size-4" /> {t("Inspect repository")}
+              </a>
+            </Button>
+          ) : null}
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         {project.images.map((image, index) => (
@@ -63,7 +78,7 @@ export default async function AdminProjectPage({
           >
             <Image
               src={image.blobUrl}
-              alt={`Submission screenshot ${index + 1}`}
+              alt={t("Submission screenshot {number}", { number: index + 1 })}
               fill
               sizes="(max-width: 640px) 100vw, 280px"
               className="object-cover"
@@ -73,7 +88,7 @@ export default async function AdminProjectPage({
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Description</CardTitle>
+          <CardTitle>{t("Description")}</CardTitle>
         </CardHeader>
         <CardContent>
           <article className="prose-zihai">
@@ -91,10 +106,10 @@ export default async function AdminProjectPage({
         ].map(([label, value]) => (
           <Card key={String(label)} className="p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              {String(label)}
+              {t(String(label))}
             </p>
             <p className="mt-2 text-sm font-semibold">
-              {formatDate(value as Date | null)}
+              {formatDate(value as Date | null, locale)}
             </p>
           </Card>
         ))}
@@ -106,27 +121,64 @@ export default async function AdminProjectPage({
             className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4"
           >
             <p className="font-bold text-emerald-900">
-              Approve for publication
+              {t("Approve for publication")}
             </p>
             <p className="mt-2 text-sm leading-6 text-emerald-800">
-              This immediately makes the project visible on the homepage,
-              profile, and sitemap.
+              {t(
+                "This immediately makes the project visible on the homepage, profile, and sitemap.",
+              )}
             </p>
             <Button type="submit" className="mt-4">
-              <Check className="size-4" /> Approve
+              <Check className="size-4" /> {t("Approve")}
             </Button>
           </form>
           <RejectionForm kind="project" resourceId={project.id} />
         </div>
       ) : project.rejectionReason ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-          <strong>Rejection reason:</strong> {project.rejectionReason}
+          <strong>{t("Rejection reason:")}</strong> {project.rejectionReason}
         </div>
+      ) : null}
+      {project.status === "approved" ? (
+        <form
+          action={archiveProjectAction.bind(null, project.id)}
+          className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4"
+        >
+          <p className="font-bold text-amber-900">
+            {t("Archive this project")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-amber-800">
+            {t(
+              "This immediately hides the project from the homepage, profile, and sitemap. You can republish it later.",
+            )}
+          </p>
+          <Button type="submit" variant="outline" className="mt-4">
+            <Archive className="size-4" /> {t("Archive")}
+          </Button>
+        </form>
+      ) : null}
+      {project.status === "archived" ? (
+        <form
+          action={republishProjectAction.bind(null, project.id)}
+          className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4"
+        >
+          <p className="font-bold text-emerald-900">
+            {t("Republish this project")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-emerald-800">
+            {t(
+              "This puts the archived project back on the homepage and profile after re-checking its images.",
+            )}
+          </p>
+          <Button type="submit" className="mt-4">
+            <RefreshCw className="size-4" /> {t("Republish")}
+          </Button>
+        </form>
       ) : null}
       {project.logs.length ? (
         <Card>
           <CardHeader>
-            <CardTitle>Moderation history</CardTitle>
+            <CardTitle>{t("Moderation history")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {project.logs.map((log) => (
@@ -139,7 +191,7 @@ export default async function AdminProjectPage({
                   {log.reason ? ` — ${log.reason}` : ""}
                 </span>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatDate(log.createdAt)}
+                  {formatDate(log.createdAt, locale)}
                 </span>
               </div>
             ))}

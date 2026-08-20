@@ -19,6 +19,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx scripts/seed-development.ts",
     "admin:promote": "tsx scripts/promote-admin.ts",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },

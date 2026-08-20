@@ -4,6 +4,7 @@ import "server-only";
 
 import { z } from "zod";
 
+import { assertFeatureEnabled } from "@/lib/features";
 import { assertOnboardedUser } from "@/lib/session";
 import {
   revalidateIterationWorkspace,
@@ -19,6 +20,7 @@ const imageOrderSchema = z.array(idSchema).min(1).max(3);
 
 export async function deleteIterationImageAction(imageId: string) {
   const session = await assertOnboardedUser();
+  assertFeatureEnabled("iterations");
   const result = await deleteOwnedIterationImage(
     idSchema.parse(imageId),
     session.user.id,
@@ -33,6 +35,7 @@ export async function reorderIterationImagesAction(
   orderedImageIds: string[],
 ) {
   const session = await assertOnboardedUser();
+  assertFeatureEnabled("iterations");
   const result = await reorderOwnedIterationImages(
     idSchema.parse(iterationId),
     imageOrderSchema.parse(orderedImageIds),

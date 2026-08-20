@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { setUserBanAction, setUserRoleAction } from "@/actions/admin-user";
+import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ export function UserActions({
   banned: boolean;
   isSelf: boolean;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [reason, setReason] = useState("");
   const [pending, startTransition] = useTransition();
@@ -29,10 +31,12 @@ export function UserActions({
     startTransition(async () => {
       try {
         await task();
-        toast.success(message);
+        toast.success(t(message));
         router.refresh();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Action failed.");
+        toast.error(
+          t(error instanceof Error ? error.message : "Action failed."),
+        );
       }
     });
   }
@@ -41,9 +45,9 @@ export function UserActions({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4">
         <div>
-          <p className="font-bold">Administrator access</p>
+          <p className="font-bold">{t("Administrator access")}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Admins can review content and manage users.
+            {t("Admins can review content and manage users.")}
           </p>
         </div>
         <Button
@@ -61,18 +65,18 @@ export function UserActions({
           }
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : null}
-          {role === "admin" ? "Remove admin" : "Make admin"}
+          {t(role === "admin" ? "Remove admin" : "Make admin")}
         </Button>
       </div>
       <div className="rounded-2xl border p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-64 flex-1 space-y-1.5">
-            <Label htmlFor="banReason">Ban reason</Label>
+            <Label htmlFor="banReason">{t("Ban reason")}</Label>
             <Input
               id="banReason"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="Required when banning"
+              placeholder={t("Required when banning")}
               disabled={banned}
             />
           </div>
@@ -92,7 +96,7 @@ export function UserActions({
             }
           >
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : null}
-            {banned ? "Unban user" : "Ban user"}
+            {t(banned ? "Unban user" : "Ban user")}
           </Button>
         </div>
       </div>

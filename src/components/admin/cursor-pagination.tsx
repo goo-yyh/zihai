@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, ChevronsLeft } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { getTranslations } from "@/lib/i18n-server";
 import type { CursorPage } from "@/lib/pagination";
 
 function paginationHref(
@@ -19,7 +20,7 @@ function paginationHref(
   return query ? `${basePath}?${query}` : basePath;
 }
 
-export function CursorPagination<T>({
+export async function CursorPagination<T>({
   page,
   basePath,
   preservedParams = {},
@@ -28,15 +29,20 @@ export function CursorPagination<T>({
   basePath: string;
   preservedParams?: Record<string, string | undefined>;
 }) {
+  const { t } = await getTranslations();
   const firstPageHref = paginationHref(basePath, preservedParams);
 
   return (
     <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-xs text-muted-foreground">
-        Showing {page.items.length} result
-        {page.items.length === 1 ? "" : "s"} on this page
+        {t(
+          page.items.length === 1
+            ? "Showing {count} result on this page"
+            : "Showing {count} results on this page",
+          { count: page.items.length },
+        )}
       </p>
-      <nav className="flex flex-wrap gap-2" aria-label="Pagination">
+      <nav className="flex flex-wrap gap-2" aria-label={t("Pagination")}>
         {page.previousCursor ? (
           <Button asChild size="sm" variant="outline">
             <Link
@@ -46,13 +52,13 @@ export function CursorPagination<T>({
                 page.previousCursor,
               )}
             >
-              <ArrowLeft className="size-4" /> Previous
+              <ArrowLeft className="size-4" /> {t("Previous")}
             </Link>
           </Button>
         ) : page.hasCursor ? (
           <Button asChild size="sm" variant="outline">
             <Link href={firstPageHref}>
-              <ChevronsLeft className="size-4" /> First page
+              <ChevronsLeft className="size-4" /> {t("First page")}
             </Link>
           </Button>
         ) : null}
@@ -61,7 +67,7 @@ export function CursorPagination<T>({
             <Link
               href={paginationHref(basePath, preservedParams, page.nextCursor)}
             >
-              Next <ArrowRight className="size-4" />
+              {t("Next")} <ArrowRight className="size-4" />
             </Link>
           </Button>
         ) : null}

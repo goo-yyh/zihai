@@ -7,7 +7,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getDb } from "@/db";
+import { getDb, withTransaction } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -15,56 +15,11 @@ import {
   projects,
   user,
 } from "@/db/schema";
-import { validationError } from "@/lib/action-utils";
 import { getAuth } from "@/lib/auth";
 import { UserFacingError } from "@/lib/errors";
 import { assertOnboardedUser } from "@/lib/session";
-import { passwordSchema } from "@/lib/validations";
 import { deleteBlobsBestEffort } from "@/server/blob";
 import { revalidateUserPresentation } from "@/server/cache";
-import type { ActionState } from "@/types/actions";
-
-const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().min(1, "Enter your current password."),
-    newPassword: passwordSchema,
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    path: ["confirmPassword"],
-    message: "Passwords do not match.",
-  });
-
-export async function changePasswordAction(
-  _previousState: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  await assertOnboardedUser();
-  const parsed = changePasswordSchema.safeParse({
-    currentPassword: formData.get("currentPassword"),
-    newPassword: formData.get("newPassword"),
-    confirmPassword: formData.get("confirmPassword"),
-  });
-  if (!parsed.success) return validationError(parsed.error);
-
-  try {
-    await getAuth().api.changePassword({
-      headers: await headers(),
-      body: {
-        currentPassword: parsed.data.currentPassword,
-        newPassword: parsed.data.newPassword,
-        revokeOtherSessions: true,
-      },
-    });
-    return { status: "success", message: "Password changed." };
-  } catch {
-    return {
-      status: "error",
-      message:
-        "Current password is incorrect or the password could not be changed.",
-    };
-  }
-}
 
 export async function logoutAction() {
   await getAuth().api.signOut({ headers: await headers() });
@@ -126,7 +81,7 @@ export async function deleteAccountAction(formData: FormData) {
   }
 
   await getAuth().api.signOut({ headers: await headers() });
-  await getDb().transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(948217431)`);
     const [freshUser] = await tx
       .select({ role: user.role })

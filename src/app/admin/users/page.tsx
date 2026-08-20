@@ -6,14 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getAdminUsers } from "@/db/queries/admin";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
 export default async function AdminUsersPage({
   searchParams,
 }: PageProps<"/admin/users">) {
-  await requireAdmin();
-  const { q, cursor } = await searchParams;
+  const [, { q, cursor }, { locale, t }] = await Promise.all([
+    requireAdmin(),
+    searchParams,
+    getTranslations(),
+  ]);
   const search = typeof q === "string" ? q.slice(0, 100) : "";
   const userPage = await getAdminUsers(search, {
     cursor: typeof cursor === "string" ? cursor : undefined,
@@ -21,9 +25,11 @@ export default async function AdminUsersPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Users</h1>
+        <h1 className="text-3xl font-black tracking-tight">{t("Users")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Inspect access, linked providers, publishing activity, and bans.
+          {t(
+            "Inspect access, linked providers, publishing activity, and bans.",
+          )}
         </p>
       </div>
       <form className="flex max-w-xl gap-2" action="/admin/users">
@@ -33,23 +39,23 @@ export default async function AdminUsersPage({
             name="q"
             defaultValue={search}
             className="pl-9"
-            placeholder="Search email or username"
+            placeholder={t("Search contact email or username")}
           />
         </div>
         <Button type="submit" variant="outline">
-          Search
+          {t("Search")}
         </Button>
       </form>
       <div className="overflow-x-auto rounded-2xl border bg-white">
         <table className="w-full min-w-[820px] text-left text-sm">
           <thead className="border-b bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">User</th>
-              <th className="px-4 py-3">Access</th>
-              <th className="px-4 py-3">Providers</th>
-              <th className="px-4 py-3">Projects</th>
-              <th className="px-4 py-3">Joined</th>
-              <th className="px-4 py-3 text-right">Action</th>
+              <th className="px-4 py-3">{t("User")}</th>
+              <th className="px-4 py-3">{t("Access")}</th>
+              <th className="px-4 py-3">{t("Providers")}</th>
+              <th className="px-4 py-3">{t("Projects")}</th>
+              <th className="px-4 py-3">{t("Joined")}</th>
+              <th className="px-4 py-3 text-right">{t("Action")}</th>
             </tr>
           </thead>
           <tbody>
@@ -59,10 +65,10 @@ export default async function AdminUsersPage({
                   <p className="font-bold">
                     {profile.username
                       ? `@${profile.username}`
-                      : "Setup incomplete"}
+                      : t("Setup incomplete")}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {profile.email}
+                    {profile.contactEmail || profile.email}
                   </p>
                 </td>
                 <td className="px-4 py-4">
@@ -74,7 +80,7 @@ export default async function AdminUsersPage({
                     </Badge>
                     {profile.banned ? (
                       <span className="rounded-full bg-rose-100 px-2 py-1 text-[11px] font-bold uppercase text-rose-800">
-                        banned
+                        {t("banned")}
                       </span>
                     ) : null}
                   </div>
@@ -84,14 +90,14 @@ export default async function AdminUsersPage({
                 </td>
                 <td className="px-4 py-4">{profile.projectCount}</td>
                 <td className="px-4 py-4 text-muted-foreground">
-                  {formatDate(profile.createdAt)}
+                  {formatDate(profile.createdAt, locale)}
                 </td>
                 <td className="px-4 py-4 text-right">
                   <Link
                     href={`/admin/users/${encodeURIComponent(profile.id)}`}
                     className="font-bold text-primary hover:underline"
                   >
-                    Inspect
+                    {t("Inspect")}
                   </Link>
                 </td>
               </tr>
@@ -100,7 +106,7 @@ export default async function AdminUsersPage({
         </table>
         {!userPage.items.length ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
-            No users match this search.
+            {t("No users match this search.")}
           </p>
         ) : null}
       </div>

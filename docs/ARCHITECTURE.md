@@ -46,6 +46,7 @@ Server services hold workflows that cross persistence or integration boundaries:
 - `image-service.ts` owns image ordering and image-driven moderation transitions.
 - `upload-policy.ts` issues and verifies upload intents and checks ownership.
 - `upload-persistence.ts` validates completed uploads and commits their metadata.
+- `upload-completion.ts` makes completion idempotent, compensates failed persistence, and invalidates every affected page.
 
 Server modules begin with `import "server-only"` and must not be imported by client components.
 
@@ -53,9 +54,24 @@ Server modules begin with `import "server-only"` and must not be imported by cli
 
 `schema` defines storage and inferred database types. `queries` contains named, screen-oriented read models. Reusable reads belong here instead of in `page.tsx`; mutations with broader business meaning belong in an Action or server service. Large administrative collections use bounded keyset pagination with a timestamp plus stable ID tie-breaker; filters and search terms remain part of the page URL while cursors only describe position.
 
+Public project discovery is served by `GET /api/projects`. The Route Handler validates the sort, keyword, and page boundary before calling the shared read model. The homepage server-renders page one, then the client requests bounded follow-up pages for infinite scrolling. Keyword matching covers project names and descriptions; the selected latest or hot ordering is applied to the filtered result set.
+
 The database client is created lazily through `getDb()`. Importing a query or
 Action module during route discovery does not read runtime credentials; the first
 database operation still validates the complete server environment.
+
+`getDb()` uses the neon-http driver: stateless HTTP queries with low latency and
+`db.batch()` support, but no interactive transactions — the method is removed
+from its public type so misuse fails at compile time. Interactive transactions
+use `withTransaction()` from `src/db/index.ts` instead. It drives a
+`@neondatabase/serverless` WebSocket pool over the same pooled `DATABASE_URL`,
+creates the pool per call, and closes it in `finally` because WebSocket
+connections cannot outlive a serverless request. Neon's pooler pins one backend
+for the whole `BEGIN..COMMIT` window, so `FOR UPDATE`,
+`pg_advisory_xact_lock`, and rollback semantics are preserved. Real-database
+integration tests for this contract live in `src/db/integration.test.ts` and run
+only with `RUN_DB_IT=1` plus a `DATABASE_TEST_URL` whose database name ends with
+`_test`.
 
 ### `src/lib`
 
@@ -63,7 +79,7 @@ database operation still validates the complete server environment.
 
 ## Authentication and authorization
 
-Better Auth owns users, sessions, OAuth accounts, credentials, bans, and role-compatible fields.
+Better Auth owns users, sessions, OAuth accounts, bans, and role-compatible fields.
 
 The Better Auth server instance follows the same request-time boundary through
 `getAuth()`, so builds can inspect route modules without initializing OAuth or the
@@ -75,7 +91,11 @@ database.
 - Ownership is part of the database predicate, for example `project.id = ? AND project.owner_id = ?`.
 - UI visibility never replaces a server check.
 
-Account creation through username/password is disabled. OAuth creates the account; onboarding adds a username and credential password.
+Account creation and the user-facing sign-in page are OAuth-only. OAuth creates the account; onboarding adds a username, confirms the avatar, and stores a private contact email. Google email is used by default. GitHub email is used when available; otherwise onboarding requires the user to provide a contact email. The OAuth identity email remains separate from the private operational contact email.
+
+Avatar rendering always has a local default. Missing OAuth images are replaced with that default during onboarding, while remote images that fail in the browser fall back without exposing broken-image alternative text or changing layout. A later custom upload replaces the database reference through the normal Blob workflow.
+
+GitHub accounts without a provider email receive a reserved `.invalid` internal identity address so OAuth account linking remains stable. That placeholder is never treated as a contact address or shown publicly. Contact email input is validated in the onboarding and profile Server Actions and is visible only in account settings and administrator workflows.
 
 ## Moderation lifecycle
 
@@ -107,9 +127,11 @@ Browser-to-Blob uploads use three checks rather than trusting client metadata:
 2. The server checks the session, onboarding, target ownership, image count, and requested MIME type.
 3. The returned intent is signed, resource-bound, pathname-bound, and short-lived.
 4. Vercel Blob calls the POST handler, which verifies the session and signed intent before issuing an upload token.
-5. On completion, the server reads Blob metadata, checks MIME type and size again, and stores the Blob URL and pathname in PostgreSQL.
+5. After the Blob upload returns, the browser sends the Blob URL, pathname, and signed intent to the authenticated completion endpoint.
+6. The completion service re-checks the signed user/path/resource binding, reads Blob metadata, validates MIME type and size again, and stores the Blob URL and pathname in PostgreSQL before the UI reports success.
+7. On Vercel, the Blob completion webhook invokes the same idempotent service as a delivery fallback. Local `next dev` does not require a public webhook URL.
 
-If persistence fails, the newly uploaded Blob is deleted as compensation. When an avatar replacement commits successfully, failure to delete the old object is logged but does not delete the new object that PostgreSQL now references.
+Duplicate browser/webhook completion is safe: avatar writes converge on the same pathname, while project and iteration inserts re-check the stored pathname under the resource row lock. If persistence fails, the newly uploaded Blob is deleted as compensation. When an avatar replacement commits successfully, failure to delete the old object is logged but does not delete the new object that PostgreSQL now references.
 
 ## Blob and database consistency
 
@@ -126,9 +148,29 @@ Every stored object keeps both `blobUrl` for display and `blobPathname` for dele
 
 All mutation-to-path mappings live in `src/server/cache.ts`.
 
+Public read models use two cache layers with different responsibilities:
+
+- React request memoization lets `generateMetadata` and the matching page reuse
+  the same project or profile lookup during one render.
+- The Next.js server data cache stores published project lists, project details,
+  creator profiles, and sitemap entries across requests. Entries carry separate
+  list, detail, profile, and sitemap tags so mutations can expire only affected
+  public data.
+
+Current-user state is never included in a shared public cache entry. Project
+detail content and the session start in parallel; the viewer's like state loads
+in its own Suspense boundary after authentication resolves.
+
+Neon HTTP read models that need several independent result sets use
+`getDb().batch(...)`. This sends the project, image, iteration, moderation, or
+related statements in one HTTP transaction request while preserving named query
+boundaries and authorization filters. Do not replace these batches with
+sequential awaits or independent `Promise.all` queries, because both forms add
+database network roundtrips with the HTTP driver.
+
 - Project publication, rejection, edits, images, deletion, and likes affect `/`, `/p/{slug}`, and `/u/{username}`.
 - Iteration changes affect the project detail page and its dashboard editor.
-- Avatar or username changes affect the homepage, profile, project pages, and account UI.
+- Avatar or username changes affect the homepage, profile, project pages, and account UI. Contact email changes also invalidate administrator user views.
 - Admin mutations refresh the relevant queue and dashboard count.
 
 When adding a mutation, list every page that consumes the changed data before choosing a cache helper.
@@ -137,7 +179,7 @@ When adding a mutation, list every page that consumes the changed data before ch
 
 Application validation provides useful errors; PostgreSQL remains the final authority.
 
-- Project website and GitHub URL use an XOR check.
+- Projects require a website URL, a GitHub URL, or both.
 - Likes use a composite primary key.
 - Project and iteration image pathnames and positions are unique.
 - Triggers serialize image inserts and enforce the three-image limit under concurrency.

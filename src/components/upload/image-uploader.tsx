@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import {
   ALLOWED_IMAGE_TYPES,
@@ -26,17 +27,82 @@ export function ImageUploader({
   currentCount?: number;
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const { maxFiles, maxBytes } = imageUploadPolicy(kind);
+  const MAX_CONCURRENT_UPLOADS = 3;
+
+  async function uploadFile(
+    file: File,
+    currentIndex: number,
+    totalFiles: number,
+  ) {
+    const query = new URLSearchParams({ kind, contentType: file.type });
+    if (projectId) query.set("projectId", projectId);
+    if (iterationId) query.set("iterationId", iterationId);
+
+    const intentResponse = await fetch(`/api/blob/upload?${query}`);
+    const intent = (await intentResponse.json()) as {
+      pathname?: string;
+      clientPayload?: string;
+      error?: string;
+    };
+    if (!intentResponse.ok || !intent.pathname || !intent.clientPayload) {
+      throw new Error(intent.error || "Upload authorization failed.");
+    }
+
+    const blob = await upload(intent.pathname, file, {
+      access: "public",
+      handleUploadUrl: "/api/blob/upload",
+      clientPayload: intent.clientPayload,
+      contentType: file.type,
+      multipart: false,
+      onUploadProgress(event) {
+        setProgress(
+          t("Uploading {current} / {total} · {percentage}%", {
+            current: currentIndex + 1,
+            total: totalFiles,
+            percentage: Math.round(event.percentage),
+          }),
+        );
+      },
+    });
+    setProgress(
+      t("Saving {current} / {total}…", {
+        current: currentIndex + 1,
+        total: totalFiles,
+      }),
+    );
+    const completionResponse = await fetch("/api/blob/upload/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        blob: { url: blob.url, pathname: blob.pathname },
+        clientPayload: intent.clientPayload,
+      }),
+    });
+    const completion = (await completionResponse.json().catch(() => ({}))) as {
+      persisted?: boolean;
+      error?: string;
+    };
+    if (!completionResponse.ok || !completion.persisted) {
+      throw new Error(completion.error || "Upload completion failed.");
+    }
+  }
 
   async function chooseFiles(files: FileList | null) {
     if (!files?.length) return;
     const selected = Array.from(files);
     if (selected.length + currentCount > maxFiles) {
       toast.error(
-        `You can upload at most ${maxFiles} image${maxFiles > 1 ? "s" : ""}.`,
+        t(
+          maxFiles > 1
+            ? "You can upload at most {count} images."
+            : "You can upload at most {count} image.",
+          { count: maxFiles },
+        ),
       );
       return;
     }
@@ -47,48 +113,46 @@ export function ImageUploader({
           file.type as (typeof ALLOWED_IMAGE_TYPES)[number],
         )
       ) {
-        toast.error(`${file.name}: JPEG, PNG, and WebP only.`);
+        toast.error(
+          t("{file}: JPEG, PNG, and WebP only.", { file: file.name }),
+        );
         return;
       }
       if (file.size > maxBytes) {
-        toast.error(`${file.name}: file is too large.`);
+        toast.error(t("{file}: file is too large.", { file: file.name }));
         return;
       }
     }
 
     try {
-      for (const [index, file] of selected.entries()) {
-        setProgress(`Uploading ${index + 1} / ${selected.length}`);
-        const query = new URLSearchParams({ kind, contentType: file.type });
-        if (projectId) query.set("projectId", projectId);
-        if (iterationId) query.set("iterationId", iterationId);
-        const intentResponse = await fetch(`/api/blob/upload?${query}`);
-        const intent = (await intentResponse.json()) as {
-          pathname?: string;
-          clientPayload?: string;
-          error?: string;
-        };
-        if (!intentResponse.ok || !intent.pathname || !intent.clientPayload) {
-          throw new Error(intent.error || "Upload authorization failed.");
-        }
+      let uploadIndex = 0;
+      const totalFiles = selected.length;
 
-        await upload(intent.pathname, file, {
-          access: "public",
-          handleUploadUrl: "/api/blob/upload",
-          clientPayload: intent.clientPayload,
-          contentType: file.type,
-          multipart: false,
-          onUploadProgress(event) {
-            setProgress(
-              `Uploading ${index + 1} / ${selected.length} · ${Math.round(event.percentage)}%`,
-            );
-          },
-        });
-      }
-      toast.success(kind === "avatar" ? "Avatar updated." : "Images uploaded.");
+      const runUpload = async () => {
+        const index = uploadIndex++;
+        if (index >= totalFiles) return;
+        const file = selected[index];
+        setProgress(
+          t("Uploading {current} / {total}", {
+            current: index + 1,
+            total: totalFiles,
+          }),
+        );
+        await uploadFile(file, index, totalFiles);
+        await runUpload();
+      };
+
+      const workers = Array.from(
+        { length: Math.min(MAX_CONCURRENT_UPLOADS, totalFiles) },
+        () => runUpload(),
+      );
+      await Promise.all(workers);
+      toast.success(
+        t(kind === "avatar" ? "Avatar updated." : "Images uploaded."),
+      );
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Upload failed.");
+      toast.error(t(error instanceof Error ? error.message : "Upload failed."));
     } finally {
       setProgress(null);
       if (inputRef.current) inputRef.current.value = "";
@@ -124,7 +188,7 @@ export function ImageUploader({
           ) : (
             <ImagePlus className="size-4" />
           )}
-          {progress || "Upload image"}
+          {progress || t("Upload image")}
         </Button>
       ) : (
         <div className="flex flex-col items-center text-center">
@@ -135,10 +199,18 @@ export function ImageUploader({
               <UploadCloud className="size-6" />
             )}
           </span>
-          <p className="text-sm font-bold">{progress || "Add screenshots"}</p>
+          <p className="text-sm font-bold">
+            {progress || t("Add screenshots")}
+          </p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            JPEG, PNG, or WebP · up to {maxBytes / 1024 / 1024} MB each ·{" "}
-            {currentCount}/{maxFiles} used
+            {t(
+              "JPEG, PNG, or WebP · up to {size} MB each · {current}/{max} used",
+              {
+                size: maxBytes / 1024 / 1024,
+                current: currentCount,
+                max: maxFiles,
+              },
+            )}
           </p>
           <Button
             type="button"
@@ -147,7 +219,7 @@ export function ImageUploader({
             disabled={disabled}
             onClick={() => inputRef.current?.click()}
           >
-            Choose {kind === "avatar" ? "avatar" : "images"}
+            {t(kind === "avatar" ? "Choose avatar" : "Choose images")}
           </Button>
         </div>
       )}

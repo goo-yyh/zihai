@@ -6,7 +6,7 @@ import { count, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { getDb } from "@/db";
+import { getDb, withTransaction } from "@/db";
 import { moderationLogs, user } from "@/db/schema";
 import { getAuth } from "@/lib/auth";
 import { UserFacingError } from "@/lib/errors";
@@ -25,7 +25,7 @@ export async function setUserRoleAction(
   const targetId = userIdSchema.parse(userId);
   const role = roleSchema.parse(requestedRole);
 
-  await getDb().transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     // Serialize all role changes so two admins cannot both revoke the final
     // administrator after independently observing the same count.
     await tx.execute(sql`select pg_advisory_xact_lock(948217431)`);

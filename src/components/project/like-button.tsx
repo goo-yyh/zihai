@@ -6,6 +6,7 @@ import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
 
 import { toggleLikeAction } from "@/actions/like";
+import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 
 export function LikeButton({
@@ -21,6 +22,7 @@ export function LikeButton({
   nextPath: string;
   access: "ready" | "login" | "onboarding";
 }) {
+  const { t } = useI18n();
   const [pending, startTransition] = useTransition();
   const [state, updateOptimistic] = useOptimistic(
     { liked: initialLiked, count: initialCount },
@@ -56,7 +58,7 @@ export function LikeButton({
           try {
             await toggleLikeAction(projectId);
           } catch {
-            toast.error("Could not update your like.");
+            toast.error(t("Could not update your like."));
           }
         });
       }}

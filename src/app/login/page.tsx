@@ -10,15 +10,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { safeReturnPath } from "@/lib/navigation";
+import { getTranslations } from "@/lib/i18n-server";
 import { getSession } from "@/lib/session";
 
-export const metadata: Metadata = {
-  title: "Sign in",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslations();
+  return {
+    title: t("Sign in"),
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const [{ next }, session] = await Promise.all([searchParams, getSession()]);
+  const [{ next }, session, { t }] = await Promise.all([
+    searchParams,
+    getSession(),
+    getTranslations(),
+  ]);
   const returnTo = safeReturnPath(typeof next === "string" ? next : undefined);
   if (session) {
     redirect(
@@ -32,9 +40,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     <div className="mx-auto flex min-h-[calc(100vh-12rem)] max-w-lg items-center px-4 py-16">
       <Card className="w-full">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome to zihAI</CardTitle>
+          <CardTitle className="text-2xl">{t("Welcome to zihAI")}</CardTitle>
           <CardDescription className="mt-2">
-            Sign in to submit, iterate, and support independent AI products.
+            {t("Sign in to submit and support independent AI products.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">

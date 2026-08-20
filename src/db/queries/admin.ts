@@ -16,6 +16,7 @@ import {
 import { getDb } from "@/db";
 import {
   account,
+  feedback,
   ITERATION_STATUSES,
   iterationImages,
   moderationLogs,
@@ -85,6 +86,7 @@ export async function getAdminStats() {
         from ${projectIterations}
         where ${projectIterations.status} = 'pending'
       )`,
+      feedback: sql<number>`(select count(*)::int from ${feedback})`,
     })
     .from(projects);
 
@@ -95,6 +97,7 @@ export async function getAdminStats() {
     approvedProjects: stats?.approvedProjects ?? 0,
     rejectedProjects: stats?.rejectedProjects ?? 0,
     pendingIterations: stats?.pendingIterations ?? 0,
+    feedback: stats?.feedback ?? 0,
   };
 }
 
@@ -115,7 +118,7 @@ export async function getAdminProjects(
       submittedAt: projects.submittedAt,
       updatedAt: projects.updatedAt,
       ownerId: projects.ownerId,
-      ownerEmail: user.email,
+      ownerEmail: sql<string>`coalesce(${user.contactEmail}, ${user.email})`,
       ownerUsername: user.username,
     })
     .from(projects)
@@ -141,7 +144,7 @@ export async function getAdminProjects(
 }
 
 export async function getAdminProject(projectId: string) {
-  const [project] = await getDb()
+  const projectQuery = getDb()
     .select({
       id: projects.id,
       name: projects.name,
@@ -155,7 +158,7 @@ export async function getAdminProject(projectId: string) {
       approvedAt: projects.approvedAt,
       publishedAt: projects.publishedAt,
       ownerId: projects.ownerId,
-      ownerEmail: user.email,
+      ownerEmail: sql<string>`coalesce(${user.contactEmail}, ${user.email})`,
       ownerUsername: user.username,
       ownerImage: user.image,
     })
@@ -163,26 +166,28 @@ export async function getAdminProject(projectId: string) {
     .innerJoin(user, eq(projects.ownerId, user.id))
     .where(eq(projects.id, projectId))
     .limit(1);
-
-  if (!project) return null;
-
-  const [images, logs] = await Promise.all([
-    getDb()
-      .select()
-      .from(projectImages)
-      .where(eq(projectImages.projectId, projectId))
-      .orderBy(projectImages.sortOrder),
-    getDb()
-      .select()
-      .from(moderationLogs)
-      .where(
-        and(
-          eq(moderationLogs.targetType, "project"),
-          eq(moderationLogs.targetId, projectId),
-        ),
-      )
-      .orderBy(desc(moderationLogs.createdAt)),
+  const imagesQuery = getDb()
+    .select()
+    .from(projectImages)
+    .where(eq(projectImages.projectId, projectId))
+    .orderBy(projectImages.sortOrder);
+  const logsQuery = getDb()
+    .select()
+    .from(moderationLogs)
+    .where(
+      and(
+        eq(moderationLogs.targetType, "project"),
+        eq(moderationLogs.targetId, projectId),
+      ),
+    )
+    .orderBy(desc(moderationLogs.createdAt));
+  const [projectRows, images, logs] = await getDb().batch([
+    projectQuery,
+    imagesQuery,
+    logsQuery,
   ]);
+  const project = projectRows[0];
+  if (!project) return null;
 
   return { ...project, images, logs };
 }
@@ -237,7 +242,7 @@ export async function getAdminIterations(
 }
 
 export async function getAdminIteration(iterationId: string) {
-  const [iteration] = await getDb()
+  const iterationQuery = getDb()
     .select({
       id: projectIterations.id,
       projectId: projectIterations.projectId,
@@ -251,7 +256,7 @@ export async function getAdminIteration(iterationId: string) {
       submittedAt: projectIterations.submittedAt,
       approvedAt: projectIterations.approvedAt,
       ownerId: projectIterations.ownerId,
-      ownerEmail: user.email,
+      ownerEmail: sql<string>`coalesce(${user.contactEmail}, ${user.email})`,
       ownerUsername: user.username,
       ownerImage: user.image,
     })
@@ -260,26 +265,28 @@ export async function getAdminIteration(iterationId: string) {
     .innerJoin(user, eq(projectIterations.ownerId, user.id))
     .where(eq(projectIterations.id, iterationId))
     .limit(1);
-
-  if (!iteration) return null;
-
-  const [images, logs] = await Promise.all([
-    getDb()
-      .select()
-      .from(iterationImages)
-      .where(eq(iterationImages.iterationId, iterationId))
-      .orderBy(iterationImages.sortOrder),
-    getDb()
-      .select()
-      .from(moderationLogs)
-      .where(
-        and(
-          eq(moderationLogs.targetType, "iteration"),
-          eq(moderationLogs.targetId, iterationId),
-        ),
-      )
-      .orderBy(desc(moderationLogs.createdAt)),
+  const imagesQuery = getDb()
+    .select()
+    .from(iterationImages)
+    .where(eq(iterationImages.iterationId, iterationId))
+    .orderBy(iterationImages.sortOrder);
+  const logsQuery = getDb()
+    .select()
+    .from(moderationLogs)
+    .where(
+      and(
+        eq(moderationLogs.targetType, "iteration"),
+        eq(moderationLogs.targetId, iterationId),
+      ),
+    )
+    .orderBy(desc(moderationLogs.createdAt));
+  const [iterationRows, images, logs] = await getDb().batch([
+    iterationQuery,
+    imagesQuery,
+    logsQuery,
   ]);
+  const iteration = iterationRows[0];
+  if (!iteration) return null;
 
   return { ...iteration, images, logs };
 }
@@ -291,6 +298,7 @@ export async function getAdminUsers(
   const filter = search?.trim()
     ? or(
         ilike(user.email, `%${search.trim()}%`),
+        ilike(user.contactEmail, `%${search.trim()}%`),
         ilike(user.username, `%${search.trim()}%`),
       )
     : undefined;
@@ -301,6 +309,7 @@ export async function getAdminUsers(
     .select({
       id: user.id,
       email: user.email,
+      contactEmail: user.contactEmail,
       username: user.username,
       image: user.image,
       role: user.role,
@@ -330,11 +339,12 @@ export async function getAdminUsers(
 }
 
 export async function getAdminUser(userId: string) {
-  const [profileRows, ownedProjects] = await Promise.all([
+  const [profileRows, ownedProjects] = await getDb().batch([
     getDb()
       .select({
         id: user.id,
         email: user.email,
+        contactEmail: user.contactEmail,
         username: user.username,
         image: user.image,
         role: user.role,
@@ -416,4 +426,30 @@ export async function getAuditLogs(
     .limit(pageSize + 1);
 
   return createCursorPage(rows, pageSize, cursor, (log) => log.createdAt);
+}
+
+export async function getAdminFeedback(options: AdminPageOptions = {}) {
+  const { cursor, pageSize } = paginationOptions(options, "uuid");
+  const previous = cursor?.direction === "previous";
+
+  const rows = await getDb()
+    .select({
+      id: feedback.id,
+      content: feedback.content,
+      createdAt: feedback.createdAt,
+      userId: feedback.userId,
+      userEmail: user.email,
+      userUsername: user.username,
+      userImage: user.image,
+    })
+    .from(feedback)
+    .innerJoin(user, eq(feedback.userId, user.id))
+    .where(keysetCondition(feedback.createdAt, feedback.id, cursor))
+    .orderBy(
+      previous ? asc(feedback.createdAt) : desc(feedback.createdAt),
+      previous ? asc(feedback.id) : desc(feedback.id),
+    )
+    .limit(pageSize + 1);
+
+  return createCursorPage(rows, pageSize, cursor, (entry) => entry.createdAt);
 }
