@@ -83,9 +83,7 @@ export function ImageUploader({
         clientPayload: intent.clientPayload,
       }),
     });
-    const completion = (await completionResponse
-      .json()
-      .catch(() => ({}))) as {
+    const completion = (await completionResponse.json().catch(() => ({}))) as {
       persisted?: boolean;
       error?: string;
     };

@@ -516,16 +516,12 @@ export function localeFromAcceptLanguage(
     .map((entry) => entry.trim().split(";")[0]?.toLowerCase())
     .filter(Boolean);
   if (
-    parsed.some(
-      (language) => language === "zh" || language?.startsWith("zh-"),
-    )
+    parsed.some((language) => language === "zh" || language?.startsWith("zh-"))
   ) {
     return "zh-CN";
   }
   if (
-    parsed.some(
-      (language) => language === "en" || language?.startsWith("en-"),
-    )
+    parsed.some((language) => language === "en" || language?.startsWith("en-"))
   ) {
     return "en";
   }
