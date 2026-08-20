@@ -11,7 +11,7 @@ import { user } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
 import { avatarSrc, DEFAULT_AVATAR_SRC } from "@/lib/avatar";
 import { safeReturnPath } from "@/lib/navigation";
-import { assertUser } from "@/lib/session";
+import { assertUser, refreshSessionCookieCache } from "@/lib/session";
 import { contactEmailSchema, usernameSchema } from "@/lib/validations";
 import { revalidateUserPresentation } from "@/server/cache";
 import type { ActionState } from "@/types/actions";
@@ -61,6 +61,7 @@ export async function completeOnboardingAction(
         updatedAt: new Date(),
       })
       .where(eq(user.id, session.user.id));
+    await refreshSessionCookieCache();
     revalidateUserPresentation(undefined, parsed.data.username);
   } catch (error) {
     return safeActionError(error, "Unable to finish onboarding.");

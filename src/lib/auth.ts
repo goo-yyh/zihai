@@ -20,6 +20,12 @@ function createAuth() {
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: Array.from(new Set([env.BETTER_AUTH_URL, getSiteUrl()])),
+    session: {
+      cookieCache: {
+        enabled: true,
+        maxAge: 5 * 60,
+      },
+    },
     database: drizzleAdapter(getDb(), {
       provider: "pg",
       schema: { user, session, account, verification },

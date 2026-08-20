@@ -85,6 +85,12 @@ The Better Auth server instance follows the same request-time boundary through
 `getAuth()`, so builds can inspect route modules without initializing OAuth or the
 database.
 
+Session reads use Better Auth's signed cookie cache with a five-minute maximum
+age to avoid a database roundtrip on ordinary authenticated requests. Onboarding
+and profile mutations refresh that cache after updating the current user, while
+administrator guards explicitly bypass it so role changes take effect
+immediately for privileged operations.
+
 - `requireUser`, `requireOnboardedUser`, and `requireAdmin` guard pages with redirects.
 - `assertUser`, `assertOnboardedUser`, and `assertAdmin` guard mutations with errors.
 - Proxy checks only improve navigation. They are not an authorization boundary.
