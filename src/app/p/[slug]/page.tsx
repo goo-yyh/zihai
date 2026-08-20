@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import {
   getPublicProject,
   getRecommendationPool,
+  getPublicProjectIterations,
   getViewerProjectLike,
 } from "@/db/queries/public";
 import { isFeatureEnabled } from "@/lib/features";
@@ -23,6 +24,43 @@ import { getSession } from "@/lib/session";
 import { getTranslations } from "@/lib/i18n-server";
 import { SITE_DESCRIPTION } from "@/lib/site";
 import { formatDate, truncate } from "@/lib/utils";
+
+async function ProjectSidebar({
+  slug,
+  iterationsEnabled,
+}: {
+  slug: string;
+  iterationsEnabled: boolean;
+}) {
+  if (!iterationsEnabled) {
+    const recommendations = await getRecommendationPool(slug);
+    return <RecommendedProjects pool={recommendations} />;
+  }
+
+  const iterations = await getPublicProjectIterations(slug);
+  if (!iterations.length) {
+    const recommendations = await getRecommendationPool(slug);
+    return <RecommendedProjects pool={recommendations} />;
+  }
+
+  return (
+    <RecentUpdates
+      items={iterations.map((iteration) => ({
+        id: iteration.id,
+        versionLabel: iteration.versionLabel,
+        description: iteration.description,
+        approvedAt: iteration.approvedAt
+          ? new Date(iteration.approvedAt).toISOString()
+          : null,
+        createdAt: new Date(iteration.createdAt).toISOString(),
+        images: iteration.images.map((image) => ({
+          id: image.id,
+          url: image.url,
+        })),
+      }))}
+    />
+  );
+}
 
 async function ProjectLikeControl({
   projectId,
@@ -98,11 +136,6 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
   ]);
   if (!project) notFound();
   const iterationsEnabled = isFeatureEnabled("iterations");
-  const hasPublicIterations =
-    iterationsEnabled && project.iterations.length > 0;
-  const recommendations = hasPublicIterations
-    ? []
-    : await getRecommendationPool(slug);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
@@ -212,26 +245,18 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
               {formatDate(project.publishedAt, locale)}
             </p>
           </div>
-          {hasPublicIterations ? (
-            <RecentUpdates
-              items={project.iterations.map((iteration) => ({
-                id: iteration.id,
-                versionLabel: iteration.versionLabel,
-                description: iteration.description,
-                // neon-http returns timestamps as strings despite the Date type.
-                approvedAt: iteration.approvedAt
-                  ? new Date(iteration.approvedAt).toISOString()
-                  : null,
-                createdAt: new Date(iteration.createdAt).toISOString(),
-                images: iteration.images.map((image) => ({
-                  id: image.id,
-                  url: image.url,
-                })),
-              }))}
-            />
-          ) : (
-            <RecommendedProjects pool={recommendations} />
-          )}
+          <Suspense
+            fallback={
+              <div
+                aria-hidden="true"
+                className="rounded-2xl border bg-white p-5"
+              >
+                <div className="h-32 animate-pulse rounded-lg bg-muted" />
+              </div>
+            }
+          >
+            <ProjectSidebar slug={slug} iterationsEnabled={iterationsEnabled} />
+          </Suspense>
         </aside>
       </div>
     </div>

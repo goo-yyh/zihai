@@ -23,6 +23,7 @@ export function ProjectImageCarousel({
   const { t } = useI18n();
   const [currentIndex, setCurrentIndex] = useState(0);
   const hasMultipleImages = images.length > 1;
+  const currentImage = images[currentIndex];
 
   function showPreviousImage() {
     setCurrentIndex((index) => (index === 0 ? images.length - 1 : index - 1));
@@ -39,27 +40,21 @@ export function ProjectImageCarousel({
       className="mt-9"
     >
       <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border bg-muted">
-        <div
-          className="flex h-full transition-transform duration-500 ease-out motion-reduce:transition-none"
-          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-        >
-          {images.map((image, index) => (
-            <div
-              key={image.id}
-              aria-hidden={index !== currentIndex}
-              className="relative h-full min-w-full"
-            >
-              <Image
-                src={image.url}
-                alt={`${projectName} ${t("Screenshot {number}", { number: index + 1 })}`}
-                fill
-                loading={index === 0 ? "eager" : "lazy"}
-                sizes="(max-width: 1024px) 100vw, 760px"
-                className="object-cover"
-              />
-            </div>
-          ))}
-        </div>
+        {currentImage ? (
+          <div className="relative h-full w-full">
+            <Image
+              src={currentImage.url}
+              alt={`${projectName} ${t("Screenshot {number}", {
+                number: currentIndex + 1,
+              })}`}
+              fill
+              loading="eager"
+              priority={currentIndex === 0}
+              sizes="(max-width: 1024px) 100vw, 760px"
+              className="object-cover"
+            />
+          </div>
+        ) : null}
 
         {hasMultipleImages ? (
           <>

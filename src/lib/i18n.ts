@@ -2,7 +2,7 @@ export const locales = ["en", "zh-CN"] as const;
 
 export type Locale = (typeof locales)[number];
 
-export const DEFAULT_LOCALE: Locale = "en";
+export const DEFAULT_LOCALE: Locale = "zh-CN";
 export const LOCALE_COOKIE_NAME = "zihai_locale";
 
 type TranslationValues = Record<string, string | number>;
@@ -511,12 +511,25 @@ export function localeFromAcceptLanguage(
   acceptLanguage: string | null | undefined,
 ): Locale {
   if (!acceptLanguage) return DEFAULT_LOCALE;
-  return acceptLanguage
+  const parsed = acceptLanguage
     .split(",")
     .map((entry) => entry.trim().split(";")[0]?.toLowerCase())
-    .some((language) => language === "zh" || language?.startsWith("zh-"))
-    ? "zh-CN"
-    : DEFAULT_LOCALE;
+    .filter(Boolean);
+  if (
+    parsed.some(
+      (language) => language === "zh" || language?.startsWith("zh-"),
+    )
+  ) {
+    return "zh-CN";
+  }
+  if (
+    parsed.some(
+      (language) => language === "en" || language?.startsWith("en-"),
+    )
+  ) {
+    return "en";
+  }
+  return DEFAULT_LOCALE;
 }
 
 export function translate(

@@ -62,6 +62,14 @@ describe("public project discovery", () => {
     ).toEqual({ items: [], nextPage: null, totalCount: 0 });
 
     expect(
+      publicProjectPageSchema.parse({
+        items: [],
+        nextPage: null,
+        totalCount: null,
+      }),
+    ).toEqual({ items: [], nextPage: null, totalCount: null });
+
+    expect(
       publicProjectPageSchema.safeParse({ items: [], nextPage: null }).success,
     ).toBe(false);
     expect(

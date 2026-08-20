@@ -4,8 +4,6 @@ import { getPublicProjects } from "@/db/queries/public";
 import { publicErrorMessage } from "@/lib/errors";
 import { projectDiscoveryParamsSchema } from "@/lib/project-discovery";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(request: NextRequest) {
   const parsed = projectDiscoveryParamsSchema.safeParse({
     sort: request.nextUrl.searchParams.get("sort") || undefined,
@@ -21,8 +19,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const page = await getPublicProjects(parsed.data);
+    const cacheControl = parsed.data.query
+      ? "public, s-maxage=60, stale-while-revalidate=120"
+      : "public, s-maxage=120, stale-while-revalidate=300";
     return Response.json(page, {
-      headers: { "Cache-Control": "no-store" },
+      headers: { "Cache-Control": cacheControl },
     });
   } catch (error) {
     return Response.json(

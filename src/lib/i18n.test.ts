@@ -12,7 +12,7 @@ describe("i18n", () => {
   it("uses Chinese when it appears in Accept-Language", () => {
     expect(localeFromAcceptLanguage("zh-CN,zh;q=0.9,en;q=0.8")).toBe("zh-CN");
     expect(localeFromAcceptLanguage("en-US,en;q=0.9")).toBe("en");
-    expect(localeFromAcceptLanguage(null)).toBe("en");
+    expect(localeFromAcceptLanguage(null)).toBe("zh-CN");
   });
 
   it("translates messages and interpolates values", () => {

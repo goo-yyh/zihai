@@ -58,6 +58,15 @@ export const projects = pgTable(
     uniqueIndex("projects_slug_unique").on(table.slug),
     index("projects_owner_id_idx").on(table.ownerId),
     index("projects_status_idx").on(table.status),
+    index("projects_status_published_at_id_idx").on(
+      table.status,
+      table.publishedAt,
+      table.id,
+    ),
+    index("projects_owner_id_updated_at_idx").on(
+      table.ownerId,
+      table.updatedAt,
+    ),
     index("projects_created_at_idx").on(table.createdAt),
     index("projects_published_at_idx").on(table.publishedAt),
     check(

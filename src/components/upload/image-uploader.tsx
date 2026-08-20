@@ -32,6 +32,67 @@ export function ImageUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const { maxFiles, maxBytes } = imageUploadPolicy(kind);
+  const MAX_CONCURRENT_UPLOADS = 3;
+
+  async function uploadFile(
+    file: File,
+    currentIndex: number,
+    totalFiles: number,
+  ) {
+    const query = new URLSearchParams({ kind, contentType: file.type });
+    if (projectId) query.set("projectId", projectId);
+    if (iterationId) query.set("iterationId", iterationId);
+
+    const intentResponse = await fetch(`/api/blob/upload?${query}`);
+    const intent = (await intentResponse.json()) as {
+      pathname?: string;
+      clientPayload?: string;
+      error?: string;
+    };
+    if (!intentResponse.ok || !intent.pathname || !intent.clientPayload) {
+      throw new Error(intent.error || "Upload authorization failed.");
+    }
+
+    const blob = await upload(intent.pathname, file, {
+      access: "public",
+      handleUploadUrl: "/api/blob/upload",
+      clientPayload: intent.clientPayload,
+      contentType: file.type,
+      multipart: false,
+      onUploadProgress(event) {
+        setProgress(
+          t("Uploading {current} / {total} · {percentage}%", {
+            current: currentIndex + 1,
+            total: totalFiles,
+            percentage: Math.round(event.percentage),
+          }),
+        );
+      },
+    });
+    setProgress(
+      t("Saving {current} / {total}…", {
+        current: currentIndex + 1,
+        total: totalFiles,
+      }),
+    );
+    const completionResponse = await fetch("/api/blob/upload/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        blob: { url: blob.url, pathname: blob.pathname },
+        clientPayload: intent.clientPayload,
+      }),
+    });
+    const completion = (await completionResponse
+      .json()
+      .catch(() => ({}))) as {
+      persisted?: boolean;
+      error?: string;
+    };
+    if (!completionResponse.ok || !completion.persisted) {
+      throw new Error(completion.error || "Upload completion failed.");
+    }
+  }
 
   async function chooseFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -66,66 +127,28 @@ export function ImageUploader({
     }
 
     try {
-      for (const [index, file] of selected.entries()) {
+      let uploadIndex = 0;
+      const totalFiles = selected.length;
+
+      const runUpload = async () => {
+        const index = uploadIndex++;
+        if (index >= totalFiles) return;
+        const file = selected[index];
         setProgress(
           t("Uploading {current} / {total}", {
             current: index + 1,
-            total: selected.length,
+            total: totalFiles,
           }),
         );
-        const query = new URLSearchParams({ kind, contentType: file.type });
-        if (projectId) query.set("projectId", projectId);
-        if (iterationId) query.set("iterationId", iterationId);
-        const intentResponse = await fetch(`/api/blob/upload?${query}`);
-        const intent = (await intentResponse.json()) as {
-          pathname?: string;
-          clientPayload?: string;
-          error?: string;
-        };
-        if (!intentResponse.ok || !intent.pathname || !intent.clientPayload) {
-          throw new Error(intent.error || "Upload authorization failed.");
-        }
+        await uploadFile(file, index, totalFiles);
+        await runUpload();
+      };
 
-        const blob = await upload(intent.pathname, file, {
-          access: "public",
-          handleUploadUrl: "/api/blob/upload",
-          clientPayload: intent.clientPayload,
-          contentType: file.type,
-          multipart: false,
-          onUploadProgress(event) {
-            setProgress(
-              t("Uploading {current} / {total} · {percentage}%", {
-                current: index + 1,
-                total: selected.length,
-                percentage: Math.round(event.percentage),
-              }),
-            );
-          },
-        });
-        setProgress(
-          t("Saving {current} / {total}…", {
-            current: index + 1,
-            total: selected.length,
-          }),
-        );
-        const completionResponse = await fetch("/api/blob/upload/complete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            blob: { url: blob.url, pathname: blob.pathname },
-            clientPayload: intent.clientPayload,
-          }),
-        });
-        const completion = (await completionResponse
-          .json()
-          .catch(() => ({}))) as {
-          persisted?: boolean;
-          error?: string;
-        };
-        if (!completionResponse.ok || !completion.persisted) {
-          throw new Error(completion.error || "Upload completion failed.");
-        }
-      }
+      const workers = Array.from(
+        { length: Math.min(MAX_CONCURRENT_UPLOADS, totalFiles) },
+        () => runUpload(),
+      );
+      await Promise.all(workers);
       toast.success(
         t(kind === "avatar" ? "Avatar updated." : "Images uploaded."),
       );

@@ -11,7 +11,7 @@ import "./globals.css";
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslations();
   const description = t(SITE_DESCRIPTION);
-  const title = `${SITE_NAME} — ${t("AI products built in public")}`;
+  const title = `${SITE_NAME} — ${t("Share your AI products")}`;
 
   return {
     metadataBase: new URL(getSiteUrl()),

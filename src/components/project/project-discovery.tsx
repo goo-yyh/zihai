@@ -23,7 +23,7 @@ async function requestProjectPage(
   if (query) params.set("q", query);
 
   const response = await fetch("/api/projects?" + params.toString(), {
-    cache: "no-store",
+    cache: "default",
   });
   const payload: unknown = await response.json();
   if (!response.ok) {
@@ -134,7 +134,9 @@ export function ProjectDiscovery({
         ];
       });
       setNextPage(page.nextPage);
-      setTotalCount(page.totalCount);
+      setTotalCount((currentTotal) =>
+        page.totalCount === null ? currentTotal : page.totalCount,
+      );
     } catch (requestError) {
       if (generation !== requestGeneration.current) return;
       setError(

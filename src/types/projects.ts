@@ -18,5 +18,5 @@ export type ProjectCardData = {
 export type PublicProjectPage = {
   items: ProjectCardData[];
   nextPage: number | null;
-  totalCount: number;
+  totalCount: number | null;
 };

@@ -30,7 +30,7 @@ export const publicProjectPageSchema = z.object({
     }),
   ),
   nextPage: z.number().int().positive().nullable(),
-  totalCount: z.number().int().nonnegative(),
+  totalCount: z.number().int().nonnegative().nullable(),
 });
 
 export function projectSearchPatterns(query: string) {

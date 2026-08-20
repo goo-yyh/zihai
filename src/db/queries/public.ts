@@ -4,7 +4,6 @@ import {
   and,
   asc,
   count,
-  countDistinct,
   desc,
   eq,
   ilike,
@@ -86,6 +85,7 @@ async function queryPublicProjects({
   query: string;
   page: number;
 }): Promise<PublicProjectPage> {
+  const filter = publicProjectFilter(query);
   const baseQuery = getDb()
     .select(cardSelection)
     .from(projects)
@@ -98,7 +98,7 @@ async function queryPublicProjects({
       ),
     )
     .leftJoin(projectLikes, eq(projectLikes.projectId, projects.id))
-    .where(publicProjectFilter(query))
+    .where(filter)
     .groupBy(projects.id, projectImages.blobUrl, user.username, user.image);
   const orderedQuery =
     sort === "hot"
@@ -111,25 +111,29 @@ async function queryPublicProjects({
   const rowsQuery = orderedQuery
     .limit(PUBLIC_PROJECT_PAGE_SIZE + 1)
     .offset((page - 1) * PUBLIC_PROJECT_PAGE_SIZE);
-  const totalQuery = getDb()
-    .select({ value: countDistinct(projects.id) })
-    .from(projects)
-    .innerJoin(user, eq(projects.ownerId, user.id))
-    .innerJoin(
-      projectImages,
-      and(
-        eq(projectImages.projectId, projects.id),
-        eq(projectImages.sortOrder, 0),
-      ),
-    )
-    .where(publicProjectFilter(query));
-  const [rows, totals] = await getDb().batch([rowsQuery, totalQuery]);
+  if (page === 1) {
+    const totalQuery = getDb()
+      .select({ value: count(projects.id) })
+      .from(projects)
+      .where(filter)
+      .innerJoin(user, eq(projects.ownerId, user.id));
+    const [rows, totals] = await getDb().batch([rowsQuery, totalQuery]);
+    const hasMore = rows.length > PUBLIC_PROJECT_PAGE_SIZE;
+
+    return {
+      items: rows.slice(0, PUBLIC_PROJECT_PAGE_SIZE),
+      nextPage: hasMore ? page + 1 : null,
+      totalCount: totals[0]?.value ?? 0,
+    };
+  }
+
+  const rows = await rowsQuery;
   const hasMore = rows.length > PUBLIC_PROJECT_PAGE_SIZE;
 
   return {
     items: rows.slice(0, PUBLIC_PROJECT_PAGE_SIZE),
     nextPage: hasMore ? page + 1 : null,
-    totalCount: totals[0]?.value ?? 0,
+    totalCount: null,
   };
 }
 
@@ -204,6 +208,34 @@ async function queryPublicProject(slug: string) {
     .innerJoin(projects, eq(projectImages.projectId, projects.id))
     .where(projectFilter)
     .orderBy(asc(projectImages.sortOrder));
+  const likesQuery = getDb()
+    .select({ count: count() })
+    .from(projectLikes)
+    .innerJoin(projects, eq(projectLikes.projectId, projects.id))
+    .where(projectFilter);
+
+  // neon-http sends the statements as one transaction request, avoiding a
+  // separate network roundtrip for each public detail relation.
+  const [projectRows, images, likes] = await getDb().batch([
+    projectQuery,
+    imagesQuery,
+    likesQuery,
+  ]);
+  const project = projectRows[0];
+  if (!project) return null;
+
+  return {
+    ...project,
+    images,
+    likeCount: likes[0]?.count ?? 0,
+  };
+}
+
+async function queryPublicProjectIterations(slug: string) {
+  const projectFilter = and(
+    eq(projects.slug, slug),
+    eq(projects.status, "approved"),
+  );
   const iterationsQuery = getDb()
     .select({
       id: projectIterations.id,
@@ -234,24 +266,11 @@ async function queryPublicProject(slug: string) {
     .innerJoin(projects, eq(projectIterations.projectId, projects.id))
     .where(and(projectFilter, eq(projectIterations.status, "approved")))
     .orderBy(asc(iterationImages.sortOrder));
-  const likesQuery = getDb()
-    .select({ count: count() })
-    .from(projectLikes)
-    .innerJoin(projects, eq(projectLikes.projectId, projects.id))
-    .where(projectFilter);
 
-  // neon-http sends the statements as one transaction request, avoiding a
-  // separate network roundtrip for each public detail relation.
-  const [projectRows, images, approvedIterations, allIterationImages, likes] =
-    await getDb().batch([
-      projectQuery,
-      imagesQuery,
-      iterationsQuery,
-      iterationImagesQuery,
-      likesQuery,
-    ]);
-  const project = projectRows[0];
-  if (!project) return null;
+  const [approvedIterations, allIterationImages] = await getDb().batch([
+    iterationsQuery,
+    iterationImagesQuery,
+  ]);
 
   const imagesByIteration = new Map<
     string,
@@ -263,15 +282,10 @@ async function queryPublicProject(slug: string) {
     imagesByIteration.set(image.iterationId, images);
   }
 
-  return {
-    ...project,
-    images,
-    likeCount: likes[0]?.count ?? 0,
-    iterations: approvedIterations.map((iteration) => ({
-      ...iteration,
-      images: imagesByIteration.get(iteration.id) ?? [],
-    })),
-  };
+  return approvedIterations.map((iteration) => ({
+    ...iteration,
+    images: imagesByIteration.get(iteration.id) ?? [],
+  }));
 }
 
 export const getPublicProject = cache(async (slug: string) => {
@@ -284,6 +298,18 @@ export const getPublicProject = cache(async (slug: string) => {
     },
   );
   return getCachedProject();
+});
+
+export const getPublicProjectIterations = cache(async (slug: string) => {
+  const getCachedIterations = unstable_cache(
+    () => queryPublicProjectIterations(slug),
+    ["public-project-iterations", slug],
+    {
+      revalidate: 3600,
+      tags: [PUBLIC_PROJECT_DETAILS_TAG, publicProjectTag(slug)],
+    },
+  );
+  return getCachedIterations();
 });
 
 export async function getViewerProjectLike(slug: string, viewerId: string) {
