@@ -17,7 +17,7 @@ import {
 } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
 import { assertOnboardedUser } from "@/lib/session";
-import { slugify, withSlugSuffix } from "@/lib/slug";
+import { insertWithUniqueSlug } from "@/lib/slug";
 import { projectInputSchema } from "@/lib/validations";
 import { deleteBlobs } from "@/server/blob";
 import {
@@ -28,20 +28,17 @@ import type { ActionState } from "@/types/actions";
 
 const idSchema = z.uuid();
 
-async function createUniqueSlug(name: string) {
-  const base = slugify(name);
+type ProjectCreateTiming = {
+  outcome: "success" | "validation_error" | "insert_error";
+  sessionMs: number;
+  slugResolutionMs: number;
+  insertDbMs: number;
+  insertAttempts: number;
+  totalMs: number;
+};
 
-  for (let attempt = 0; attempt < 25; attempt += 1) {
-    const slug = withSlugSuffix(base, attempt);
-    const [existing] = await getDb()
-      .select({ id: projects.id })
-      .from(projects)
-      .where(eq(projects.slug, slug))
-      .limit(1);
-    if (!existing) return slug;
-  }
-
-  return `${base || "project"}-${crypto.randomUUID().slice(0, 8)}`;
+function logProjectCreateTiming(timing: ProjectCreateTiming) {
+  console.info(JSON.stringify({ event: "project.create.timing", ...timing }));
 }
 
 function projectInput(formData: FormData) {
@@ -57,25 +54,70 @@ export async function createProjectAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const totalStartedAt = Date.now();
+  const sessionStartedAt = Date.now();
   const session = await assertOnboardedUser();
+  const sessionMs = Date.now() - sessionStartedAt;
   const parsed = projectInput(formData);
-  if (!parsed.success) return validationError(parsed.error);
+  if (!parsed.success) {
+    logProjectCreateTiming({
+      outcome: "validation_error",
+      sessionMs,
+      slugResolutionMs: 0,
+      insertDbMs: 0,
+      insertAttempts: 0,
+      totalMs: Date.now() - totalStartedAt,
+    });
+    return validationError(parsed.error);
+  }
 
   let projectId: string;
+  let insertDbMs = 0;
+  let insertAttempts = 0;
+  const slugResolutionStartedAt = Date.now();
   try {
-    const [project] = await getDb()
-      .insert(projects)
-      .values({
-        ownerId: session.user.id,
-        slug: await createUniqueSlug(parsed.data.name),
-        ...parsed.data,
-      })
-      .returning({ id: projects.id });
-    if (!project) throw new Error("Insert returned no project.");
-    projectId = project.id;
+    const result = await insertWithUniqueSlug(
+      parsed.data.name,
+      async (slug) => {
+        insertAttempts += 1;
+        const insertStartedAt = Date.now();
+        try {
+          const [project] = await getDb()
+            .insert(projects)
+            .values({
+              ownerId: session.user.id,
+              slug,
+              ...parsed.data,
+            })
+            .onConflictDoNothing({ target: projects.slug })
+            .returning({ id: projects.id });
+          return project;
+        } finally {
+          insertDbMs += Date.now() - insertStartedAt;
+        }
+      },
+    );
+    projectId = result.inserted.id;
   } catch (error) {
+    logProjectCreateTiming({
+      outcome: "insert_error",
+      sessionMs,
+      slugResolutionMs: Date.now() - slugResolutionStartedAt,
+      insertDbMs,
+      insertAttempts,
+      totalMs: Date.now() - totalStartedAt,
+    });
     return safeActionError(error, "Unable to create the project.");
   }
+
+  logProjectCreateTiming({
+    outcome: "success",
+    sessionMs,
+    slugResolutionMs: Date.now() - slugResolutionStartedAt,
+    insertDbMs,
+    insertAttempts,
+    totalMs: Date.now() - totalStartedAt,
+  });
 
   redirect(`/dashboard/projects/${projectId}/edit`);
 }

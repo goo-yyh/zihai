@@ -8,7 +8,10 @@ import { z } from "zod";
 import { getDb } from "@/db";
 import { user } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
-import { assertOnboardedUser } from "@/lib/session";
+import {
+  assertOnboardedUser,
+  refreshSessionCookieCache,
+} from "@/lib/session";
 import { contactEmailSchema, usernameSchema } from "@/lib/validations";
 import { revalidateUserPresentation } from "@/server/cache";
 import type { ActionState } from "@/types/actions";
@@ -40,6 +43,7 @@ export async function updateProfileAction(
         updatedAt: new Date(),
       })
       .where(eq(user.id, session.user.id));
+    await refreshSessionCookieCache();
     revalidateUserPresentation(session.user.username, parsed.data.username);
     return { status: "success", message: "Profile updated." };
   } catch (error) {
