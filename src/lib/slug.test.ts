@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  insertWithUniqueSlug,
-  slugify,
-  withSlugSuffix,
-} from "@/lib/slug";
+import { insertWithUniqueSlug, slugify, withSlugSuffix } from "@/lib/slug";
 
 describe("slugify", () => {
   it("creates stable URL-safe slugs", () => {
