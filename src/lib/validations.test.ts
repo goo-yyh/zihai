@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   feedbackSchema,
   normalizeGithubUrl,
+  passwordSchema,
   projectInputSchema,
   uploadCompletionSchema,
   usernameSchema,
@@ -17,6 +18,14 @@ describe("usernameSchema", () => {
     expect(usernameSchema.safeParse("admin").success).toBe(false);
     expect(usernameSchema.safeParse("hello world").success).toBe(false);
     expect(usernameSchema.safeParse("ab").success).toBe(false);
+  });
+});
+
+describe("passwordSchema", () => {
+  it("enforces the Better Auth password length boundary", () => {
+    expect(passwordSchema.safeParse("short").success).toBe(false);
+    expect(passwordSchema.safeParse("correct-horse").success).toBe(true);
+    expect(passwordSchema.safeParse("x".repeat(129)).success).toBe(false);
   });
 });
 

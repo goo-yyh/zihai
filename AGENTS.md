@@ -27,7 +27,7 @@ Never claim a check passed unless it was run in the current workspace.
 
 These rules are non-negotiable unless the product specification changes:
 
-- Accounts are created only through GitHub or Google OAuth.
+- Accounts are created only through verified `qq.com` or `163.com` email OTP, GitHub, or Google OAuth.
 - Onboarding must finish before projects, iterations, or likes can be created.
 - A project has at least one destination: website URL, GitHub repository URL, or both.
 - A project or iteration has one to five images.
@@ -171,7 +171,7 @@ Also apply the relevant checks below:
 
 - Validation or lifecycle change: add/update Vitest cases.
 - Schema change: `pnpm db:generate`, inspect SQL, `pnpm db:check`.
-- Auth change: test both OAuth providers, OAuth-only login, onboarding contact-email defaults and requirements, and unauthorized calls.
+- Auth change: test the `qq.com` and `163.com` identity-email allowlist, one-time image CAPTCHA enforcement and direct-endpoint bypass attempts, email OTP and both OAuth providers, username/password login, onboarding contact-email defaults and requirements, password setup/change, account linking, and unauthorized calls.
 - Upload change: test MIME, size, count, ownership, callback compensation, replacement cleanup, and cache refresh.
 - Moderation change: test pending-only review, concurrent review behavior, public visibility, rejection reason, and audit entry.
 - Responsive UI change: inspect mobile, tablet, and desktop layouts.

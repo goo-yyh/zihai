@@ -17,14 +17,14 @@ export function OnboardingForm({
   suggestedUsername,
   contactEmail,
   contactEmailMissing,
-  oauthProvider,
+  identityProvider,
   returnTo,
 }: {
   image?: string | null;
   suggestedUsername: string;
   contactEmail: string;
   contactEmailMissing: boolean;
-  oauthProvider?: string | null;
+  identityProvider?: string | null;
   returnTo?: string;
 }) {
   const { t } = useI18n();
@@ -59,6 +59,37 @@ export function OnboardingForm({
         </div>
         <ImageUploader kind="avatar" currentCount={0} compact />
       </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="password">{t("Password")}</Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            minLength={8}
+            maxLength={128}
+            autoComplete="new-password"
+            required
+          />
+          <FieldError errors={state.fieldErrors?.password} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="confirmPassword">{t("Confirm password")}</Label>
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            minLength={8}
+            maxLength={128}
+            autoComplete="new-password"
+            required
+          />
+          <FieldError errors={state.fieldErrors?.confirmPassword} />
+        </div>
+      </div>
+      <p className="text-xs leading-5 text-muted-foreground">
+        {t("After setup, you can sign in with this username and password.")}
+      </p>
       <div className="space-y-1.5">
         <Label htmlFor="username">{t("Username")}</Label>
         <Input
@@ -92,13 +123,17 @@ export function OnboardingForm({
             ? t(
                 "GitHub did not provide an email. Add one for review and account communications.",
               )
-            : oauthProvider === "google"
+            : identityProvider === "email"
               ? t(
-                  "Using your Google email. It is private and used only for review and account communications.",
+                  "Using your verified email. It is private and used only for review and account communications.",
                 )
-              : t(
-                  "Using your OAuth email. It is private and used only for review and account communications.",
-                )}
+              : identityProvider === "google"
+                ? t(
+                    "Using your Google email. It is private and used only for review and account communications.",
+                  )
+                : t(
+                    "Using your OAuth email. It is private and used only for review and account communications.",
+                  )}
         </p>
         <FieldError errors={state.fieldErrors?.contactEmail} />
       </div>

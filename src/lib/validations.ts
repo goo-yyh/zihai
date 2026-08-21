@@ -38,6 +38,11 @@ export const contactEmailSchema = z
   .max(254, "Contact email must be at most 254 characters.")
   .pipe(z.email("Enter a valid contact email."));
 
+export const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters.")
+  .max(128, "Password must be at most 128 characters.");
+
 const websiteUrlSchema = z
   .url("Enter a valid website URL.")
   .refine((value) => ["http:", "https:"].includes(new URL(value).protocol), {
