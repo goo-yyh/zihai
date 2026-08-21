@@ -1,5 +1,4 @@
 import { Archive, Check, RefreshCw } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -10,6 +9,7 @@ import {
 } from "@/actions/admin-project";
 import { RejectionForm } from "@/components/admin/review-form";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { ProductScreenshot } from "@/components/project/product-screenshot";
 import { Avatar } from "@/components/ui/avatar";
 import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
 import { Badge } from "@/components/ui/badge";
@@ -75,12 +75,10 @@ export default async function AdminProjectPage({
             key={image.id}
             className="relative aspect-[16/10] overflow-hidden rounded-2xl border bg-muted"
           >
-            <Image
+            <ProductScreenshot
               src={image.blobUrl}
               alt={t("Submission screenshot {number}", { number: index + 1 })}
-              fill
               sizes="(max-width: 640px) 100vw, 280px"
-              className="object-cover"
             />
           </div>
         ))}
