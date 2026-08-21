@@ -1,19 +1,20 @@
 import { CalendarDays } from "lucide-react";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { ProjectGrid } from "@/components/project/project-grid";
 import { Avatar } from "@/components/ui/avatar";
 import { getPublicProfile } from "@/db/queries/public";
+import { publicProfilePath } from "@/lib/public-routes";
 import { formatDate } from "@/lib/utils";
 import { getTranslations } from "@/lib/i18n-server";
 
 export async function generateMetadata({
   params,
-}: PageProps<"/u/[username]">): Promise<Metadata> {
-  const { username } = await params;
+}: PageProps<"/u/[userId]/[username]">): Promise<Metadata> {
+  const { userId, username } = await params;
   const [profile, { t }] = await Promise.all([
-    getPublicProfile(username),
+    getPublicProfile(userId),
     getTranslations(),
   ]);
   if (!profile)
@@ -21,24 +22,30 @@ export async function generateMetadata({
       title: t("Builder not found"),
       robots: { index: false, follow: false },
     };
+  if (username !== profile.username) {
+    permanentRedirect(publicProfilePath(profile));
+  }
   return {
     title: `@${profile.username}`,
     description: t("Explore AI products built by @{username} on zihAI.", {
       username: profile.username,
     }),
-    alternates: { canonical: `/u/${profile.username}` },
+    alternates: { canonical: publicProfilePath(profile) },
   };
 }
 
 export default async function ProfilePage({
   params,
-}: PageProps<"/u/[username]">) {
-  const [{ username }, { locale, t }] = await Promise.all([
+}: PageProps<"/u/[userId]/[username]">) {
+  const [{ userId, username }, { locale, t }] = await Promise.all([
     params,
     getTranslations(),
   ]);
-  const profile = await getPublicProfile(username);
+  const profile = await getPublicProfile(userId);
   if (!profile) notFound();
+  if (username !== profile.username) {
+    permanentRedirect(publicProfilePath(profile));
+  }
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <header className="rounded-[2rem] border bg-foreground p-7 text-white sm:p-10">

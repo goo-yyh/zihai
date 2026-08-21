@@ -21,13 +21,13 @@ import type { ActionState } from "@/types/actions";
 
 const idSchema = z.uuid();
 
-async function ownerUsername(ownerId: string) {
+async function ownerProfile(ownerId: string) {
   const [owner] = await getDb()
     .select({ username: user.username })
     .from(user)
     .where(eq(user.id, ownerId))
     .limit(1);
-  return owner?.username;
+  return { id: ownerId, username: owner?.username ?? null };
 }
 
 export async function approveProjectAction(projectId: string) {
@@ -77,7 +77,10 @@ export async function approveProjectAction(projectId: string) {
     return pendingProject;
   });
 
-  revalidatePublicProject(project.slug, await ownerUsername(project.ownerId));
+  revalidatePublicProject(
+    { id, slug: project.slug },
+    await ownerProfile(project.ownerId),
+  );
   revalidateAdminContent("projects");
   redirect(`/admin/projects/${id}?approved=1`);
 }
@@ -130,7 +133,10 @@ export async function rejectProjectAction(
       return pendingProject;
     });
 
-    revalidatePublicProject(project.slug, await ownerUsername(project.ownerId));
+    revalidatePublicProject(
+      { id, slug: project.slug },
+      await ownerProfile(project.ownerId),
+    );
     revalidateAdminContent("projects");
     return { status: "success", message: "Project rejected." };
   } catch (error) {
@@ -175,7 +181,10 @@ export async function archiveProjectAction(projectId: string) {
     return approvedProject;
   });
 
-  revalidatePublicProject(project.slug, await ownerUsername(project.ownerId));
+  revalidatePublicProject(
+    { id, slug: project.slug },
+    await ownerProfile(project.ownerId),
+  );
   revalidateAdminContent("projects");
   redirect(`/admin/projects/${id}?archived=1`);
 }
@@ -224,7 +233,10 @@ export async function republishProjectAction(projectId: string) {
     return archivedProject;
   });
 
-  revalidatePublicProject(project.slug, await ownerUsername(project.ownerId));
+  revalidatePublicProject(
+    { id, slug: project.slug },
+    await ownerProfile(project.ownerId),
+  );
   revalidateAdminContent("projects");
   redirect(`/admin/projects/${id}?republished=1`);
 }

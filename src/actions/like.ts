@@ -22,12 +22,14 @@ export async function toggleLikeAction(projectId: string) {
   // avoids the per-call WebSocket handshake. The count rides in the same
   // batch, so it still reads the post-toggle state within that transaction.
   const toggleQuery = getDb().execute<{
+    projectId: string;
     slug: string;
+    ownerId: string;
     ownerUsername: string;
     liked: boolean;
   }>(sql`
     WITH target AS (
-      SELECT p.id, p.slug, u.username AS "ownerUsername"
+      SELECT p.id, p.slug, p.owner_id AS "ownerId", u.username AS "ownerUsername"
       FROM projects p
       JOIN "user" u ON u.id = p.owner_id
       WHERE p.id = ${id} AND p.status = 'approved'
@@ -45,7 +47,7 @@ export async function toggleLikeAction(projectId: string) {
       ON CONFLICT DO NOTHING
       RETURNING 1
     )
-    SELECT t.slug, t."ownerUsername",
+    SELECT t.id AS "projectId", t.slug, t."ownerId", t."ownerUsername",
       EXISTS (SELECT 1 FROM added) AS liked
     FROM target t
   `);
@@ -58,6 +60,9 @@ export async function toggleLikeAction(projectId: string) {
   const row = toggled.rows[0];
   if (!row) throw new UserFacingError("Only approved projects can be liked.");
 
-  revalidateProjectLike(row.slug, row.ownerUsername);
+  revalidateProjectLike(
+    { id: row.projectId, slug: row.slug },
+    { id: row.ownerId, username: row.ownerUsername },
+  );
   return { liked: row.liked, count: likes[0]?.value ?? 0 };
 }

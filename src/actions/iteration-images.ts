@@ -27,7 +27,10 @@ export async function deleteIterationImageAction(imageId: string) {
   );
 
   revalidateIterationWorkspace(result.projectId, result.iterationId);
-  revalidateProjectDetail(result.projectSlug);
+  revalidateProjectDetail({
+    id: result.projectId,
+    slug: result.projectSlug,
+  });
 }
 
 export async function reorderIterationImagesAction(
@@ -43,5 +46,8 @@ export async function reorderIterationImagesAction(
   );
 
   revalidateIterationWorkspace(result.projectId, result.iterationId);
-  revalidateProjectDetail(result.projectSlug);
+  revalidateProjectDetail({
+    id: result.projectId,
+    slug: result.projectSlug,
+  });
 }

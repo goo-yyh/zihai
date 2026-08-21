@@ -17,18 +17,24 @@ import {
 
 function refreshUploadConsumers(upload: PersistedUpload) {
   if (upload.kind === "avatar") {
-    revalidateUserPresentation(upload.username);
+    revalidateUserPresentation(upload.userId, upload.username);
     return;
   }
 
   if (upload.kind === "project-image") {
     revalidateProjectWorkspace(upload.projectId);
-    revalidatePublicProject(upload.projectSlug, upload.ownerUsername);
+    revalidatePublicProject(
+      { id: upload.projectId, slug: upload.projectSlug },
+      { id: upload.ownerId, username: upload.ownerUsername },
+    );
     return;
   }
 
   revalidateIterationWorkspace(upload.projectId, upload.iterationId);
-  revalidateProjectDetail(upload.projectSlug);
+  revalidateProjectDetail({
+    id: upload.projectId,
+    slug: upload.projectSlug,
+  });
 }
 
 export async function completeUpload(blob: UploadedBlob, intent: UploadIntent) {

@@ -9,39 +9,63 @@ import {
   publicProfileTag,
   publicProjectTag,
 } from "@/lib/cache-tags";
+import { publicProfilePath, publicProjectPath } from "@/lib/public-routes";
+
+type PublicProjectReference = {
+  id: string;
+  slug: string;
+};
+
+type PublicProfileReference = {
+  id: string;
+  username?: string | null;
+};
 
 function expireTag(tag: string) {
   revalidateTag(tag, { expire: 0 });
 }
 
 export function revalidatePublicProject(
-  slug: string,
-  ownerUsername?: string | null,
+  project: PublicProjectReference,
+  owner?: PublicProfileReference,
 ) {
   expireTag(PUBLIC_PROJECT_LIST_TAG);
-  expireTag(publicProjectTag(slug));
+  expireTag(publicProjectTag(project.id));
   expireTag(PUBLIC_SITEMAP_TAG);
-  if (ownerUsername) expireTag(publicProfileTag(ownerUsername));
+  if (owner) expireTag(publicProfileTag(owner.id));
   revalidatePath("/");
-  revalidatePath(`/p/${slug}`);
-  if (ownerUsername) revalidatePath(`/u/${ownerUsername}`);
+  revalidatePath(publicProjectPath(project));
+  revalidatePath(`/p/${project.slug}`);
+  if (owner?.username) {
+    revalidatePath(
+      publicProfilePath({ id: owner.id, username: owner.username }),
+    );
+    revalidatePath(`/u/${owner.username}`);
+  }
 }
 
-export function revalidateProjectDetail(slug: string) {
-  expireTag(publicProjectTag(slug));
-  revalidatePath(`/p/${slug}`);
+export function revalidateProjectDetail(project: PublicProjectReference) {
+  expireTag(publicProjectTag(project.id));
+  revalidatePath(publicProjectPath(project));
+  revalidatePath(`/p/${project.slug}`);
 }
 
 export function revalidateProjectLike(
-  slug: string,
-  ownerUsername?: string | null,
+  project: PublicProjectReference,
+  owner?: PublicProfileReference,
 ) {
   expireTag(PUBLIC_PROJECT_LIST_TAG);
-  expireTag(publicProjectTag(slug));
-  if (ownerUsername) expireTag(publicProfileTag(ownerUsername));
+  expireTag(publicProjectTag(project.id));
+  if (owner) expireTag(publicProfileTag(owner.id));
   revalidatePath("/");
-  revalidatePath(`/p/${slug}`);
-  if (ownerUsername) revalidatePath(`/u/${ownerUsername}`);
+  revalidatePath(publicProjectPath(project));
+  revalidatePath(`/p/${project.slug}`);
+  if (owner?.username) {
+    revalidatePath(
+      publicProfilePath({ id: owner.id, username: owner.username }),
+    );
+    revalidatePath(`/u/${owner.username}`);
+  }
 }
 
 export function revalidateProjectWorkspace(projectId: string) {
@@ -73,6 +97,7 @@ export function revalidateAdminUsers() {
 }
 
 export function revalidateUserPresentation(
+  userId: string,
   ...usernames: Array<string | null | undefined>
 ) {
   expireTag(PUBLIC_PROJECT_LIST_TAG);
@@ -84,11 +109,12 @@ export function revalidateUserPresentation(
   revalidatePath("/onboarding");
   revalidatePath("/admin/users");
   revalidatePath("/admin/users/[id]", "page");
-  revalidatePath("/p/[slug]", "page");
+  revalidatePath("/p/[projectId]/[slug]", "page");
+  expireTag(publicProfileTag(userId));
   for (const username of new Set(
     usernames.filter((value): value is string => Boolean(value)),
   )) {
-    expireTag(publicProfileTag(username));
+    revalidatePath(publicProfilePath({ id: userId, username }));
     revalidatePath(`/u/${username}`);
   }
 }

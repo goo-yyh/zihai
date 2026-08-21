@@ -142,7 +142,10 @@ export async function updateIterationAction(
     });
 
     revalidateIterationWorkspace(existing.projectId, parsedId.data);
-    revalidateProjectDetail(existing.projectSlug);
+    revalidateProjectDetail({
+      id: existing.projectId,
+      slug: existing.projectSlug,
+    });
 
     return {
       status: "success",
@@ -254,6 +257,9 @@ export async function deleteIterationAction(iterationId: string) {
     );
 
   revalidateIterationWorkspace(iteration.projectId, id);
-  revalidateProjectDetail(iteration.projectSlug);
+  revalidateProjectDetail({
+    id: iteration.projectId,
+    slug: iteration.projectSlug,
+  });
   redirect(`/dashboard/projects/${iteration.projectId}/edit?deleted=iteration`);
 }

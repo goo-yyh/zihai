@@ -23,6 +23,7 @@ import {
 import { getOwnedProject } from "@/db/queries/dashboard";
 import { isFeatureEnabled } from "@/lib/features";
 import { getTranslations } from "@/lib/i18n-server";
+import { publicProjectPath } from "@/lib/public-routes";
 import { requireOnboardedUser } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
@@ -54,15 +55,15 @@ export default async function EditProjectPage({
             <Badge variant={project.status}>{project.status}</Badge>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t("Created {date} · Public slug /p/{slug}", {
+            {t("Created {date} · Public URL {path}", {
               date: formatDate(project.createdAt, locale),
-              slug: project.slug,
+              path: publicProjectPath(project),
             })}
           </p>
         </div>
         {project.status === "approved" ? (
           <Button asChild variant="outline">
-            <Link href={`/p/${project.slug}`} target="_blank">
+            <Link href={publicProjectPath(project)} target="_blank">
               <ExternalLink className="size-4" /> {t("View public page")}
             </Link>
           </Button>

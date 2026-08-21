@@ -7,6 +7,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { ProductScreenshot } from "@/components/project/product-screenshot";
 import { Avatar } from "@/components/ui/avatar";
 import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
+import { publicProjectPath } from "@/lib/public-routes";
 import type { ProjectCardData } from "@/types/projects";
 
 export function ProjectCard({
@@ -20,7 +21,7 @@ export function ProjectCard({
   return (
     <article className="group overflow-hidden rounded-2xl border bg-white shadow-[0_8px_30px_rgb(27_34_9/5%)] transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgb(27_34_9/10%)]">
       <Link
-        href={`/p/${project.slug}`}
+        href={publicProjectPath(project)}
         target="_blank"
         rel="noopener noreferrer"
         className="block"

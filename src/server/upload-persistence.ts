@@ -26,11 +26,12 @@ export type UploadedBlob = {
 };
 
 export type PersistedUpload =
-  | { kind: "avatar"; username: string | null }
+  | { kind: "avatar"; userId: string; username: string | null }
   | {
       kind: "project-image";
       projectId: string;
       projectSlug: string;
+      ownerId: string;
       ownerUsername: string | null;
     }
   | {
@@ -93,7 +94,11 @@ export async function persistUpload(
     if (existing.pathname && existing.pathname !== blob.pathname) {
       await deleteBlobsBestEffort(existing.pathname);
     }
-    return { kind: "avatar", username: existing.username };
+    return {
+      kind: "avatar",
+      userId: intent.userId,
+      username: existing.username,
+    };
   }
 
   await ownershipTask;
@@ -153,6 +158,7 @@ export async function persistUpload(
       kind: "project-image",
       projectId: intent.projectId,
       projectSlug: project.slug,
+      ownerId: intent.userId,
       ownerUsername: owner?.username ?? null,
     };
   }
