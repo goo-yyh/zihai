@@ -30,6 +30,15 @@ export async function getUserProjects(ownerId: string) {
     .orderBy(desc(projects.updatedAt));
 }
 
+export async function getUserProjectCount(ownerId: string) {
+  const [result] = await getDb()
+    .select({ value: count() })
+    .from(projects)
+    .where(eq(projects.ownerId, ownerId));
+
+  return result?.value ?? 0;
+}
+
 export async function getOwnedProject(projectId: string, ownerId: string) {
   const projectQuery = getDb()
     .select()

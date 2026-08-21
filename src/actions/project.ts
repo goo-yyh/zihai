@@ -2,7 +2,7 @@
 
 import "server-only";
 
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -16,6 +16,7 @@ import {
   contentEditPatch,
 } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
+import { assertCanCreateProject } from "@/lib/project-limits";
 import { assertOnboardedUser } from "@/lib/session";
 import { insertWithUniqueSlug } from "@/lib/slug";
 import { projectInputSchema } from "@/lib/validations";
@@ -76,13 +77,23 @@ export async function createProjectAction(
   let insertAttempts = 0;
   const slugResolutionStartedAt = Date.now();
   try {
-    const result = await insertWithUniqueSlug(
-      parsed.data.name,
-      async (slug) => {
+    const result = await withTransaction(async (tx) => {
+      // A per-owner transaction lock serializes count-and-insert so concurrent
+      // requests cannot both observe the ninth project and create an eleventh.
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`project-owner:${session.user.id}`}, 0))`,
+      );
+      const [ownedProjects] = await tx
+        .select({ value: count() })
+        .from(projects)
+        .where(eq(projects.ownerId, session.user.id));
+      assertCanCreateProject(ownedProjects?.value ?? 0);
+
+      return insertWithUniqueSlug(parsed.data.name, async (slug) => {
         insertAttempts += 1;
         const insertStartedAt = Date.now();
         try {
-          const [project] = await getDb()
+          const [project] = await tx
             .insert(projects)
             .values({
               ownerId: session.user.id,
@@ -95,8 +106,8 @@ export async function createProjectAction(
         } finally {
           insertDbMs += Date.now() - insertStartedAt;
         }
-      },
-    );
+      });
+    });
     projectId = result.inserted.id;
   } catch (error) {
     logProjectCreateTiming({

@@ -221,6 +221,9 @@ const zhCN: Record<string, string> = {
   "Create a project, add screenshots, then send it for review.":
     "创建项目、添加截图，然后提交审核。",
   "Create project": "创建项目",
+  "Project limit reached": "已达到项目数量上限",
+  "Each account can create up to 10 projects. Delete an existing project before creating another.":
+    "每个账户最多可以创建 10 个项目。请先删除一个现有项目，再创建新项目。",
   "Draft, submit, and keep every launch moving.":
     "保存草稿、提交审核，让每个产品持续推进。",
   "Updated {date} · {count} likes": "更新于 {date} · {count} 个赞",

@@ -103,6 +103,10 @@ Before Better Auth creates or sends a sign-in OTP, its server-side `before` hook
 
 Username/password sign-in is available only after a credential account has been linked to an already authenticated user. Password changes require the current password and revoke other sessions. Verified identity email remains separate from the private operational contact email; the contact email is not restricted to `qq.com` or `163.com`. Google and verified-email identities provide the default contact email; GitHub email is used when available, otherwise onboarding requires the user to provide one.
 
+## Per-user project capacity
+
+Each user can own at most ten projects across all statuses, including drafts, rejected projects, and archived projects. Deleting a project frees one slot. `createProjectAction` acquires a transaction-scoped PostgreSQL advisory lock derived from the owner ID, counts the owner's rows, and inserts the new project in the same transaction. This serializes concurrent creation attempts so two requests cannot both pass the limit check.
+
 Avatar rendering always has a local default. Missing OAuth images are replaced with that default during onboarding, while remote images that fail in the browser fall back without exposing broken-image alternative text or changing layout. A later custom upload replaces the database reference through the normal Blob workflow.
 
 GitHub accounts without a provider email receive a reserved `.invalid` internal identity address so OAuth account linking remains stable. That placeholder is never treated as a contact address or shown publicly. Contact email input is validated in the onboarding and profile Server Actions and is visible only in account settings and administrator workflows.
