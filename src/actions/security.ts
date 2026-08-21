@@ -103,11 +103,6 @@ export async function changePasswordAction(
   }
 }
 
-export async function logoutAction() {
-  await getAuth().api.signOut({ headers: await headers() });
-  redirect("/");
-}
-
 export async function deleteAccountAction(formData: FormData) {
   const session = await assertOnboardedUser();
   z.literal("DELETE").parse(formData.get("confirmation"));

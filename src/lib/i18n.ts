@@ -26,6 +26,7 @@ const zhCN: Record<string, string> = {
   "Finish setup": "完成设置",
   Account: "账户",
   "Sign out": "退出登录",
+  "Unable to sign out.": "无法退出登录。",
   Overview: "概览",
   "My projects": "我的项目",
   Profile: "个人资料",
@@ -163,6 +164,8 @@ const zhCN: Record<string, string> = {
   Avatar: "头像",
   "Your profile will be /u/username.": "你的个人主页地址将是 /u/username。",
   "Contact email": "联系邮箱",
+  "Contact and feedback": "联系与反馈",
+  "Feedback and suggestions": "反馈建议",
   "GitHub did not provide an email. Add one for review and account communications.":
     "GitHub 未提供邮箱，请填写一个邮箱用于审核和账户沟通。",
   "Using your Google email. It is private and used only for review and account communications.":
