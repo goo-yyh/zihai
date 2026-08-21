@@ -17,7 +17,7 @@ import {
   authCaptchaChallengeSchema,
   type AuthCaptchaChallenge,
 } from "@/lib/auth-captcha";
-import { isAllowedAuthEmail } from "@/lib/auth-email";
+import { isValidIdentityEmail } from "@/lib/auth-email";
 
 export function RegisterForm({ returnTo }: { returnTo: string }) {
   const { t } = useI18n();
@@ -73,8 +73,8 @@ export function RegisterForm({ returnTo }: { returnTo: string }) {
       .trim()
       .toLowerCase();
 
-    if (!isAllowedAuthEmail(email)) {
-      setError(t("Only qq.com and 163.com email addresses are supported."));
+    if (!isValidIdentityEmail(email)) {
+      setError(t("Enter a valid email address."));
       return;
     }
 
@@ -262,12 +262,12 @@ export function RegisterForm({ returnTo }: { returnTo: string }) {
                 name="email"
                 type="email"
                 autoComplete="email"
-                placeholder="name@qq.com"
+                placeholder="name@example.com"
                 maxLength={254}
                 required
               />
               <p className="text-xs text-muted-foreground">
-                {t("Supported email domains: qq.com and 163.com.")}
+                {t("Any valid email address is supported.")}
               </p>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>

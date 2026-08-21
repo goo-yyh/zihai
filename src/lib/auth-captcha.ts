@@ -1,12 +1,12 @@
 import { z } from "zod";
 
+import { identityEmailSchema } from "@/lib/auth-email";
+
 export const AUTH_CAPTCHA_ID_HEADER = "x-zihai-captcha-id";
 export const AUTH_CAPTCHA_ANSWER_HEADER = "x-zihai-captcha-answer";
 
-const authCaptchaEmailSchema = z.string().trim().toLowerCase().pipe(z.email());
-
 export const authCaptchaRequestSchema = z.object({
-  email: authCaptchaEmailSchema,
+  email: identityEmailSchema,
 });
 
 export const authCaptchaVerificationSchema = z.object({
@@ -15,7 +15,7 @@ export const authCaptchaVerificationSchema = z.object({
     .string()
     .trim()
     .regex(/^[2-9]{5}$/),
-  email: authCaptchaEmailSchema,
+  email: identityEmailSchema,
 });
 
 export const authCaptchaChallengeSchema = z.object({
