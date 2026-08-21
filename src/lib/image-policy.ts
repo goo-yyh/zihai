@@ -16,7 +16,7 @@ export type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];
 
 const MEBIBYTE = 1024 * 1024;
 
-export const MAX_CONTENT_IMAGES = 3;
+export const MAX_CONTENT_IMAGES = 5;
 
 export const IMAGE_UPLOAD_POLICIES = {
   avatar: { maxFiles: 1, maxBytes: 2 * MEBIBYTE },

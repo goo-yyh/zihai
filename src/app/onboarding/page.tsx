@@ -9,26 +9,43 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getOnboardingIdentity } from "@/db/queries/account";
+import { getInitialContactEmail } from "@/lib/contact-email";
 import { safeReturnPath } from "@/lib/navigation";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireUser } from "@/lib/session";
 
-export const metadata: Metadata = {
-  title: "Finish setup",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslations();
+  return {
+    title: t("Finish setup"),
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function OnboardingPage({
   searchParams,
 }: PageProps<"/onboarding">) {
-  const [{ next }, session] = await Promise.all([searchParams, requireUser()]);
+  const [{ next }, session, { t }] = await Promise.all([
+    searchParams,
+    requireUser(),
+    getTranslations(),
+  ]);
   const returnTo = safeReturnPath(
     typeof next === "string" ? next : "/dashboard",
   );
   if (session.user.onboardingCompleted) redirect(returnTo);
 
+  const identity = await getOnboardingIdentity(session.user.id);
+  const contactEmail = getInitialContactEmail(
+    identity?.contactEmail,
+    identity?.email || session.user.email,
+  );
+
   const suggested = (
     session.user.username ||
-    session.user.email.split("@")[0] ||
+    session.user.name ||
+    (contactEmail ? contactEmail.split("@")[0] : "") ||
     "builder"
   )
     .toLowerCase()
@@ -41,20 +58,24 @@ export default async function OnboardingPage({
       <Card>
         <CardHeader>
           <p className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-primary">
-            One last step
+            {t("One last step")}
           </p>
           <CardTitle className="mt-2 text-3xl">
-            Create your builder identity
+            {t("Create your builder identity")}
           </CardTitle>
           <CardDescription className="mt-2 leading-6">
-            Choose a public username, confirm your avatar, and add a password
-            for convenient username sign-in later.
+            {t(
+              "Choose a public username and password, confirm your avatar, and add a private contact email.",
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           <OnboardingForm
             image={session.user.image}
             suggestedUsername={suggested.length >= 3 ? suggested : "builder"}
+            contactEmail={contactEmail}
+            contactEmailMissing={!contactEmail}
+            identityProvider={identity?.provider}
             returnTo={returnTo}
           />
         </CardContent>

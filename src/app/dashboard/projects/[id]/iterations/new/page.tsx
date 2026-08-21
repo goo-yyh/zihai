@@ -9,12 +9,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getOwnedProject } from "@/db/queries/dashboard";
+import { isFeatureEnabled } from "@/lib/features";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireOnboardedUser } from "@/lib/session";
 
 export default async function NewIterationPage({
   params,
 }: PageProps<"/dashboard/projects/[id]/iterations/new">) {
-  const [{ id }, session] = await Promise.all([params, requireOnboardedUser()]);
+  if (!isFeatureEnabled("iterations")) notFound();
+
+  const [{ id }, session, { t }] = await Promise.all([
+    params,
+    requireOnboardedUser(),
+    getTranslations(),
+  ]);
   const project = await getOwnedProject(id, session.user.id);
   if (!project) notFound();
   if (project.status !== "approved") redirect(`/dashboard/projects/${id}/edit`);
@@ -26,17 +34,19 @@ export default async function NewIterationPage({
           {project.name}
         </p>
         <h1 className="mt-2 text-3xl font-black tracking-tight">
-          Create an iteration
+          {t("Create an iteration")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Capture what changed. You will add screenshots on the next screen.
+          {t(
+            "Capture what changed. You will add screenshots on the next screen.",
+          )}
         </p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Update details</CardTitle>
+          <CardTitle>{t("Update details")}</CardTitle>
           <CardDescription>
-            Focus on meaningful product progress, not a changelog dump.
+            {t("Focus on meaningful product progress, not a changelog dump.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">

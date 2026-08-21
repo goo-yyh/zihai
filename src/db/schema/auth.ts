@@ -31,6 +31,7 @@ export const user = pgTable(
       .default(false)
       .notNull(),
     avatarPathname: text("avatar_pathname"),
+    contactEmail: text("contact_email"),
   },
   (table) => [
     index("user_created_at_idx").on(table.createdAt),

@@ -14,6 +14,7 @@ import {
   deleteProjectImageAction,
   reorderProjectImagesAction,
 } from "@/actions/project-images";
+import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { ImageUploader } from "@/components/upload/image-uploader";
 
@@ -30,6 +31,7 @@ export function ImageManager({
   projectId: string;
   images: ManagedImage[];
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -37,10 +39,12 @@ export function ImageManager({
     startTransition(async () => {
       try {
         await task();
-        toast.success(success);
+        toast.success(t(success));
         router.refresh();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Action failed.");
+        toast.error(
+          t(error instanceof Error ? error.message : "Action failed."),
+        );
       }
     });
   }
@@ -58,7 +62,7 @@ export function ImageManager({
   }
 
   function remove(imageId: string) {
-    if (!window.confirm("Delete this image permanently?")) return;
+    if (!window.confirm(t("Delete this image permanently?"))) return;
     const action =
       kind === "project-image"
         ? () => deleteProjectImageAction(imageId)
@@ -78,7 +82,7 @@ export function ImageManager({
               <div className="relative aspect-[16/10] bg-muted">
                 <Image
                   src={image.blobUrl}
-                  alt={`Screenshot ${index + 1}`}
+                  alt={t("Screenshot {number}", { number: index + 1 })}
                   fill
                   sizes="(max-width: 640px) 100vw, 33vw"
                   className="object-cover"
@@ -101,7 +105,7 @@ export function ImageManager({
                     className="size-8"
                     disabled={pending || index === 0}
                     onClick={() => move(index, -1)}
-                    title="Move left"
+                    title={t("Move left")}
                   >
                     <ArrowLeft className="size-4" />
                   </Button>
@@ -112,7 +116,7 @@ export function ImageManager({
                     className="size-8"
                     disabled={pending || index === images.length - 1}
                     onClick={() => move(index, 1)}
-                    title="Move right"
+                    title={t("Move right")}
                   >
                     <ArrowRight className="size-4" />
                   </Button>
@@ -123,7 +127,7 @@ export function ImageManager({
                     className="size-8 text-danger"
                     disabled={pending}
                     onClick={() => remove(image.id)}
-                    title="Delete image"
+                    title={t("Delete image")}
                   >
                     <Trash2 className="size-4" />
                   </Button>

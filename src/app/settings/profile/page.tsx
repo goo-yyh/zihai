@@ -10,31 +10,38 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ImageUploader } from "@/components/upload/image-uploader";
+import { getTranslations } from "@/lib/i18n-server";
+import { getInitialContactEmail } from "@/lib/contact-email";
 import { requireOnboardedUser } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Profile settings" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslations();
+  return { title: t("Profile settings") };
+}
 
 export default async function ProfileSettingsPage() {
-  const session = await requireOnboardedUser();
+  const [session, { t }] = await Promise.all([
+    requireOnboardedUser(),
+    getTranslations(),
+  ]);
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Profile settings</h1>
+        <h1 className="text-3xl font-black tracking-tight">
+          {t("Profile settings")}
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Control how your builder identity appears across zihAI.
+          {t("Control how your builder identity appears across zihAI.")}
         </p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Avatar</CardTitle>
-          <CardDescription>
-            Your OAuth avatar stays in place until you replace it.
-          </CardDescription>
+          <CardTitle>{t("Avatar")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-5 pt-4">
           <Avatar
             src={session.user.image}
-            alt={session.user.username || "Avatar"}
+            alt={session.user.username || t("Avatar")}
             size={88}
           />
           <ImageUploader kind="avatar" currentCount={0} compact />
@@ -42,13 +49,19 @@ export default async function ProfileSettingsPage() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Public identity</CardTitle>
+          <CardTitle>{t("Public identity")}</CardTitle>
           <CardDescription>
-            Changing your username also changes your public profile URL.
+            {t("Changing your username also changes your public profile URL.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
-          <ProfileForm username={session.user.username || ""} />
+          <ProfileForm
+            username={session.user.username || ""}
+            contactEmail={getInitialContactEmail(
+              session.user.contactEmail,
+              session.user.email,
+            )}
+          />
         </CardContent>
       </Card>
     </div>

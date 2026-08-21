@@ -8,13 +8,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAdminUser } from "@/db/queries/admin";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
 export default async function AdminUserPage({
   params,
 }: PageProps<"/admin/users/[id]">) {
-  const [{ id }, admin] = await Promise.all([params, requireAdmin()]);
+  const [{ id }, admin, { locale, t }] = await Promise.all([
+    params,
+    requireAdmin(),
+    getTranslations(),
+  ]);
   const profile = await getAdminUser(id);
   if (!profile) notFound();
   return (
@@ -22,39 +27,43 @@ export default async function AdminUserPage({
       <div className="flex flex-wrap items-center gap-5">
         <Avatar
           src={profile.image}
-          alt={profile.username || profile.email}
+          alt={profile.username || profile.contactEmail || profile.email}
           size={80}
         />
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-3xl font-black tracking-tight">
-              {profile.username ? `@${profile.username}` : "Setup incomplete"}
+              {profile.username
+                ? `@${profile.username}`
+                : t("Setup incomplete")}
             </h1>
             <Badge variant={profile.role === "admin" ? "admin" : "user"}>
               {profile.role}
             </Badge>
             {profile.banned ? (
               <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-800">
-                Banned
+                {t("Banned")}
               </span>
             ) : null}
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">{profile.email}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t("Contact email")}: {profile.contactEmail || profile.email}
+          </p>
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          ["Joined", formatDate(profile.createdAt)],
-          ["Last updated", formatDate(profile.updatedAt)],
+          ["Joined", formatDate(profile.createdAt, locale)],
+          ["Last updated", formatDate(profile.updatedAt, locale)],
           ["Providers", profile.providers || "—"],
           [
             "Onboarding",
-            profile.onboardingCompleted ? "Complete" : "Incomplete",
+            t(profile.onboardingCompleted ? "Complete" : "Incomplete"),
           ],
         ].map(([label, value]) => (
           <Card key={label} className="p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              {label}
+              {t(label)}
             </p>
             <p className="mt-2 text-sm font-semibold">{value}</p>
           </Card>
@@ -62,12 +71,12 @@ export default async function AdminUserPage({
       </div>
       {profile.banReason ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-          <strong>Ban reason:</strong> {profile.banReason}
+          <strong>{t("Ban reason:")}</strong> {profile.banReason}
         </div>
       ) : null}
       <Card>
         <CardHeader>
-          <CardTitle>Account controls</CardTitle>
+          <CardTitle>{t("Account controls")}</CardTitle>
         </CardHeader>
         <CardContent>
           <UserActions
@@ -80,7 +89,9 @@ export default async function AdminUserPage({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Projects ({profile.projects.length})</CardTitle>
+          <CardTitle>
+            {t("Projects ({count})", { count: profile.projects.length })}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {profile.projects.length ? (
@@ -93,7 +104,9 @@ export default async function AdminUserPage({
                   <div>
                     <p className="font-bold">{project.name}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Updated {formatDate(project.updatedAt)}
+                      {t("Updated {date}", {
+                        date: formatDate(project.updatedAt, locale),
+                      })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -106,7 +119,7 @@ export default async function AdminUserPage({
                     >
                       <Link href={`/admin/projects/${project.id}`}>
                         <ExternalLink className="size-4" />
-                        <span className="sr-only">Open project</span>
+                        <span className="sr-only">{t("Open project")}</span>
                       </Link>
                     </Button>
                   </div>
@@ -114,7 +127,7 @@ export default async function AdminUserPage({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No projects.</p>
+            <p className="text-sm text-muted-foreground">{t("No projects.")}</p>
           )}
         </CardContent>
       </Card>

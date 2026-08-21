@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, count, desc, eq } from "drizzle-orm";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -12,7 +12,7 @@ import {
 } from "@/db/schema";
 
 export async function getUserProjects(ownerId: string) {
-  return db
+  return getDb()
     .select({
       id: projects.id,
       name: projects.name,
@@ -30,33 +30,51 @@ export async function getUserProjects(ownerId: string) {
     .orderBy(desc(projects.updatedAt));
 }
 
+export async function getUserProjectCount(ownerId: string) {
+  const [result] = await getDb()
+    .select({ value: count() })
+    .from(projects)
+    .where(eq(projects.ownerId, ownerId));
+
+  return result?.value ?? 0;
+}
+
 export async function getOwnedProject(projectId: string, ownerId: string) {
-  const [project] = await db
+  const projectQuery = getDb()
     .select()
     .from(projects)
     .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)))
     .limit(1);
-
-  if (!project) return null;
-
-  const [images, iterations] = await Promise.all([
-    db
-      .select()
-      .from(projectImages)
-      .where(eq(projectImages.projectId, project.id))
-      .orderBy(asc(projectImages.sortOrder)),
-    db
-      .select()
-      .from(projectIterations)
-      .where(eq(projectIterations.projectId, project.id))
-      .orderBy(desc(projectIterations.createdAt)),
+  const imagesQuery = getDb()
+    .select({ image: projectImages })
+    .from(projectImages)
+    .innerJoin(projects, eq(projectImages.projectId, projects.id))
+    .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)))
+    .orderBy(asc(projectImages.sortOrder));
+  const iterationsQuery = getDb()
+    .select()
+    .from(projectIterations)
+    .where(
+      and(
+        eq(projectIterations.projectId, projectId),
+        eq(projectIterations.ownerId, ownerId),
+      ),
+    )
+    .orderBy(desc(projectIterations.createdAt));
+  const [projectRows, imageRows, iterations] = await getDb().batch([
+    projectQuery,
+    imagesQuery,
+    iterationsQuery,
   ]);
+  const project = projectRows[0];
+  if (!project) return null;
+  const images = imageRows.map(({ image }) => image);
 
   return { ...project, images, iterations };
 }
 
 export async function getOwnedIteration(iterationId: string, ownerId: string) {
-  const [iteration] = await db
+  const iterationQuery = getDb()
     .select({
       id: projectIterations.id,
       projectId: projectIterations.projectId,
@@ -80,25 +98,38 @@ export async function getOwnedIteration(iterationId: string, ownerId: string) {
       ),
     )
     .limit(1);
-
-  if (!iteration) return null;
-
-  const images = await db
-    .select()
+  const imagesQuery = getDb()
+    .select({ image: iterationImages })
     .from(iterationImages)
-    .where(eq(iterationImages.iterationId, iteration.id))
+    .innerJoin(
+      projectIterations,
+      eq(iterationImages.iterationId, projectIterations.id),
+    )
+    .where(
+      and(
+        eq(projectIterations.id, iterationId),
+        eq(projectIterations.ownerId, ownerId),
+      ),
+    )
     .orderBy(asc(iterationImages.sortOrder));
+  const [iterationRows, imageRows] = await getDb().batch([
+    iterationQuery,
+    imagesQuery,
+  ]);
+  const iteration = iterationRows[0];
+  if (!iteration) return null;
+  const images = imageRows.map(({ image }) => image);
 
   return { ...iteration, images };
 }
 
 export async function getImagePathnamesForProject(projectId: string) {
-  const [projectRows, iterationRows] = await Promise.all([
-    db
+  const [projectRows, iterationRows] = await getDb().batch([
+    getDb()
       .select({ pathname: projectImages.blobPathname })
       .from(projectImages)
       .where(eq(projectImages.projectId, projectId)),
-    db
+    getDb()
       .select({ pathname: iterationImages.blobPathname })
       .from(iterationImages)
       .innerJoin(

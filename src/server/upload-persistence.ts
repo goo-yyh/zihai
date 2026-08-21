@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, eq, max } from "drizzle-orm";
 
-import { db } from "@/db";
+import { getDb, withTransaction } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -20,7 +20,7 @@ import type { UploadIntent } from "@/lib/upload-intent";
 import { deleteBlobsBestEffort, inspectBlob, uploadLimit } from "@/server/blob";
 import { validateUploadOwnership } from "@/server/upload-policy";
 
-type UploadedBlob = {
+export type UploadedBlob = {
   url: string;
   pathname: string;
 };
@@ -65,17 +65,23 @@ export async function persistUpload(
     throw new UserFacingError("Upload pathname mismatch.");
   }
 
-  const metadata = await verifiedBlobMetadata(blob, intent);
+  // The two checks are independent network calls (Blob metadata HEAD and the
+  // ownership read), so they run concurrently instead of paying two round
+  // trips back to back.
+  const metadataTask = verifiedBlobMetadata(blob, intent);
+  const ownershipTask =
+    intent.kind === "avatar" ? null : validateUploadOwnership(intent);
+  const metadata = await metadataTask;
 
   if (intent.kind === "avatar") {
-    const [existing] = await db
+    const [existing] = await getDb()
       .select({ pathname: user.avatarPathname, username: user.username })
       .from(user)
       .where(eq(user.id, intent.userId))
       .limit(1);
     if (!existing) throw new UserFacingError("User not found.");
 
-    await db
+    await getDb()
       .update(user)
       .set({
         image: blob.url,
@@ -90,10 +96,10 @@ export async function persistUpload(
     return { kind: "avatar", username: existing.username };
   }
 
-  await validateUploadOwnership(intent);
+  await ownershipTask;
 
   if (intent.kind === "project-image" && intent.projectId) {
-    const project = await db.transaction(async (tx) => {
+    const project = await withTransaction(async (tx) => {
       const [ownedProject] = await tx
         .select({ status: projects.status, slug: projects.slug })
         .from(projects)
@@ -105,6 +111,18 @@ export async function persistUpload(
         )
         .for("update");
       if (!ownedProject) throw new UserFacingError("Project not found.");
+
+      const [existingImage] = await tx
+        .select({ id: projectImages.id })
+        .from(projectImages)
+        .where(
+          and(
+            eq(projectImages.projectId, intent.projectId!),
+            eq(projectImages.blobPathname, blob.pathname),
+          ),
+        )
+        .limit(1);
+      if (existingImage) return ownedProject;
 
       const [position] = await tx
         .select({ value: max(projectImages.sortOrder) })
@@ -125,7 +143,7 @@ export async function persistUpload(
 
       return ownedProject;
     });
-    const [owner] = await db
+    const [owner] = await getDb()
       .select({ username: user.username })
       .from(user)
       .where(eq(user.id, intent.userId))
@@ -143,7 +161,7 @@ export async function persistUpload(
     throw new UserFacingError("Iteration and project are required.");
   }
 
-  const projectSlug = await db.transaction(async (tx) => {
+  const projectSlug = await withTransaction(async (tx) => {
     const [iteration] = await tx
       .select({
         status: projectIterations.status,
@@ -160,6 +178,18 @@ export async function persistUpload(
       )
       .for("update");
     if (!iteration) throw new UserFacingError("Iteration not found.");
+
+    const [existingImage] = await tx
+      .select({ id: iterationImages.id })
+      .from(iterationImages)
+      .where(
+        and(
+          eq(iterationImages.iterationId, intent.iterationId!),
+          eq(iterationImages.blobPathname, blob.pathname),
+        ),
+      )
+      .limit(1);
+    if (existingImage) return iteration.projectSlug;
 
     const [position] = await tx
       .select({ value: max(iterationImages.sortOrder) })

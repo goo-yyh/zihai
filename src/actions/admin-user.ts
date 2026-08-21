@@ -6,9 +6,9 @@ import { count, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { db } from "@/db";
+import { getDb, withTransaction } from "@/db";
 import { moderationLogs, user } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { UserFacingError } from "@/lib/errors";
 import { assertAdmin } from "@/lib/session";
 import { revalidateAdminUsers } from "@/server/cache";
@@ -25,7 +25,7 @@ export async function setUserRoleAction(
   const targetId = userIdSchema.parse(userId);
   const role = roleSchema.parse(requestedRole);
 
-  await db.transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     // Serialize all role changes so two admins cannot both revoke the final
     // administrator after independently observing the same count.
     await tx.execute(sql`select pg_advisory_xact_lock(948217431)`);
@@ -76,23 +76,25 @@ export async function setUserBanAction(
 
   const normalizedReason = banned ? banReasonSchema.parse(reason) : undefined;
   if (banned) {
-    await auth.api.banUser({
+    await getAuth().api.banUser({
       headers: await headers(),
       body: { userId: targetId, banReason: normalizedReason },
     });
   } else {
-    await auth.api.unbanUser({
+    await getAuth().api.unbanUser({
       headers: await headers(),
       body: { userId: targetId },
     });
   }
 
-  await db.insert(moderationLogs).values({
-    adminId: session.user.id,
-    targetType: "user",
-    targetId,
-    action: banned ? "ban_user" : "unban_user",
-    reason: normalizedReason,
-  });
+  await getDb()
+    .insert(moderationLogs)
+    .values({
+      adminId: session.user.id,
+      targetType: "user",
+      targetId,
+      action: banned ? "ban_user" : "unban_user",
+      reason: normalizedReason,
+    });
   revalidateAdminUsers();
 }

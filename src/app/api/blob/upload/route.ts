@@ -2,25 +2,15 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { getServerEnv } from "@/lib/env";
 import { publicErrorMessage, UserFacingError } from "@/lib/errors";
 import { ALLOWED_IMAGE_TYPES } from "@/lib/image-policy";
 import { verifyUploadIntent } from "@/lib/upload-intent";
 import { uploadKindSchema } from "@/lib/validations";
 import { deleteBlobsBestEffort, uploadLimit } from "@/server/blob";
-import {
-  revalidateIterationWorkspace,
-  revalidateProjectDetail,
-  revalidateProjectWorkspace,
-  revalidatePublicProject,
-  revalidateUserPresentation,
-} from "@/server/cache";
+import { completeUpload } from "@/server/upload-completion";
 import { authorizeUpload, issueUploadIntent } from "@/server/upload-policy";
-import {
-  persistUpload,
-  type PersistedUpload,
-} from "@/server/upload-persistence";
 
 const issueIntentSchema = z.object({
   kind: uploadKindSchema,
@@ -29,24 +19,8 @@ const issueIntentSchema = z.object({
   contentType: z.enum(ALLOWED_IMAGE_TYPES),
 });
 
-function refreshUploadConsumers(upload: PersistedUpload) {
-  if (upload.kind === "avatar") {
-    revalidateUserPresentation(upload.username);
-    return;
-  }
-
-  if (upload.kind === "project-image") {
-    revalidateProjectWorkspace(upload.projectId);
-    revalidatePublicProject(upload.projectSlug, upload.ownerUsername);
-    return;
-  }
-
-  revalidateIterationWorkspace(upload.projectId, upload.iterationId);
-  revalidateProjectDetail(upload.projectSlug);
-}
-
 export async function GET(request: NextRequest) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session)
     return Response.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -90,7 +64,9 @@ export async function POST(request: NextRequest) {
       body,
       token: getServerEnv().BLOB_READ_WRITE_TOKEN,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        const session = await auth.api.getSession({ headers: request.headers });
+        const session = await getAuth().api.getSession({
+          headers: request.headers,
+        });
         if (!session) throw new UserFacingError("Unauthorized");
 
         const intent = await authorizeUpload(pathname, clientPayload, {
@@ -111,21 +87,7 @@ export async function POST(request: NextRequest) {
           await deleteBlobsBestEffort(blob.pathname);
           throw new UserFacingError("Missing upload intent.");
         }
-
-        let persisted: PersistedUpload;
-        try {
-          persisted = await persistUpload(
-            blob,
-            verifyUploadIntent(tokenPayload),
-          );
-        } catch (error) {
-          await deleteBlobsBestEffort(blob.pathname);
-          throw error;
-        }
-
-        // Cache invalidation happens only after persistence succeeds. A cache
-        // failure must never trigger compensation that deletes a referenced Blob.
-        refreshUploadConsumers(persisted);
+        await completeUpload(blob, verifyUploadIntent(tokenPayload));
       },
     });
 

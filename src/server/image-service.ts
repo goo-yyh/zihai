@@ -1,8 +1,8 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
-import { db } from "@/db";
+import { withTransaction, type DbTransaction } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -14,19 +14,34 @@ import {
   iterationContentEditPatch,
 } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
-import { deleteBlobs } from "@/server/blob";
+import { deleteBlobsBestEffort } from "@/server/blob";
 
 const TEMPORARY_SORT_OFFSET = 10;
 
+type ImageTable = typeof projectImages | typeof iterationImages;
+
+// Rewrites every position in two bulk statements: first shift all rows by the
+// offset so intermediate values cannot collide on the unique sort index, then
+// assign the final ranks. One statement per phase keeps this at a constant
+// two round trips regardless of image count.
 async function rewriteSortOrder(
+  tx: DbTransaction,
+  table: ImageTable,
   orderedIds: string[],
-  update: (imageId: string, sortOrder: number) => Promise<unknown>,
 ) {
-  for (const [sortOrder, imageId] of orderedIds.entries()) {
-    await update(imageId, sortOrder + TEMPORARY_SORT_OFFSET);
-  }
-  for (const [sortOrder, imageId] of orderedIds.entries()) {
-    await update(imageId, sortOrder);
+  if (orderedIds.length === 0) return;
+  const values = sql.join(
+    orderedIds.map((imageId, rank) => sql`(${imageId}::uuid, ${rank}::int)`),
+    sql`, `,
+  );
+
+  for (const offset of [TEMPORARY_SORT_OFFSET, 0]) {
+    await tx.execute(sql`
+      UPDATE ${table} AS image
+      SET sort_order = position.rank + ${offset}
+      FROM (VALUES ${values}) AS position(id, rank)
+      WHERE image.id = position.id
+    `);
   }
 }
 
@@ -44,32 +59,20 @@ export async function deleteOwnedProjectImage(
   imageId: string,
   ownerId: string,
 ) {
-  const [image] = await db
-    .select({
-      id: projectImages.id,
-      pathname: projectImages.blobPathname,
-      projectId: projects.id,
-      slug: projects.slug,
-    })
-    .from(projectImages)
-    .innerJoin(projects, eq(projectImages.projectId, projects.id))
-    .where(and(eq(projectImages.id, imageId), eq(projects.ownerId, ownerId)))
-    .limit(1);
-  if (!image) throw new UserFacingError("Project image not found.");
-
-  // Blob and Postgres cannot share a transaction. Deleting the Blob first
-  // guarantees a successful action never leaves an orphaned object.
-  await deleteBlobs(image.pathname);
-
-  await db.transaction(async (tx) => {
-    const [project] = await tx
-      .select({ status: projects.status })
-      .from(projects)
-      .where(
-        and(eq(projects.id, image.projectId), eq(projects.ownerId, ownerId)),
-      )
+  const deleted = await withTransaction(async (tx) => {
+    const [image] = await tx
+      .select({
+        id: projectImages.id,
+        pathname: projectImages.blobPathname,
+        projectId: projects.id,
+        slug: projects.slug,
+        projectStatus: projects.status,
+      })
+      .from(projectImages)
+      .innerJoin(projects, eq(projectImages.projectId, projects.id))
+      .where(and(eq(projectImages.id, imageId), eq(projects.ownerId, ownerId)))
       .for("update");
-    if (!project) throw new UserFacingError("Project not found.");
+    if (!image) throw new UserFacingError("Project image not found.");
 
     await tx.delete(projectImages).where(eq(projectImages.id, image.id));
     const remaining = await tx
@@ -79,20 +82,24 @@ export async function deleteOwnedProjectImage(
       .orderBy(asc(projectImages.sortOrder));
 
     await rewriteSortOrder(
+      tx,
+      projectImages,
       remaining.map(({ id }) => id),
-      (id, sortOrder) =>
-        tx
-          .update(projectImages)
-          .set({ sortOrder })
-          .where(eq(projectImages.id, id)),
     );
     await tx
       .update(projects)
-      .set({ ...contentEditPatch(project.status), publishedAt: null })
+      .set({ ...contentEditPatch(image.projectStatus), publishedAt: null })
       .where(eq(projects.id, image.projectId));
+
+    return image;
   });
 
-  return { projectId: image.projectId, slug: image.slug };
+  // The row is committed as deleted, so no page can serve the Blob anymore.
+  // Cleanup after commit keeps the user off the Blob round trip; a failure
+  // only orphans storage, which is logged server-side.
+  await deleteBlobsBestEffort(deleted.pathname);
+
+  return { projectId: deleted.projectId, slug: deleted.slug };
 }
 
 export async function reorderOwnedProjectImages(
@@ -100,7 +107,7 @@ export async function reorderOwnedProjectImages(
   orderedImageIds: string[],
   ownerId: string,
 ) {
-  return db.transaction(async (tx) => {
+  return withTransaction(async (tx) => {
     const [project] = await tx
       .select({ status: projects.status, slug: projects.slug })
       .from(projects)
@@ -117,12 +124,7 @@ export async function reorderOwnedProjectImages(
       orderedImageIds,
     );
 
-    await rewriteSortOrder(orderedImageIds, (imageId, sortOrder) =>
-      tx
-        .update(projectImages)
-        .set({ sortOrder })
-        .where(eq(projectImages.id, imageId)),
-    );
+    await rewriteSortOrder(tx, projectImages, orderedImageIds);
     await tx
       .update(projects)
       .set({ ...contentEditPatch(project.status), publishedAt: null })
@@ -136,43 +138,30 @@ export async function deleteOwnedIterationImage(
   imageId: string,
   ownerId: string,
 ) {
-  const [image] = await db
-    .select({
-      id: iterationImages.id,
-      pathname: iterationImages.blobPathname,
-      iterationId: projectIterations.id,
-      projectId: projectIterations.projectId,
-      projectSlug: projects.slug,
-    })
-    .from(iterationImages)
-    .innerJoin(
-      projectIterations,
-      eq(iterationImages.iterationId, projectIterations.id),
-    )
-    .innerJoin(projects, eq(projectIterations.projectId, projects.id))
-    .where(
-      and(
-        eq(iterationImages.id, imageId),
-        eq(projectIterations.ownerId, ownerId),
-      ),
-    )
-    .limit(1);
-  if (!image) throw new UserFacingError("Iteration image not found.");
-
-  await deleteBlobs(image.pathname);
-
-  await db.transaction(async (tx) => {
-    const [iteration] = await tx
-      .select({ status: projectIterations.status })
-      .from(projectIterations)
+  const deleted = await withTransaction(async (tx) => {
+    const [image] = await tx
+      .select({
+        id: iterationImages.id,
+        pathname: iterationImages.blobPathname,
+        iterationId: projectIterations.id,
+        projectId: projectIterations.projectId,
+        projectSlug: projects.slug,
+        iterationStatus: projectIterations.status,
+      })
+      .from(iterationImages)
+      .innerJoin(
+        projectIterations,
+        eq(iterationImages.iterationId, projectIterations.id),
+      )
+      .innerJoin(projects, eq(projectIterations.projectId, projects.id))
       .where(
         and(
-          eq(projectIterations.id, image.iterationId),
+          eq(iterationImages.id, imageId),
           eq(projectIterations.ownerId, ownerId),
         ),
       )
       .for("update");
-    if (!iteration) throw new UserFacingError("Iteration not found.");
+    if (!image) throw new UserFacingError("Iteration image not found.");
 
     await tx.delete(iterationImages).where(eq(iterationImages.id, image.id));
     const remaining = await tx
@@ -182,23 +171,24 @@ export async function deleteOwnedIterationImage(
       .orderBy(asc(iterationImages.sortOrder));
 
     await rewriteSortOrder(
+      tx,
+      iterationImages,
       remaining.map(({ id }) => id),
-      (id, sortOrder) =>
-        tx
-          .update(iterationImages)
-          .set({ sortOrder })
-          .where(eq(iterationImages.id, id)),
     );
     await tx
       .update(projectIterations)
-      .set(iterationContentEditPatch(iteration.status))
+      .set(iterationContentEditPatch(image.iterationStatus))
       .where(eq(projectIterations.id, image.iterationId));
+
+    return image;
   });
 
+  await deleteBlobsBestEffort(deleted.pathname);
+
   return {
-    projectId: image.projectId,
-    projectSlug: image.projectSlug,
-    iterationId: image.iterationId,
+    projectId: deleted.projectId,
+    projectSlug: deleted.projectSlug,
+    iterationId: deleted.iterationId,
   };
 }
 
@@ -207,7 +197,7 @@ export async function reorderOwnedIterationImages(
   orderedImageIds: string[],
   ownerId: string,
 ) {
-  return db.transaction(async (tx) => {
+  return withTransaction(async (tx) => {
     const [iteration] = await tx
       .select({
         status: projectIterations.status,
@@ -234,12 +224,7 @@ export async function reorderOwnedIterationImages(
       orderedImageIds,
     );
 
-    await rewriteSortOrder(orderedImageIds, (imageId, sortOrder) =>
-      tx
-        .update(iterationImages)
-        .set({ sortOrder })
-        .where(eq(iterationImages.id, imageId)),
-    );
+    await rewriteSortOrder(tx, iterationImages, orderedImageIds);
     await tx
       .update(projectIterations)
       .set(iterationContentEditPatch(iteration.status))

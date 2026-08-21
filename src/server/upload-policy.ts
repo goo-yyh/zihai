@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, count, eq } from "drizzle-orm";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   iterationImages,
   projectImages,
@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { MAX_CONTENT_IMAGES } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
+import { assertFeatureEnabled } from "@/lib/features";
 import {
   extensionForContentType,
   signUploadIntent,
@@ -50,7 +51,7 @@ export async function validateUploadOwnership(intent: UploadIntent) {
   if (intent.kind === "project-image") {
     if (!intent.projectId) throw new UserFacingError("Project is required.");
 
-    const [project] = await db
+    const [project] = await getDb()
       .select({ id: projects.id })
       .from(projects)
       .where(
@@ -62,7 +63,19 @@ export async function validateUploadOwnership(intent: UploadIntent) {
       .limit(1);
     if (!project) throw new UserFacingError("Project not found.");
 
-    const [images] = await db
+    const [existingImage] = await getDb()
+      .select({ id: projectImages.id })
+      .from(projectImages)
+      .where(
+        and(
+          eq(projectImages.projectId, intent.projectId),
+          eq(projectImages.blobPathname, intent.pathname),
+        ),
+      )
+      .limit(1);
+    if (existingImage) return;
+
+    const [images] = await getDb()
       .select({ value: count() })
       .from(projectImages)
       .where(eq(projectImages.projectId, intent.projectId));
@@ -74,11 +87,12 @@ export async function validateUploadOwnership(intent: UploadIntent) {
     return;
   }
 
+  assertFeatureEnabled("iterations");
   if (!intent.iterationId || !intent.projectId) {
     throw new UserFacingError("Iteration and project are required.");
   }
 
-  const [iteration] = await db
+  const [iteration] = await getDb()
     .select({ id: projectIterations.id })
     .from(projectIterations)
     .where(
@@ -91,7 +105,19 @@ export async function validateUploadOwnership(intent: UploadIntent) {
     .limit(1);
   if (!iteration) throw new UserFacingError("Iteration not found.");
 
-  const [images] = await db
+  const [existingImage] = await getDb()
+    .select({ id: iterationImages.id })
+    .from(iterationImages)
+    .where(
+      and(
+        eq(iterationImages.iterationId, intent.iterationId),
+        eq(iterationImages.blobPathname, intent.pathname),
+      ),
+    )
+    .limit(1);
+  if (existingImage) return;
+
+  const [images] = await getDb()
     .select({ value: count() })
     .from(iterationImages)
     .where(eq(iterationImages.iterationId, intent.iterationId));

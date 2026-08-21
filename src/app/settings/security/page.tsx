@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { deleteAccountAction } from "@/actions/security";
-import { SecurityForm } from "@/components/settings/security-form";
+import { PasswordForm } from "@/components/settings/password-form";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,37 +12,53 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { hasCredentialAccount } from "@/db/queries/account";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireOnboardedUser } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Security settings" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslations();
+  return { title: t("Security settings") };
+}
 
 export default async function SecuritySettingsPage() {
-  await requireOnboardedUser();
+  const [session, { t }] = await Promise.all([
+    requireOnboardedUser(),
+    getTranslations(),
+  ]);
+  const hasPassword = await hasCredentialAccount(session.user.id);
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Security</h1>
+        <h1 className="text-3xl font-black tracking-tight">{t("Security")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Manage your username sign-in password and account data.
+          {t("Manage sign-in methods and account data.")}
         </p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Change password</CardTitle>
+          <CardTitle>
+            {t(hasPassword ? "Change password" : "Set password")}
+          </CardTitle>
           <CardDescription>
-            Other active sessions are revoked after a successful change.
+            {t(
+              hasPassword
+                ? "Changing your password revokes your other active sessions."
+                : "Set a password to sign in with your public username.",
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
-          <SecurityForm />
+          <PasswordForm hasPassword={hasPassword} />
         </CardContent>
       </Card>
       <Card className="border-rose-200">
         <CardHeader>
-          <CardTitle className="text-danger">Delete account</CardTitle>
+          <CardTitle className="text-danger">{t("Delete account")}</CardTitle>
           <CardDescription>
-            This permanently removes your profile, projects, iterations, likes,
-            and uploaded Blob images.
+            {t(
+              "This permanently removes your profile, projects, iterations, likes, and uploaded Blob images.",
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
@@ -51,7 +67,9 @@ export default async function SecuritySettingsPage() {
             className="flex flex-wrap items-end gap-3"
           >
             <div className="min-w-56 flex-1 space-y-1.5">
-              <Label htmlFor="confirmation">Type DELETE to confirm</Label>
+              <Label htmlFor="confirmation">
+                {t("Type DELETE to confirm")}
+              </Label>
               <Input
                 id="confirmation"
                 name="confirmation"
@@ -60,7 +78,7 @@ export default async function SecuritySettingsPage() {
               />
             </div>
             <Button type="submit" variant="danger">
-              Delete my account
+              {t("Delete my account")}
             </Button>
           </form>
         </CardContent>

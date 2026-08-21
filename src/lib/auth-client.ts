@@ -1,10 +1,14 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
-import { adminClient, usernameClient } from "better-auth/client/plugins";
+import {
+  adminClient,
+  emailOTPClient,
+  usernameClient,
+} from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
-  plugins: [usernameClient(), adminClient()],
+  plugins: [emailOTPClient(), usernameClient(), adminClient()],
 });
 
 export const { signIn, signOut, useSession } = authClient;

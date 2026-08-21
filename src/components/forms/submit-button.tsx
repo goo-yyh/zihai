@@ -3,6 +3,7 @@
 import { LoaderCircle } from "lucide-react";
 import { useFormStatus } from "react-dom";
 
+import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 
 export function SubmitButton({
@@ -17,6 +18,9 @@ export function SubmitButton({
   className?: string;
 }) {
   const { pending } = useFormStatus();
+  const { t } = useI18n();
+  const translatedChildren =
+    typeof children === "string" ? t(children) : children;
   return (
     <Button
       type="submit"
@@ -25,7 +29,7 @@ export function SubmitButton({
       className={className}
     >
       {pending ? <LoaderCircle className="size-4 animate-spin" /> : null}
-      {pending ? pendingLabel : children}
+      {pending ? t(pendingLabel) : translatedChildren}
     </Button>
   );
 }

@@ -2,11 +2,11 @@
 
 import "server-only";
 
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { db } from "@/db";
+import { getDb, withTransaction } from "@/db";
 import { getImagePathnamesForProject } from "@/db/queries/dashboard";
 import { projectImages, projects } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
@@ -16,8 +16,9 @@ import {
   contentEditPatch,
 } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
+import { assertCanCreateProject } from "@/lib/project-limits";
 import { assertOnboardedUser } from "@/lib/session";
-import { slugify, withSlugSuffix } from "@/lib/slug";
+import { insertWithUniqueSlug } from "@/lib/slug";
 import { projectInputSchema } from "@/lib/validations";
 import { deleteBlobs } from "@/server/blob";
 import {
@@ -28,20 +29,17 @@ import type { ActionState } from "@/types/actions";
 
 const idSchema = z.uuid();
 
-async function createUniqueSlug(name: string) {
-  const base = slugify(name);
+type ProjectCreateTiming = {
+  outcome: "success" | "validation_error" | "insert_error";
+  sessionMs: number;
+  slugResolutionMs: number;
+  insertDbMs: number;
+  insertAttempts: number;
+  totalMs: number;
+};
 
-  for (let attempt = 0; attempt < 25; attempt += 1) {
-    const slug = withSlugSuffix(base, attempt);
-    const [existing] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(eq(projects.slug, slug))
-      .limit(1);
-    if (!existing) return slug;
-  }
-
-  return `${base || "project"}-${crypto.randomUUID().slice(0, 8)}`;
+function logProjectCreateTiming(timing: ProjectCreateTiming) {
+  console.info(JSON.stringify({ event: "project.create.timing", ...timing }));
 }
 
 function projectInput(formData: FormData) {
@@ -57,25 +55,80 @@ export async function createProjectAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const totalStartedAt = Date.now();
+  const sessionStartedAt = Date.now();
   const session = await assertOnboardedUser();
+  const sessionMs = Date.now() - sessionStartedAt;
   const parsed = projectInput(formData);
-  if (!parsed.success) return validationError(parsed.error);
+  if (!parsed.success) {
+    logProjectCreateTiming({
+      outcome: "validation_error",
+      sessionMs,
+      slugResolutionMs: 0,
+      insertDbMs: 0,
+      insertAttempts: 0,
+      totalMs: Date.now() - totalStartedAt,
+    });
+    return validationError(parsed.error);
+  }
 
   let projectId: string;
+  let insertDbMs = 0;
+  let insertAttempts = 0;
+  const slugResolutionStartedAt = Date.now();
   try {
-    const [project] = await db
-      .insert(projects)
-      .values({
-        ownerId: session.user.id,
-        slug: await createUniqueSlug(parsed.data.name),
-        ...parsed.data,
-      })
-      .returning({ id: projects.id });
-    if (!project) throw new Error("Insert returned no project.");
-    projectId = project.id;
+    const result = await withTransaction(async (tx) => {
+      // A per-owner transaction lock serializes count-and-insert so concurrent
+      // requests cannot both observe the ninth project and create an eleventh.
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`project-owner:${session.user.id}`}, 0))`,
+      );
+      const [ownedProjects] = await tx
+        .select({ value: count() })
+        .from(projects)
+        .where(eq(projects.ownerId, session.user.id));
+      assertCanCreateProject(ownedProjects?.value ?? 0);
+
+      return insertWithUniqueSlug(parsed.data.name, async (slug) => {
+        insertAttempts += 1;
+        const insertStartedAt = Date.now();
+        try {
+          const [project] = await tx
+            .insert(projects)
+            .values({
+              ownerId: session.user.id,
+              slug,
+              ...parsed.data,
+            })
+            .onConflictDoNothing({ target: projects.slug })
+            .returning({ id: projects.id });
+          return project;
+        } finally {
+          insertDbMs += Date.now() - insertStartedAt;
+        }
+      });
+    });
+    projectId = result.inserted.id;
   } catch (error) {
+    logProjectCreateTiming({
+      outcome: "insert_error",
+      sessionMs,
+      slugResolutionMs: Date.now() - slugResolutionStartedAt,
+      insertDbMs,
+      insertAttempts,
+      totalMs: Date.now() - totalStartedAt,
+    });
     return safeActionError(error, "Unable to create the project.");
   }
+
+  logProjectCreateTiming({
+    outcome: "success",
+    sessionMs,
+    slugResolutionMs: Date.now() - slugResolutionStartedAt,
+    insertDbMs,
+    insertAttempts,
+    totalMs: Date.now() - totalStartedAt,
+  });
 
   redirect(`/dashboard/projects/${projectId}/edit`);
 }
@@ -95,7 +148,7 @@ export async function updateProjectAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const existing = await db.transaction(async (tx) => {
+    const existing = await withTransaction(async (tx) => {
       const [ownedProject] = await tx
         .select({ status: projects.status, slug: projects.slug })
         .from(projects)
@@ -144,7 +197,7 @@ export async function submitProjectAction(projectId: string) {
   const session = await assertOnboardedUser();
   const id = idSchema.parse(projectId);
 
-  await db.transaction(async (tx) => {
+  await withTransaction(async (tx) => {
     // Upload callbacks lock the same project row, so the image-count check and
     // submission transition observe one serialized state.
     const [project] = await tx
@@ -181,7 +234,7 @@ export async function deleteProjectAction(projectId: string) {
   const session = await assertOnboardedUser();
   const id = idSchema.parse(projectId);
 
-  const [project] = await db
+  const [project] = await getDb()
     .select({ slug: projects.slug })
     .from(projects)
     .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)))
@@ -189,7 +242,7 @@ export async function deleteProjectAction(projectId: string) {
   if (!project) throw new UserFacingError("Project not found.");
 
   await deleteBlobs(await getImagePathnamesForProject(id));
-  await db
+  await getDb()
     .delete(projects)
     .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)));
 

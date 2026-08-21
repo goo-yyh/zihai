@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CursorPagination } from "@/components/admin/cursor-pagination";
 import { Badge } from "@/components/ui/badge";
 import { getAdminProjects } from "@/db/queries/admin";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireAdmin } from "@/lib/session";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -18,8 +19,11 @@ const statuses = [
 export default async function AdminProjectsPage({
   searchParams,
 }: PageProps<"/admin/projects">) {
-  await requireAdmin();
-  const { status, cursor } = await searchParams;
+  const [, { status, cursor }, { locale, t }] = await Promise.all([
+    requireAdmin(),
+    searchParams,
+    getTranslations(),
+  ]);
   const active =
     typeof status === "string" &&
     statuses.includes(status as (typeof statuses)[number])
@@ -33,10 +37,10 @@ export default async function AdminProjectsPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-black tracking-tight">
-          Project moderation
+          {t("Project moderation")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Review every project state and its submission context.
+          {t("Review every project state and its submission context.")}
         </p>
       </div>
       <nav className="flex gap-2 overflow-x-auto pb-1">
@@ -53,7 +57,7 @@ export default async function AdminProjectsPage({
               active === item && "border-primary bg-primary text-white",
             )}
           >
-            {item}
+            {t(item)}
           </Link>
         ))}
       </nav>
@@ -61,11 +65,11 @@ export default async function AdminProjectsPage({
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="border-b bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Project</th>
-              <th className="px-4 py-3">Owner</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Submitted</th>
-              <th className="px-4 py-3 text-right">Action</th>
+              <th className="px-4 py-3">{t("Project")}</th>
+              <th className="px-4 py-3">{t("Owner")}</th>
+              <th className="px-4 py-3">{t("Status")}</th>
+              <th className="px-4 py-3">{t("Submitted")}</th>
+              <th className="px-4 py-3 text-right">{t("Action")}</th>
             </tr>
           </thead>
           <tbody>
@@ -79,14 +83,14 @@ export default async function AdminProjectsPage({
                   <Badge variant={project.status}>{project.status}</Badge>
                 </td>
                 <td className="px-4 py-4 text-muted-foreground">
-                  {formatDate(project.submittedAt)}
+                  {formatDate(project.submittedAt, locale)}
                 </td>
                 <td className="px-4 py-4 text-right">
                   <Link
                     href={`/admin/projects/${project.id}`}
                     className="font-bold text-primary hover:underline"
                   >
-                    Review
+                    {t("Review")}
                   </Link>
                 </td>
               </tr>
@@ -95,7 +99,7 @@ export default async function AdminProjectsPage({
         </table>
         {!projectPage.items.length ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
-            No projects in this view.
+            {t("No projects in this view.")}
           </p>
         ) : null}
       </div>

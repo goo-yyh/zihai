@@ -4,17 +4,25 @@ import { CursorPagination } from "@/components/admin/cursor-pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getAuditLogs } from "@/db/queries/admin";
+import { isFeatureEnabled } from "@/lib/features";
+import { getTranslations } from "@/lib/i18n-server";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
 export default async function AuditPage({
   searchParams,
 }: PageProps<"/admin/audit">) {
-  await requireAdmin();
-  const { cursor, q, target } = await searchParams;
+  const [, { cursor, q, target }, { locale, t }] = await Promise.all([
+    requireAdmin(),
+    searchParams,
+    getTranslations(),
+  ]);
   const search = typeof q === "string" ? q.slice(0, 100) : "";
+  const iterationsEnabled = isFeatureEnabled("iterations");
   const targetType =
-    target === "project" || target === "iteration" || target === "user"
+    target === "project" ||
+    target === "user" ||
+    (iterationsEnabled && target === "iteration")
       ? target
       : undefined;
   const logPage = await getAuditLogs(
@@ -24,9 +32,9 @@ export default async function AuditPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Audit log</h1>
+        <h1 className="text-3xl font-black tracking-tight">{t("Audit log")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Moderation and access-control events, newest first.
+          {t("Moderation and access-control events, newest first.")}
         </p>
       </div>
       <form
@@ -39,33 +47,35 @@ export default async function AuditPage({
             name="q"
             defaultValue={search}
             className="pl-9"
-            placeholder="Search action, target, admin, or reason"
+            placeholder={t("Search action, target, admin, or reason")}
           />
         </div>
         <select
           name="target"
           defaultValue={targetType || ""}
           className="h-11 rounded-xl border bg-white px-3.5 text-sm shadow-sm focus:border-primary focus:outline-2 focus:outline-offset-1 focus:outline-ring"
-          aria-label="Target type"
+          aria-label={t("Target type")}
         >
-          <option value="">All target types</option>
-          <option value="project">Projects</option>
-          <option value="iteration">Iterations</option>
-          <option value="user">Users</option>
+          <option value="">{t("All target types")}</option>
+          <option value="project">{t("Projects")}</option>
+          {iterationsEnabled ? (
+            <option value="iteration">{t("Iterations")}</option>
+          ) : null}
+          <option value="user">{t("Users")}</option>
         </select>
         <Button type="submit" variant="outline">
-          Filter
+          {t("Filter")}
         </Button>
       </form>
       <div className="overflow-x-auto rounded-2xl border bg-white">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="border-b bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Action</th>
-              <th className="px-4 py-3">Admin</th>
-              <th className="px-4 py-3">Target</th>
-              <th className="px-4 py-3">Reason</th>
-              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">{t("Action")}</th>
+              <th className="px-4 py-3">{t("Admin")}</th>
+              <th className="px-4 py-3">{t("Target")}</th>
+              <th className="px-4 py-3">{t("Reason")}</th>
+              <th className="px-4 py-3">{t("Date")}</th>
             </tr>
           </thead>
           <tbody>
@@ -75,7 +85,7 @@ export default async function AuditPage({
                   {log.action.replaceAll("_", " ")}
                 </td>
                 <td className="px-4 py-4 text-muted-foreground">
-                  @{log.adminUsername || log.adminEmail || "deleted admin"}
+                  @{log.adminUsername || log.adminEmail || t("deleted admin")}
                 </td>
                 <td className="px-4 py-4 font-mono text-xs">
                   {log.targetType}:{log.targetId}
@@ -84,7 +94,7 @@ export default async function AuditPage({
                   {log.reason || "—"}
                 </td>
                 <td className="px-4 py-4 text-muted-foreground">
-                  {formatDate(log.createdAt)}
+                  {formatDate(log.createdAt, locale)}
                 </td>
               </tr>
             ))}
@@ -92,7 +102,7 @@ export default async function AuditPage({
         </table>
         {!logPage.items.length ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
-            No moderation actions recorded yet.
+            {t("No moderation actions recorded yet.")}
           </p>
         ) : null}
       </div>

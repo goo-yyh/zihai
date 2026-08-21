@@ -41,10 +41,10 @@ describe("submission invariants", () => {
     expect(() => assertSubmittable("pending", "project")).toThrow();
   });
 
-  it("requires one to three images", () => {
+  it("requires one to five images", () => {
     expect(() => assertImageCount(1, "Project")).not.toThrow();
-    expect(() => assertImageCount(3, "Project")).not.toThrow();
+    expect(() => assertImageCount(5, "Project")).not.toThrow();
     expect(() => assertImageCount(0, "Project")).toThrow();
-    expect(() => assertImageCount(4, "Project")).toThrow();
+    expect(() => assertImageCount(6, "Project")).toThrow();
   });
 });
