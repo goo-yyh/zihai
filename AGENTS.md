@@ -30,6 +30,7 @@ These rules are non-negotiable unless the product specification changes:
 - Accounts are created only through verified `qq.com` or `163.com` email OTP, GitHub, or Google OAuth.
 - Onboarding must finish before projects, iterations, or likes can be created.
 - A project has at least one destination: website URL, GitHub repository URL, or both.
+- A user can own at most ten projects across all statuses; deleting a project frees a slot.
 - A project or iteration has one to five images.
 - Draft, pending, rejected, and archived content is not public.
 - Editing approved public fields returns that resource to pending review.
@@ -38,7 +39,7 @@ These rules are non-negotiable unless the product specification changes:
 - At least one administrator must always exist.
 - Every public user-authored field is moderated before publication.
 
-The database is the final enforcement layer for required project destinations, unique likes, owner relationships, and concurrent image limits.
+The database is the final enforcement layer for required project destinations, unique likes, owner relationships, concurrent per-user project limits, and concurrent image limits.
 
 ## Architecture boundaries
 

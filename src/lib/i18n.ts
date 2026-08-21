@@ -26,6 +26,7 @@ const zhCN: Record<string, string> = {
   "Finish setup": "完成设置",
   Account: "账户",
   "Sign out": "退出登录",
+  "Unable to sign out.": "无法退出登录。",
   Overview: "概览",
   "My projects": "我的项目",
   Profile: "个人资料",
@@ -163,6 +164,8 @@ const zhCN: Record<string, string> = {
   Avatar: "头像",
   "Your profile will be /u/username.": "你的个人主页地址将是 /u/username。",
   "Contact email": "联系邮箱",
+  "Contact and feedback": "联系与反馈",
+  "Feedback and suggestions": "反馈建议",
   "GitHub did not provide an email. Add one for review and account communications.":
     "GitHub 未提供邮箱，请填写一个邮箱用于审核和账户沟通。",
   "Using your Google email. It is private and used only for review and account communications.":
@@ -221,6 +224,9 @@ const zhCN: Record<string, string> = {
   "Create a project, add screenshots, then send it for review.":
     "创建项目、添加截图，然后提交审核。",
   "Create project": "创建项目",
+  "Project limit reached": "已达到项目数量上限",
+  "Each account can create up to 10 projects. Delete an existing project before creating another.":
+    "每个账户最多可以创建 10 个项目。请先删除一个现有项目，再创建新项目。",
   "Draft, submit, and keep every launch moving.":
     "保存草稿、提交审核，让每个产品持续推进。",
   "Updated {date} · {count} likes": "更新于 {date} · {count} 个赞",

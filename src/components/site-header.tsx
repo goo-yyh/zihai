@@ -1,12 +1,11 @@
-import { LogOut, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { logoutAction } from "@/actions/security";
 import { AccountMenu } from "@/components/account-menu";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { FeedbackButton } from "@/components/feedback-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { GitHubIcon } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { getTranslations } from "@/lib/i18n-server";
 import { getSession } from "@/lib/session";
@@ -17,9 +16,12 @@ async function AccountNav() {
   const [session, { t }] = await Promise.all([getSession(), getTranslations()]);
   if (!session) {
     return (
-      <Button asChild size="sm">
-        <Link href="/login">{t("Sign in")}</Link>
-      </Button>
+      <div className="flex items-center gap-1.5">
+        <FeedbackButton />
+        <Button asChild size="sm">
+          <Link href="/login">{t("Sign in")}</Link>
+        </Button>
+      </div>
     );
   }
 
@@ -55,17 +57,10 @@ async function AccountNav() {
         settingsLabel={t("Settings")}
         showMenu={Boolean(session.user.onboardingCompleted)}
       />
-      <form action={logoutAction}>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="size-8"
-          title={t("Sign out")}
-        >
-          <LogOut className="size-4" />
-          <span className="sr-only">{t("Sign out")}</span>
-        </Button>
-      </form>
+      <LogoutButton
+        label={t("Sign out")}
+        errorMessage={t("Unable to sign out.")}
+      />
     </div>
   );
 }
@@ -85,22 +80,6 @@ export async function SiteHeader() {
           aria-label={t("Main navigation")}
           className="flex shrink-0 items-center gap-1 text-sm font-semibold"
         >
-          <Button
-            asChild
-            size="sm"
-            variant="ghost"
-            className="size-8 px-0 lg:w-auto lg:px-3"
-          >
-            <a
-              href="https://github.com/goo-yyh/zihai"
-              target="_blank"
-              rel="noreferrer"
-              title="GitHub"
-            >
-              <GitHubIcon className="size-4" />
-              <span className="sr-only lg:not-sr-only">GitHub</span>
-            </a>
-          </Button>
           <LanguageSwitcher />
           <Suspense
             fallback={

@@ -1,7 +1,7 @@
 "use client";
 
-import { LoaderCircle, Mail, X } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { LoaderCircle, Mail, MessageSquareText, X } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
@@ -11,11 +11,17 @@ import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useSession } from "@/lib/auth-client";
 import { initialActionState, type ActionState } from "@/types/actions";
+
+const contactEmail = "goolvyouyou@gmail.com";
 
 export function FeedbackButton() {
   const { t } = useI18n();
-  const [open, setOpen] = useState(false);
+  const { data: session } = useSession();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [state, setState] = useState<ActionState>(initialActionState);
   const [pending, startTransition] = useTransition();
 
@@ -24,7 +30,7 @@ export function FeedbackButton() {
       const result = await submitFeedbackAction(initialActionState, formData);
       if (result.status === "success") {
         toast.success(t("Thanks for your feedback!"));
-        setOpen(false);
+        setFeedbackOpen(false);
         setState(initialActionState);
         return;
       }
@@ -33,9 +39,32 @@ export function FeedbackButton() {
   }
 
   useEffect(() => {
-    if (!open) return;
+    if (!menuOpen) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !menuRef.current?.contains(event.target)
+      ) {
+        setMenuOpen(false);
+      }
+    };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!feedbackOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFeedbackOpen(false);
     };
     document.addEventListener("keydown", onKeyDown);
     const originalOverflow = document.body.style.overflow;
@@ -44,16 +73,16 @@ export function FeedbackButton() {
       document.body.style.overflow = originalOverflow;
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [feedbackOpen]);
 
-  const dialog = open
+  const dialog = feedbackOpen
     ? createPortal(
         <div
           className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 p-4"
           role="dialog"
           aria-modal="true"
           aria-label={t("Send feedback")}
-          onClick={() => setOpen(false)}
+          onClick={() => setFeedbackOpen(false)}
         >
           <div
             className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
@@ -66,7 +95,7 @@ export function FeedbackButton() {
               <button
                 type="button"
                 aria-label={t("Close")}
-                onClick={() => setOpen(false)}
+                onClick={() => setFeedbackOpen(false)}
                 className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="size-5" />
@@ -95,7 +124,7 @@ export function FeedbackButton() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setOpen(false)}
+                  onClick={() => setFeedbackOpen(false)}
                 >
                   {t("Cancel")}
                 </Button>
@@ -115,16 +144,61 @@ export function FeedbackButton() {
 
   return (
     <>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="size-8"
-        title={t("Send feedback")}
-        onClick={() => setOpen(true)}
-      >
-        <Mail className="size-4" />
-        <span className="sr-only">{t("Send feedback")}</span>
-      </Button>
+      <div ref={menuRef} className="relative">
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="size-8"
+          title={t("Contact and feedback")}
+          aria-label={t("Contact and feedback")}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((current) => !current)}
+        >
+          <Mail className="size-4" />
+          <span className="sr-only">{t("Contact and feedback")}</span>
+        </Button>
+
+        {menuOpen ? (
+          <div
+            role="menu"
+            className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border bg-white p-1.5 shadow-xl"
+          >
+            <a
+              href={`mailto:${contactEmail}`}
+              role="menuitem"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-muted focus:bg-muted focus:outline-none"
+              onClick={() => setMenuOpen(false)}
+            >
+              <Mail className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0">
+                <span className="block text-xs text-muted-foreground">
+                  {t("Contact email")}
+                </span>
+                <span className="block truncate font-semibold">
+                  {contactEmail}
+                </span>
+              </span>
+            </a>
+
+            {session ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-colors hover:bg-muted focus:bg-muted focus:outline-none"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setFeedbackOpen(true);
+                }}
+              >
+                <MessageSquareText className="size-4 shrink-0 text-muted-foreground" />
+                {t("Feedback and suggestions")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       {typeof window === "undefined" ? null : dialog}
     </>
   );

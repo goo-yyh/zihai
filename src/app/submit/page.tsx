@@ -8,8 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { requireOnboardedUser } from "@/lib/session";
+import { getUserProjectCount } from "@/db/queries/dashboard";
 import { getTranslations } from "@/lib/i18n-server";
+import { canCreateProject, PROJECT_LIMIT_MESSAGE } from "@/lib/project-limits";
+import { requireOnboardedUser } from "@/lib/session";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslations();
@@ -20,10 +22,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SubmitPage() {
-  const [, { t }] = await Promise.all([
+  const [session, { t }] = await Promise.all([
     requireOnboardedUser(),
     getTranslations(),
   ]);
+  const projectLimitReached = !canCreateProject(
+    await getUserProjectCount(session.user.id),
+  );
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
       <div className="mb-7">
@@ -41,14 +47,24 @@ export default async function SubmitPage() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>{t("Project details")}</CardTitle>
+          <CardTitle>
+            {t(
+              projectLimitReached ? "Project limit reached" : "Project details",
+            )}
+          </CardTitle>
           <CardDescription>
-            {t("Add a public website, a public GitHub repository, or both.")}
+            {t(
+              projectLimitReached
+                ? PROJECT_LIMIT_MESSAGE
+                : "Add a public website, a public GitHub repository, or both.",
+            )}
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-4">
-          <ProjectForm />
-        </CardContent>
+        {projectLimitReached ? null : (
+          <CardContent className="pt-4">
+            <ProjectForm />
+          </CardContent>
+        )}
       </Card>
     </div>
   );
