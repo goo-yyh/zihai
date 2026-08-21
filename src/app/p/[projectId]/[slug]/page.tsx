@@ -1,7 +1,7 @@
 import { CalendarDays } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { MarkdownContent } from "@/components/markdown/markdown-content";
@@ -19,6 +19,7 @@ import {
   getViewerProjectLike,
 } from "@/db/queries/public";
 import { isFeatureEnabled } from "@/lib/features";
+import { publicProfilePath, publicProjectPath } from "@/lib/public-routes";
 import { getSession } from "@/lib/session";
 import { getTranslations } from "@/lib/i18n-server";
 import { selectRandomRecommendations } from "@/lib/recommendations";
@@ -26,14 +27,14 @@ import { SITE_DESCRIPTION } from "@/lib/site";
 import { formatDate, truncate } from "@/lib/utils";
 
 async function ProjectSidebar({
-  slug,
+  projectId,
   iterationsEnabled,
 }: {
-  slug: string;
+  projectId: string;
   iterationsEnabled: boolean;
 }) {
   if (iterationsEnabled) {
-    const iterations = await getPublicProjectIterations(slug);
+    const iterations = await getPublicProjectIterations(projectId);
     if (iterations.length) {
       return (
         <RecentUpdates
@@ -55,10 +56,10 @@ async function ProjectSidebar({
     }
   }
 
-  const recommendations = await getRecommendationPool(slug);
+  const recommendations = await getRecommendationPool(projectId);
   return (
     <RecommendedProjects
-      key={slug}
+      key={projectId}
       pool={selectRandomRecommendations(recommendations, 5)}
     />
   );
@@ -75,7 +76,7 @@ async function ProjectLikeControl({
 }) {
   const session = await getSession();
   const viewerLiked = session
-    ? await getViewerProjectLike(slug, session.user.id)
+    ? await getViewerProjectLike(projectId, session.user.id)
     : false;
   const access = !session
     ? "login"
@@ -88,7 +89,7 @@ async function ProjectLikeControl({
       projectId={projectId}
       initialLiked={viewerLiked}
       initialCount={likeCount}
-      nextPath={`/p/${slug}`}
+      nextPath={publicProjectPath({ id: projectId, slug })}
       access={access}
     />
   );
@@ -96,10 +97,10 @@ async function ProjectLikeControl({
 
 export async function generateMetadata({
   params,
-}: PageProps<"/p/[slug]">): Promise<Metadata> {
-  const { slug } = await params;
+}: PageProps<"/p/[projectId]/[slug]">): Promise<Metadata> {
+  const { projectId, slug } = await params;
   const [project, { t }] = await Promise.all([
-    getPublicProject(slug),
+    getPublicProject(projectId),
     getTranslations(),
   ]);
   if (!project)
@@ -107,6 +108,7 @@ export async function generateMetadata({
       title: t("Project not found"),
       robots: { index: false, follow: false },
     };
+  if (slug !== project.slug) permanentRedirect(publicProjectPath(project));
   const description =
     truncate(project.description.replace(/[#*_`>\[\]]/g, ""), 155) ||
     SITE_DESCRIPTION;
@@ -114,7 +116,7 @@ export async function generateMetadata({
   return {
     title: project.name,
     description,
-    alternates: { canonical: `/p/${project.slug}` },
+    alternates: { canonical: publicProjectPath(project) },
     openGraph: {
       title: project.name,
       description,
@@ -129,14 +131,19 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
-  const projectPromise = params.then(({ slug }) => getPublicProject(slug));
+export default async function ProjectPage({
+  params,
+}: PageProps<"/p/[projectId]/[slug]">) {
+  const projectPromise = params.then(({ projectId }) =>
+    getPublicProject(projectId),
+  );
   const [{ slug }, project, { locale, t }] = await Promise.all([
     params,
     projectPromise,
     getTranslations(),
   ]);
   if (!project) notFound();
+  if (slug !== project.slug) permanentRedirect(publicProjectPath(project));
   const iterationsEnabled = isFeatureEnabled("iterations");
 
   return (
@@ -149,7 +156,10 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
                 {project.name}
               </h1>
               <Link
-                href={`/u/${project.ownerUsername}`}
+                href={publicProfilePath({
+                  id: project.ownerId,
+                  username: project.ownerUsername,
+                })}
                 className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary"
               >
                 <Avatar
@@ -171,7 +181,7 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
               >
                 <ProjectLikeControl
                   projectId={project.id}
-                  slug={slug}
+                  slug={project.slug}
                   likeCount={project.likeCount}
                 />
               </Suspense>
@@ -226,7 +236,10 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
               />
               <div>
                 <Link
-                  href={`/u/${project.ownerUsername}`}
+                  href={publicProfilePath({
+                    id: project.ownerId,
+                    username: project.ownerUsername,
+                  })}
                   className="font-bold hover:text-primary"
                 >
                   @{project.ownerUsername}
@@ -255,7 +268,10 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
               </div>
             }
           >
-            <ProjectSidebar slug={slug} iterationsEnabled={iterationsEnabled} />
+            <ProjectSidebar
+              projectId={project.id}
+              iterationsEnabled={iterationsEnabled}
+            />
           </Suspense>
         </aside>
       </div>

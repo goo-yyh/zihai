@@ -103,7 +103,9 @@ export function OnboardingForm({
           required
         />
         <p className="text-xs text-muted-foreground">
-          {t("Your profile will be /u/username.")}
+          {t(
+            "Your public profile URL will include your account ID and username.",
+          )}
         </p>
         <FieldError errors={state.fieldErrors?.username} />
       </div>

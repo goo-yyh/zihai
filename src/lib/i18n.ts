@@ -162,7 +162,8 @@ const zhCN: Record<string, string> = {
   "Use the zihAI default avatar or upload a custom image.":
     "使用 zihAI 默认头像，或上传自定义图片。",
   Avatar: "头像",
-  "Your profile will be /u/username.": "你的个人主页地址将是 /u/username。",
+  "Your public profile URL will include your account ID and username.":
+    "你的公开个人主页地址将同时包含账号 ID 和用户名。",
   "Contact email": "联系邮箱",
   "Contact and feedback": "联系与反馈",
   "Feedback and suggestions": "反馈建议",
@@ -240,8 +241,7 @@ const zhCN: Record<string, string> = {
   "No projects yet": "还没有项目",
   "Create your first AI product listing and prepare it for review.":
     "创建你的第一个 AI 产品条目并准备提交审核。",
-  "Created {date} · Public slug /p/{slug}":
-    "创建于 {date} · 公开地址 /p/{slug}",
+  "Created {date} · Public URL {path}": "创建于 {date} · 公开地址 {path}",
   "View public page": "查看公开页面",
   "Iteration submitted for review.": "迭代已提交审核。",
   "Reviewer feedback": "审核反馈",

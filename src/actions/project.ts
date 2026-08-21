@@ -179,7 +179,10 @@ export async function updateProjectAction(
     });
 
     revalidateProjectWorkspace(parsedId.data);
-    revalidatePublicProject(existing.slug, session.user.username);
+    revalidatePublicProject(
+      { id: parsedId.data, slug: existing.slug },
+      { id: session.user.id, username: session.user.username },
+    );
 
     return {
       status: "success",
@@ -247,6 +250,9 @@ export async function deleteProjectAction(projectId: string) {
     .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)));
 
   revalidateProjectWorkspace(id);
-  revalidatePublicProject(project.slug, session.user.username);
+  revalidatePublicProject(
+    { id, slug: project.slug },
+    { id: session.user.id, username: session.user.username },
+  );
   redirect("/dashboard?deleted=project");
 }

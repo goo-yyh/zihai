@@ -41,7 +41,11 @@ export async function updateProfileAction(
       })
       .where(eq(user.id, session.user.id));
     await refreshSessionCookieCache();
-    revalidateUserPresentation(session.user.username, parsed.data.username);
+    revalidateUserPresentation(
+      session.user.id,
+      session.user.username,
+      parsed.data.username,
+    );
     return { status: "success", message: "Profile updated." };
   } catch (error) {
     return safeActionError(error, "Unable to update your profile.");

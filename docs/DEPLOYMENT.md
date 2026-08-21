@@ -68,7 +68,7 @@ Deploy the same commit verified by CI. After deployment:
 3. Complete onboarding through each provider, set a username and password, then verify username/password sign-in and password changes.
 4. Upload three screenshots; confirm a fourth is rejected.
 5. Promote the intended first administrator with `pnpm admin:promote <email>`.
-6. Approve the project and confirm it appears on `/`, `/p/{slug}`, `/u/{username}`, and `/sitemap.xml`.
+6. Approve the project and confirm it appears on `/`, `/p/{projectId}/{slug}`, `/u/{userId}/{username}`, and `/sitemap.xml`; confirm the legacy `/p/{slug}` and `/u/{username}` links permanently redirect to those canonical URLs.
 7. Create and approve an iteration, then verify the public build log.
 8. Confirm `/admin`, `/dashboard`, and `/settings` are inaccessible to unauthorized users.
 9. Confirm a page visit sends a request to Vercel's Web Analytics endpoint and appears in the Analytics dashboard.

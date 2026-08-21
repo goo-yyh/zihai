@@ -56,6 +56,13 @@ Server modules begin with `import "server-only"` and must not be imported by cli
 
 Public project discovery is served by `GET /api/projects`. The Route Handler validates the sort, keyword, and page boundary before calling the shared read model. The homepage server-renders page one, then the client requests bounded follow-up pages for infinite scrolling. Keyword matching covers project names and descriptions; the selected latest or hot ordering is applied to the filtered result set.
 
+Public detail routes use an immutable identifier followed by readable text:
+`/p/{projectId}/{slug}` for projects and `/u/{userId}/{username}` for builder
+profiles. Queries resolve identity from the ID only. A stale slug or username is
+permanently redirected to the current canonical path, and the previous
+single-segment `/p/{slug}` and `/u/{username}` routes remain as permanent
+redirects for existing links.
+
 The database client is created lazily through `getDb()`. Importing a query or
 Action module during route discovery does not read runtime credentials; the first
 database operation still validates the complete server environment.
@@ -182,7 +189,7 @@ boundaries and authorization filters. Do not replace these batches with
 sequential awaits or independent `Promise.all` queries, because both forms add
 database network roundtrips with the HTTP driver.
 
-- Project publication, rejection, edits, images, deletion, and likes affect `/`, `/p/{slug}`, and `/u/{username}`.
+- Project publication, rejection, edits, images, deletion, and likes affect `/`, `/p/{projectId}/{slug}`, and `/u/{userId}/{username}`.
 - Iteration changes affect the project detail page and its dashboard editor.
 - Avatar or username changes affect the homepage, profile, project pages, and account UI. Contact email changes also invalidate administrator user views.
 - Admin mutations refresh the relevant queue and dashboard count.

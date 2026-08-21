@@ -87,7 +87,11 @@ export async function completeOnboardingAction(
       })
       .where(eq(user.id, session.user.id));
     await refreshSessionCookieCache();
-    revalidateUserPresentation(undefined, parsed.data.username);
+    revalidateUserPresentation(
+      session.user.id,
+      undefined,
+      parsed.data.username,
+    );
   } catch (error) {
     return safeActionError(error, "Unable to finish onboarding.");
   }
