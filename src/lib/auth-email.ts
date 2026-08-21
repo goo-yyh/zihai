@@ -1,20 +1,17 @@
+import { z } from "zod";
+
 export type AuthEmailPurpose =
   "sign-in" | "email-verification" | "forget-password" | "change-email";
 
-export const ALLOWED_AUTH_EMAIL_DOMAINS = ["qq.com", "163.com"] as const;
+export const identityEmailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(254)
+  .pipe(z.email());
 
-export function isAllowedAuthEmail(email: string) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const separatorIndex = normalizedEmail.lastIndexOf("@");
-
-  if (separatorIndex <= 0 || separatorIndex !== normalizedEmail.indexOf("@")) {
-    return false;
-  }
-
-  const domain = normalizedEmail.slice(separatorIndex + 1);
-  return ALLOWED_AUTH_EMAIL_DOMAINS.some(
-    (allowedDomain) => allowedDomain === domain,
-  );
+export function isValidIdentityEmail(email: string) {
+  return identityEmailSchema.safeParse(email).success;
 }
 
 const purposeContent: Record<

@@ -1,23 +1,39 @@
 import { describe, expect, it } from "vitest";
 
-import { buildAuthOtpEmail, isAllowedAuthEmail } from "@/lib/auth-email";
+import {
+  buildAuthOtpEmail,
+  identityEmailSchema,
+  isValidIdentityEmail,
+} from "@/lib/auth-email";
 
-describe("isAllowedAuthEmail", () => {
-  it.each(["builder@qq.com", " Builder@163.COM "])(
-    "accepts an allowed identity email: %s",
-    (email) => {
-      expect(isAllowedAuthEmail(email)).toBe(true);
-    },
-  );
+describe("identity email validation", () => {
+  it.each([
+    "builder@qq.com",
+    " Builder@163.COM ",
+    "builder@gmail.com",
+    "builder@mail.example.com",
+    "builder@company.ai",
+  ])("accepts a valid identity email from any domain: %s", (email) => {
+    expect(isValidIdentityEmail(email)).toBe(true);
+  });
 
   it.each([
-    "builder@mail.qq.com",
-    "builder@qq.com.example.com",
-    "builder@gmail.com",
     "builder@qq.com@163.com",
     "qq.com",
-  ])("rejects an unsupported identity email: %s", (email) => {
-    expect(isAllowedAuthEmail(email)).toBe(false);
+    "builder@",
+    "@example.com",
+    "builder example.com",
+  ])("rejects an invalid identity email: %s", (email) => {
+    expect(isValidIdentityEmail(email)).toBe(false);
+  });
+
+  it("normalizes identity emails and enforces the maximum length", () => {
+    expect(identityEmailSchema.parse(" Builder@Example.COM ")).toBe(
+      "builder@example.com",
+    );
+    expect(
+      identityEmailSchema.safeParse(`${"a".repeat(243)}@example.com`).success,
+    ).toBe(false);
   });
 });
 

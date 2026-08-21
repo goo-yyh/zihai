@@ -134,10 +134,8 @@ const zhCN: Record<string, string> = {
   "Verification code sent. Check your inbox.": "验证码已发送，请检查收件箱。",
   "Unable to send verification code.": "无法发送验证码。",
   "Verification code is invalid or expired.": "验证码无效或已过期。",
-  "Supported email domains: qq.com and 163.com.":
-    "仅支持 qq.com 和 163.com 邮箱。",
-  "Only qq.com and 163.com email addresses are supported.":
-    "仅支持 qq.com 和 163.com 邮箱。",
+  "Any valid email address is supported.": "支持所有有效邮箱地址。",
+  "Enter a valid email address.": "请输入有效的邮箱地址。",
   "Image verification code": "图片验证码",
   "Enter the characters shown": "请输入图片中的字符",
   "Verify and send code": "验证并发送邮件验证码",

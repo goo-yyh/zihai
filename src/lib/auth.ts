@@ -13,7 +13,7 @@ import {
   AUTH_CAPTCHA_ANSWER_HEADER,
   AUTH_CAPTCHA_ID_HEADER,
 } from "@/lib/auth-captcha";
-import { isAllowedAuthEmail } from "@/lib/auth-email";
+import { isValidIdentityEmail } from "@/lib/auth-email";
 import { githubFallbackEmail } from "@/lib/contact-email";
 import { getServerEnv } from "@/lib/env";
 import { getSiteUrl } from "@/lib/site";
@@ -111,10 +111,10 @@ function createAuth() {
       },
       emailOTP({
         async sendVerificationOTP({ email, otp, type }) {
-          if (!isAllowedAuthEmail(email)) {
+          if (!isValidIdentityEmail(email)) {
             throw new APIError("BAD_REQUEST", {
-              code: "UNSUPPORTED_EMAIL_DOMAIN",
-              message: "Only qq.com and 163.com email addresses are supported.",
+              code: "INVALID_EMAIL_ADDRESS",
+              message: "Enter a valid email address.",
             });
           }
 

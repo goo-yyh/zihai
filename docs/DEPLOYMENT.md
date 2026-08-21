@@ -64,7 +64,7 @@ access is configured.
 Deploy the same commit verified by CI. After deployment:
 
 1. Open `/api/auth/ok` or begin a sign-in and confirm the auth origin is correct.
-2. Test email OTP delivery to both `qq.com` and `163.com`, confirm other domains and lookalike suffixes are rejected, then test GitHub and Google sign-in with non-admin accounts.
+2. Test email OTP delivery to `qq.com`, `163.com`, a common public provider, and a custom domain; confirm malformed addresses are rejected, then test GitHub and Google sign-in with non-admin accounts.
 3. Complete onboarding through each provider, set a username and password, then verify username/password sign-in and password changes.
 4. Upload three screenshots; confirm a fourth is rejected.
 5. Promote the intended first administrator with `pnpm admin:promote <email>`.
