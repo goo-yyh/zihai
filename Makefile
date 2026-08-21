@@ -2,15 +2,23 @@
 
 PNPM ?= pnpm
 DEV_ENV_FILE ?= .env.local
-PREVIEW_BRANCH ?= staging
+PREVIEW_ENV_FILE ?= .env.preview
+PRODUCTION_ENV_FILE ?= .env.production
+PREVIEW_SITE_HOST ?= staging.zihai.dev
+PRODUCTION_SITE_HOST ?= www.zihai.dev
 VERCEL ?= vercel
+
+DEVELOPMENT_ENV = env -u DATABASE_ENVIRONMENT -u DATABASE_URL -u BETTER_AUTH_URL -u NEXT_PUBLIC_SITE_URL DOTENV_CONFIG_PATH="$(DEV_ENV_FILE)"
+PREVIEW_ENV = env -u DATABASE_ENVIRONMENT -u DATABASE_URL -u BETTER_AUTH_URL -u NEXT_PUBLIC_SITE_URL DOTENV_CONFIG_PATH="$(PREVIEW_ENV_FILE)"
+PRODUCTION_ENV = env -u DATABASE_ENVIRONMENT -u DATABASE_URL -u BETTER_AUTH_URL -u NEXT_PUBLIC_SITE_URL DOTENV_CONFIG_PATH="$(PRODUCTION_ENV_FILE)"
 
 .PHONY: \
 	help install dev build start format format-check lint typecheck test check vercel-version \
 	vercel-link db-generate db-check-development db-migrate-development \
 	db-studio-development db-seed-development db-check-preview db-migrate-preview \
 	db-check-production db-migrate-production admin-promote-development \
-	admin-promote-preview admin-promote-production guard-email guard-production
+	admin-promote-preview admin-promote-production guard-development-env \
+	guard-preview-env guard-production-env guard-email guard-production
 
 help: ## 显示常用命令
 	@awk 'BEGIN { FS = ":.*## "; printf "Usage: make <target> [VARIABLE=value]\n\n" } /^[a-zA-Z0-9_-]+:.*## / { printf "  %-30s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -52,41 +60,62 @@ vercel-link: ## 首次将当前目录关联到 Vercel 项目
 	$(VERCEL) link
 
 db-generate: ## 使用 Development 配置生成数据库迁移
-	DOTENV_CONFIG_PATH=$(DEV_ENV_FILE) $(PNPM) db:generate
+	$(DEVELOPMENT_ENV) $(PNPM) db:generate
 
-db-check-development: ## 使用 .env.local 检查 Development 迁移
-	DOTENV_CONFIG_PATH=$(DEV_ENV_FILE) $(PNPM) db:check
+db-check-development: guard-development-env ## 使用 .env.local 检查 Development 迁移
+	$(DEVELOPMENT_ENV) $(PNPM) db:check
 
 db-migrate-development: db-check-development ## 检查并迁移 Development 数据库
-	DOTENV_CONFIG_PATH=$(DEV_ENV_FILE) $(PNPM) db:migrate
+	$(DEVELOPMENT_ENV) $(PNPM) db:migrate
 
 db-studio-development: ## 使用 Development 数据库启动 Drizzle Studio
-	DOTENV_CONFIG_PATH=$(DEV_ENV_FILE) $(PNPM) db:studio
+	$(DEVELOPMENT_ENV) $(PNPM) db:studio
 
 db-seed-development: ## 创建 10 个 Development 模拟用户及每人 2～4 个已发布项目
-	CONFIRM_DEVELOPMENT_SEED=yes DOTENV_CONFIG_PATH=$(DEV_ENV_FILE) $(PNPM) db:seed
+	CONFIRM_DEVELOPMENT_SEED=yes $(DEVELOPMENT_ENV) $(PNPM) db:seed
 
-db-check-preview: ## 检查 Preview 迁移，默认读取 staging 分支变量
-	$(VERCEL) env run -e preview --git-branch $(PREVIEW_BRANCH) -- $(PNPM) db:check
+db-check-preview: guard-preview-env ## 使用 .env.preview 检查 Preview 迁移
+	$(PREVIEW_ENV) $(PNPM) db:check
 
 db-migrate-preview: db-check-preview ## 检查并迁移 Preview 数据库
-	$(VERCEL) env run -e preview --git-branch $(PREVIEW_BRANCH) -- $(PNPM) db:migrate
+	$(PREVIEW_ENV) $(PNPM) db:migrate
 
-db-check-production: ## 只读检查 Production 迁移
-	$(VERCEL) env run -e production -- $(PNPM) db:check
+db-check-production: guard-production-env ## 使用 .env.production 只读检查 Production 迁移
+	$(PRODUCTION_ENV) $(PNPM) db:check
 
-db-migrate-production: guard-production ## 检查并迁移 Production 数据库，必须显式确认
+db-migrate-production: guard-production guard-production-env ## 检查并迁移 Production 数据库，必须显式确认
 	$(MAKE) db-check-production
-	$(VERCEL) env run -e production -- $(PNPM) db:migrate
+	$(PRODUCTION_ENV) $(PNPM) db:migrate
 
-admin-promote-development: guard-email ## 在 Development 提升已有用户，传入 EMAIL=
-	DOTENV_CONFIG_PATH=$(DEV_ENV_FILE) $(PNPM) admin:promote "$(EMAIL)"
+admin-promote-development: guard-email guard-development-env ## 在 Development 提升已有用户，传入 EMAIL=
+	$(DEVELOPMENT_ENV) $(PNPM) admin:promote "$(EMAIL)"
 
-admin-promote-preview: guard-email ## 在 Preview 提升已有用户，传入 EMAIL=
-	$(VERCEL) env run -e preview --git-branch $(PREVIEW_BRANCH) -- $(PNPM) admin:promote "$(EMAIL)"
+admin-promote-preview: guard-email guard-preview-env ## 在 Preview 提升已有用户，传入 EMAIL=
+	$(PREVIEW_ENV) $(PNPM) admin:promote "$(EMAIL)"
 
-admin-promote-production: guard-email guard-production ## 在 Production 提升用户，必须显式确认
-	$(VERCEL) env run -e production -- $(PNPM) admin:promote "$(EMAIL)"
+admin-promote-production: guard-email guard-production guard-production-env ## 在 Production 提升用户，必须显式确认
+	$(PRODUCTION_ENV) $(PNPM) admin:promote "$(EMAIL)"
+
+guard-development-env:
+	@if [ ! -f "$(DEV_ENV_FILE)" ]; then \
+		echo "Development environment file not found: $(DEV_ENV_FILE)"; \
+		exit 1; \
+	fi
+
+guard-preview-env:
+	@if [ ! -f "$(PREVIEW_ENV_FILE)" ]; then \
+		echo "Preview environment file not found: $(PREVIEW_ENV_FILE)"; \
+		exit 1; \
+	fi
+	@$(PREVIEW_ENV) $(PNPM) exec tsx scripts/check-database-target.ts preview "$(PREVIEW_SITE_HOST)"
+
+guard-production-env:
+	@if [ ! -f "$(PRODUCTION_ENV_FILE)" ]; then \
+		echo "Production environment file not found: $(PRODUCTION_ENV_FILE)"; \
+		echo "Create it from a trusted secret source; Vercel Sensitive values cannot be exported by env pull/run."; \
+		exit 1; \
+	fi
+	@$(PRODUCTION_ENV) $(PNPM) exec tsx scripts/check-database-target.ts production "$(PRODUCTION_SITE_HOST)"
 
 guard-email:
 	@if [ -z "$(EMAIL)" ]; then \
