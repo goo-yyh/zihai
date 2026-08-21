@@ -1,5 +1,4 @@
 import { authCaptchaRequestSchema } from "@/lib/auth-captcha";
-import { isAllowedAuthEmail } from "@/lib/auth-email";
 import { createAuthCaptcha } from "@/server/auth-captcha";
 
 export async function POST(request: Request) {
@@ -11,7 +10,7 @@ export async function POST(request: Request) {
   }
 
   const parsed = authCaptchaRequestSchema.safeParse(body);
-  if (!parsed.success || !isAllowedAuthEmail(parsed.data.email)) {
+  if (!parsed.success) {
     return Response.json({ error: "Invalid email address." }, { status: 400 });
   }
 
