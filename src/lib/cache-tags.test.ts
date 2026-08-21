@@ -20,11 +20,7 @@ describe("public cache tags", () => {
   });
 
   it("creates stable resource tags", () => {
-    expect(publicProjectTag("example-product")).toBe(
-      "public-project:example-product",
-    );
-    expect(publicProfileTag("Example_Builder")).toBe(
-      "public-profile:example_builder",
-    );
+    expect(publicProjectTag("project-id")).toBe("public-project:project-id");
+    expect(publicProfileTag("user-id")).toBe("public-profile:user-id");
   });
 });

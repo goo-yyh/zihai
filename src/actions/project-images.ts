@@ -25,7 +25,10 @@ export async function deleteProjectImageAction(imageId: string) {
   );
 
   revalidateProjectWorkspace(result.projectId);
-  revalidatePublicProject(result.slug, session.user.username);
+  revalidatePublicProject(
+    { id: result.projectId, slug: result.slug },
+    { id: session.user.id, username: session.user.username },
+  );
 }
 
 export async function reorderProjectImagesAction(
@@ -40,5 +43,8 @@ export async function reorderProjectImagesAction(
   );
 
   revalidateProjectWorkspace(result.projectId);
-  revalidatePublicProject(result.slug, session.user.username);
+  revalidatePublicProject(
+    { id: result.projectId, slug: result.slug },
+    { id: session.user.id, username: session.user.username },
+  );
 }

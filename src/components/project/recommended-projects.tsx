@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
 import { ProductScreenshot } from "@/components/project/product-screenshot";
+import { publicProjectPath } from "@/lib/public-routes";
 
 type PoolProject = {
   id: string;
@@ -34,7 +35,7 @@ export function RecommendedProjects({ pool }: { pool: PoolProject[] }) {
         {projects.map((project) => (
           <li key={project.id}>
             <Link
-              href={`/p/${project.slug}`}
+              href={publicProjectPath(project)}
               className="flex items-center gap-3 rounded-xl p-1 hover:bg-muted"
             >
               <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg border bg-muted">

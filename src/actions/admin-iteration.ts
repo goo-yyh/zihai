@@ -82,7 +82,10 @@ export async function approveIterationAction(iterationId: string) {
     return pendingIteration;
   });
 
-  revalidateProjectDetail(iteration.projectSlug);
+  revalidateProjectDetail({
+    id: iteration.projectId,
+    slug: iteration.projectSlug,
+  });
   revalidateAdminContent("iterations");
   redirect("/admin/iterations?approved=1");
 }
@@ -144,7 +147,10 @@ export async function rejectIterationAction(
       return pendingIteration;
     });
 
-    revalidateProjectDetail(iteration.projectSlug);
+    revalidateProjectDetail({
+      id: iteration.projectId,
+      slug: iteration.projectSlug,
+    });
     revalidateAdminContent("iterations");
     return { status: "success", message: "Iteration rejected." };
   } catch (error) {

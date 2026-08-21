@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAdminIteration } from "@/db/queries/admin";
 import { isFeatureEnabled } from "@/lib/features";
 import { getTranslations } from "@/lib/i18n-server";
+import { publicProjectPath } from "@/lib/public-routes";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
@@ -55,7 +56,13 @@ export default async function AdminIterationPage({
         </div>
         {iteration.projectStatus === "approved" ? (
           <Button asChild variant="outline">
-            <Link href={`/p/${iteration.projectSlug}`} target="_blank">
+            <Link
+              href={publicProjectPath({
+                id: iteration.projectId,
+                slug: iteration.projectSlug,
+              })}
+              target="_blank"
+            >
               <ExternalLink className="size-4" /> {t("Public project")}
             </Link>
           </Button>

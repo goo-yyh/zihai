@@ -182,6 +182,6 @@ export async function deleteAccountAction(formData: FormData) {
   });
 
   await deleteBlobsBestEffort(pathnames);
-  revalidateUserPresentation(session.user.username);
+  revalidateUserPresentation(session.user.id, session.user.username);
   redirect("/?account=deleted");
 }

@@ -126,8 +126,8 @@ Use the helpers in `src/server/cache.ts`. Do not scatter new `revalidatePath` ca
 
 Before completing a mutation, identify every consumer:
 
-- Project public data: homepage, `/p/{slug}`, `/u/{username}`.
-- Iteration public data: `/p/{slug}`.
+- Project public data: homepage, `/p/{projectId}/{slug}`, `/u/{userId}/{username}`.
+- Iteration public data: `/p/{projectId}/{slug}`.
 - Avatar or username: homepage, profile, project pages, and account UI.
 - Admin review or user changes: relevant queue, audit page, and admin counts.
 

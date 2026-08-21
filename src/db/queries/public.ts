@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
+import { z } from "zod";
 
 import { getDb } from "@/db";
 import {
@@ -37,6 +38,7 @@ import {
 import type { PublicProjectPage, PublicProjectSort } from "@/types/projects";
 
 const likeCount = count(projectLikes.userId);
+const projectIdSchema = z.uuid();
 const cardSelection = {
   id: projects.id,
   name: projects.name,
@@ -153,7 +155,7 @@ const RECOMMENDATION_POOL_SIZE = 20;
 // Returns the latest approved projects as a stable ordered pool. The public
 // page selects a random server snapshot before passing it to the client so the
 // server-rendered HTML and hydration payload always agree.
-export const getRecommendationPool = cache(async (excludeSlug: string) => {
+export const getRecommendationPool = cache(async (excludeProjectId: string) => {
   return getDb()
     .select({
       id: projects.id,
@@ -169,14 +171,16 @@ export const getRecommendationPool = cache(async (excludeSlug: string) => {
         eq(projectImages.sortOrder, 0),
       ),
     )
-    .where(and(eq(projects.status, "approved"), ne(projects.slug, excludeSlug)))
+    .where(
+      and(eq(projects.status, "approved"), ne(projects.id, excludeProjectId)),
+    )
     .orderBy(desc(projects.publishedAt), desc(projects.id))
     .limit(RECOMMENDATION_POOL_SIZE);
 });
 
-async function queryPublicProject(slug: string) {
+async function queryPublicProject(projectId: string) {
   const projectFilter = and(
-    eq(projects.slug, slug),
+    eq(projects.id, projectId),
     eq(projects.status, "approved"),
   );
   const projectQuery = getDb()
@@ -221,18 +225,19 @@ async function queryPublicProject(slug: string) {
     likesQuery,
   ]);
   const project = projectRows[0];
-  if (!project) return null;
+  if (!project?.ownerUsername) return null;
 
   return {
     ...project,
+    ownerUsername: project.ownerUsername,
     images,
     likeCount: likes[0]?.count ?? 0,
   };
 }
 
-async function queryPublicProjectIterations(slug: string) {
+async function queryPublicProjectIterations(projectId: string) {
   const projectFilter = and(
-    eq(projects.slug, slug),
+    eq(projects.id, projectId),
     eq(projects.status, "approved"),
   );
   const iterationsQuery = getDb()
@@ -287,38 +292,44 @@ async function queryPublicProjectIterations(slug: string) {
   }));
 }
 
-export const getPublicProject = cache(async (slug: string) => {
+export const getPublicProject = cache(async (projectId: string) => {
+  if (!projectIdSchema.safeParse(projectId).success) return null;
   const getCachedProject = unstable_cache(
-    () => queryPublicProject(slug),
-    ["public-project", slug],
+    () => queryPublicProject(projectId),
+    ["public-project", projectId],
     {
       revalidate: 3600,
-      tags: [PUBLIC_PROJECT_DETAILS_TAG, publicProjectTag(slug)],
+      tags: [PUBLIC_PROJECT_DETAILS_TAG, publicProjectTag(projectId)],
     },
   );
   return getCachedProject();
 });
 
-export const getPublicProjectIterations = cache(async (slug: string) => {
+export const getPublicProjectIterations = cache(async (projectId: string) => {
+  if (!projectIdSchema.safeParse(projectId).success) return [];
   const getCachedIterations = unstable_cache(
-    () => queryPublicProjectIterations(slug),
-    ["public-project-iterations", slug],
+    () => queryPublicProjectIterations(projectId),
+    ["public-project-iterations", projectId],
     {
       revalidate: 3600,
-      tags: [PUBLIC_PROJECT_DETAILS_TAG, publicProjectTag(slug)],
+      tags: [PUBLIC_PROJECT_DETAILS_TAG, publicProjectTag(projectId)],
     },
   );
   return getCachedIterations();
 });
 
-export async function getViewerProjectLike(slug: string, viewerId: string) {
+export async function getViewerProjectLike(
+  projectId: string,
+  viewerId: string,
+) {
+  if (!projectIdSchema.safeParse(projectId).success) return false;
   const [like] = await getDb()
     .select({ userId: projectLikes.userId })
     .from(projectLikes)
     .innerJoin(projects, eq(projectLikes.projectId, projects.id))
     .where(
       and(
-        eq(projects.slug, slug),
+        eq(projects.id, projectId),
         eq(projects.status, "approved"),
         eq(projectLikes.userId, viewerId),
       ),
@@ -328,8 +339,7 @@ export async function getViewerProjectLike(slug: string, viewerId: string) {
   return Boolean(like);
 }
 
-async function queryPublicProfile(username: string) {
-  const normalizedUsername = username.toLowerCase();
+async function queryPublicProfile(userId: string) {
   const profileQuery = getDb()
     .select({
       id: user.id,
@@ -338,17 +348,12 @@ async function queryPublicProfile(username: string) {
       createdAt: user.createdAt,
     })
     .from(user)
-    .where(
-      and(
-        eq(user.username, normalizedUsername),
-        eq(user.onboardingCompleted, true),
-      ),
-    )
+    .where(and(eq(user.id, userId), eq(user.onboardingCompleted, true)))
     .limit(1);
   const profileProjectsQuery = cardQuery(
     and(
       eq(projects.status, "approved"),
-      eq(user.username, normalizedUsername),
+      eq(user.id, userId),
       eq(user.onboardingCompleted, true),
     ),
   ).orderBy(desc(projects.publishedAt));
@@ -362,27 +367,60 @@ async function queryPublicProfile(username: string) {
   return { ...profile, username: profile.username, projects: profileProjects };
 }
 
-export const getPublicProfile = cache(async (username: string) => {
-  const normalizedUsername = username.toLowerCase();
+export const getPublicProfile = cache(async (userId: string) => {
   const getCachedProfile = unstable_cache(
-    () => queryPublicProfile(normalizedUsername),
-    ["public-profile", normalizedUsername],
+    () => queryPublicProfile(userId),
+    ["public-profile", userId],
     {
       revalidate: 600,
-      tags: [publicProfileTag(normalizedUsername)],
+      tags: [publicProfileTag(userId)],
     },
   );
   return getCachedProfile();
 });
 
+export const getPublicProjectRouteBySlug = cache(async (slug: string) => {
+  const [project] = await getDb()
+    .select({ id: projects.id, slug: projects.slug })
+    .from(projects)
+    .where(and(eq(projects.slug, slug), eq(projects.status, "approved")))
+    .limit(1);
+  return project ?? null;
+});
+
+export const getPublicProfileRouteByUsername = cache(
+  async (username: string) => {
+    const [profile] = await getDb()
+      .select({ id: user.id, username: user.username })
+      .from(user)
+      .where(
+        and(
+          eq(user.username, username.toLowerCase()),
+          eq(user.onboardingCompleted, true),
+        ),
+      )
+      .limit(1);
+    if (!profile?.username) return null;
+    return { id: profile.id, username: profile.username };
+  },
+);
+
 async function querySitemapEntries() {
   const [projectRows, userRows] = await getDb().batch([
     getDb()
-      .select({ slug: projects.slug, updatedAt: projects.updatedAt })
+      .select({
+        id: projects.id,
+        slug: projects.slug,
+        updatedAt: projects.updatedAt,
+      })
       .from(projects)
       .where(eq(projects.status, "approved")),
     getDb()
-      .select({ username: user.username, updatedAt: user.updatedAt })
+      .select({
+        id: user.id,
+        username: user.username,
+        updatedAt: user.updatedAt,
+      })
       .from(user)
       .where(eq(user.onboardingCompleted, true)),
   ]);
@@ -390,7 +428,7 @@ async function querySitemapEntries() {
   return {
     projects: projectRows,
     users: userRows.filter(
-      (row): row is { username: string; updatedAt: Date } =>
+      (row): row is { id: string; username: string; updatedAt: Date } =>
         Boolean(row.username),
     ),
   };
