@@ -1,11 +1,11 @@
 "use client";
 
 import { Compass } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
+import { ProductScreenshot } from "@/components/project/product-screenshot";
 
 type PoolProject = {
   id: string;
@@ -39,12 +39,10 @@ export function RecommendedProjects({ pool }: { pool: PoolProject[] }) {
             >
               <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg border bg-muted">
                 {project.imageUrl ? (
-                  <Image
+                  <ProductScreenshot
                     src={project.imageUrl}
                     alt={project.name}
-                    fill
                     sizes="80px"
-                    className="object-cover"
                   />
                 ) : null}
               </div>

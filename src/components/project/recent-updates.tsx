@@ -1,11 +1,11 @@
 "use client";
 
 import { History, X } from "lucide-react";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { ProductScreenshot } from "@/components/project/product-screenshot";
 import { formatDate } from "@/lib/utils";
 
 export type RecentUpdateItem = {
@@ -122,12 +122,10 @@ export function RecentUpdates({ items }: { items: RecentUpdateItem[] }) {
                           key={image.id}
                           className="relative aspect-[16/10] overflow-hidden rounded-xl border bg-muted"
                         >
-                          <Image
+                          <ProductScreenshot
                             src={image.url}
                             alt={`${item.versionLabel || t("Iteration")} ${t("Screenshot {number}", { number: imageIndex + 1 })}`}
-                            fill
                             sizes="(max-width: 640px) 100vw, 250px"
-                            className="object-cover"
                           />
                         </div>
                       ))}

@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowLeft, ArrowRight, LoaderCircle, Trash2 } from "lucide-react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -15,6 +14,7 @@ import {
   reorderProjectImagesAction,
 } from "@/actions/project-images";
 import { useI18n } from "@/components/i18n-provider";
+import { ProductScreenshot } from "@/components/project/product-screenshot";
 import { Button } from "@/components/ui/button";
 import { ImageUploader } from "@/components/upload/image-uploader";
 
@@ -80,12 +80,10 @@ export function ImageManager({
               className="overflow-hidden rounded-2xl border bg-white"
             >
               <div className="relative aspect-[16/10] bg-muted">
-                <Image
+                <ProductScreenshot
                   src={image.blobUrl}
                   alt={t("Screenshot {number}", { number: index + 1 })}
-                  fill
                   sizes="(max-width: 640px) 100vw, 33vw"
-                  className="object-cover"
                 />
                 {pending ? (
                   <span className="absolute inset-0 grid place-items-center bg-white/65">

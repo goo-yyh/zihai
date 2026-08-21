@@ -1,15 +1,21 @@
 "use client";
 
 import { Heart } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 
 import { useI18n } from "@/components/i18n-provider";
+import { ProductScreenshot } from "@/components/project/product-screenshot";
 import { Avatar } from "@/components/ui/avatar";
 import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
 import type { ProjectCardData } from "@/types/projects";
 
-export function ProjectCard({ project }: { project: ProjectCardData }) {
+export function ProjectCard({
+  project,
+  eager = false,
+}: {
+  project: ProjectCardData;
+  eager?: boolean;
+}) {
   const { t } = useI18n();
   return (
     <article className="group overflow-hidden rounded-2xl border bg-white shadow-[0_8px_30px_rgb(27_34_9/5%)] transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgb(27_34_9/10%)]">
@@ -20,12 +26,12 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
         className="block"
       >
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-          <Image
+          <ProductScreenshot
             src={project.imageUrl}
             alt={`${project.name} screenshot`}
-            fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover transition duration-500 group-hover:scale-[1.03]"
+            loading={eager ? "eager" : "lazy"}
+            className="transition-opacity duration-300 group-hover:opacity-95"
           />
           <span className="absolute right-3 top-3 flex gap-1.5 rounded-full border bg-white/90 p-2 shadow-sm backdrop-blur">
             {project.websiteUrl ? <ChromeIcon className="size-4" /> : null}

@@ -1,10 +1,10 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
-import Image from "next/image";
 import { useState } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
+import { ProductScreenshot } from "@/components/project/product-screenshot";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -59,13 +59,12 @@ export function ProjectImageCarousel({
       >
         {currentImage ? (
           <div className="relative h-full w-full">
-            <Image
+            <ProductScreenshot
               key={currentImage.id}
               src={currentImage.url}
               alt={`${projectName} ${t("Screenshot {number}", {
                 number: currentIndex + 1,
               })}`}
-              fill
               preload={currentIndex === 0}
               sizes="(max-width: 1024px) 100vw, 760px"
               onLoad={() => {
@@ -85,7 +84,7 @@ export function ProjectImageCarousel({
                 });
               }}
               className={cn(
-                "object-contain transition-opacity duration-200",
+                "transition-opacity duration-200",
                 currentImageLoaded && !currentImageFailed
                   ? "opacity-100"
                   : "opacity-0",
