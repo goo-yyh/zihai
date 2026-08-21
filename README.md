@@ -159,7 +159,9 @@ flowchart TD
 make help
 ```
 
-Preview 和 Production 命令通过全局 Vercel CLI 读取远端环境变量。安装并确认版本后，首次使用需要关联项目：
+Vercel 的 Sensitive 环境变量不能通过 `vercel env pull` 或 `vercel env run` 导出为本地数据库命令使用。因此数据库运维命令必须读取明确且被 Git 忽略的本地环境文件：Development 使用 `.env.local`，Preview 使用 `.env.preview`，Production 使用 `.env.production`。不要用 Vercel CLI 输出替代其中的数据库密钥。Preview 和 Production 文件还必须分别包含 `DATABASE_ENVIRONMENT=preview` 与 `DATABASE_ENVIRONMENT=production`；缺少或错配时命令会在访问数据库前停止。
+
+Vercel CLI 仍用于项目关联和部署管理。安装并确认版本后，首次使用需要关联项目：
 
 ```bash
 pnpm add -g vercel@59.1.3
@@ -167,26 +169,25 @@ make vercel-version
 make vercel-link
 ```
 
-| Make 命令                                                                      | 用途                                           |
-| ------------------------------------------------------------------------------ | ---------------------------------------------- |
-| `make dev`                                                                     | 启动本地开发服务器                             |
-| `make check`                                                                   | 运行完整质量门禁                               |
-| `make vercel-version`                                                          | 显示当前全局 Vercel CLI 版本                   |
-| `make db-generate`                                                             | 使用 `.env.local` 生成迁移                     |
-| `make db-check-development`                                                    | 检查 Development 迁移                          |
-| `make db-migrate-development`                                                  | 检查并迁移 Development 数据库                  |
-| `make db-studio-development`                                                   | 打开 Development Drizzle Studio                |
-| `make db-seed-development`                                                     | 创建开发模拟用户、已发布项目及 Blob 封面       |
-| `make db-check-preview`                                                        | 检查 `staging` 分支对应的 Preview 迁移         |
-| `make db-migrate-preview`                                                      | 检查并迁移 `staging` 分支对应的 Preview 数据库 |
-| `make db-check-preview PREVIEW_BRANCH=feature-x`                               | 检查其他 Preview 分支                          |
-| `make db-check-production`                                                     | 只读检查 Production 迁移                       |
-| `make db-migrate-production CONFIRM_PRODUCTION=yes`                            | 显式确认后检查并迁移 Production 数据库         |
-| `make admin-promote-development EMAIL=admin@example.com`                       | 提升 Development 中的已有用户                  |
-| `make admin-promote-preview EMAIL=admin@example.com`                           | 提升 Preview 中的已有用户                      |
-| `make admin-promote-production EMAIL=admin@example.com CONFIRM_PRODUCTION=yes` | 显式确认后提升 Production 用户                 |
+| Make 命令                                                                      | 用途                                             |
+| ------------------------------------------------------------------------------ | ------------------------------------------------ |
+| `make dev`                                                                     | 启动本地开发服务器                               |
+| `make check`                                                                   | 运行完整质量门禁                                 |
+| `make vercel-version`                                                          | 显示当前全局 Vercel CLI 版本                     |
+| `make db-generate`                                                             | 使用 `.env.local` 生成迁移                       |
+| `make db-check-development`                                                    | 检查 Development 迁移                            |
+| `make db-migrate-development`                                                  | 检查并迁移 Development 数据库                    |
+| `make db-studio-development`                                                   | 打开 Development Drizzle Studio                  |
+| `make db-seed-development`                                                     | 创建开发模拟用户、已发布项目及 Blob 封面         |
+| `make db-check-preview`                                                        | 使用 `.env.preview` 检查 Preview 迁移            |
+| `make db-migrate-preview`                                                      | 使用 `.env.preview` 检查并迁移 Preview 数据库    |
+| `make db-check-production`                                                     | 使用 `.env.production` 只读检查 Production 迁移  |
+| `make db-migrate-production CONFIRM_PRODUCTION=yes`                            | 使用 `.env.production` 显式确认后迁移 Production |
+| `make admin-promote-development EMAIL=admin@example.com`                       | 提升 Development 中的已有用户                    |
+| `make admin-promote-preview EMAIL=admin@example.com`                           | 提升 Preview 中的已有用户                        |
+| `make admin-promote-production EMAIL=admin@example.com CONFIRM_PRODUCTION=yes` | 显式确认后提升 Production 用户                   |
 
-Preview 默认使用 `staging` 分支，可通过 `PREVIEW_BRANCH` 覆盖。Development 默认读取 `.env.local`，可通过 `DEV_ENV_FILE` 覆盖。Production 数据迁移和管理员提升都要求传入 `CONFIRM_PRODUCTION=yes`，避免误操作。
+Development、Preview 和 Production 默认分别读取 `.env.local`、`.env.preview` 和 `.env.production`，可通过 `DEV_ENV_FILE`、`PREVIEW_ENV_FILE` 和 `PRODUCTION_ENV_FILE` 覆盖。命令会清除当前 shell 继承的数据库和站点变量，并校验 Preview 必须对应 `staging.zihai.dev`、Production 必须对应 `www.zihai.dev`。Production 数据迁移和管理员提升仍要求传入 `CONFIRM_PRODUCTION=yes`，避免误操作。
 
 底层 pnpm 命令仍可直接使用：
 
