@@ -83,6 +83,29 @@ select {
   margin: 1.35em 0 0.55em;
 }
 
+.prose-zihai h1 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.prose-zihai h2 {
+  font-size: 1.45rem;
+  line-height: 1.3;
+}
+
+.prose-zihai h3 {
+  font-size: 1.2rem;
+  line-height: 1.4;
+}
+
+.prose-zihai > :first-child {
+  margin-top: 0;
+}
+
+.prose-zihai > :last-child {
+  margin-bottom: 0;
+}
+
 .prose-zihai p,
 .prose-zihai ul,
 .prose-zihai ol {
@@ -108,6 +131,66 @@ select {
   padding: 0.12rem 0.34rem;
   font-family: var(--font-mono);
   font-size: 0.9em;
+}
+
+.prose-zihai pre {
+  margin: 1.1em 0;
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  background: #161a16;
+  padding: 1rem;
+  color: #f7f8f4;
+}
+
+.prose-zihai pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.prose-zihai blockquote {
+  margin: 1.1em 0;
+  border-left: 3px solid var(--primary);
+  padding-left: 1rem;
+  color: var(--muted-foreground);
+}
+
+.prose-zihai strong {
+  color: var(--foreground);
+  font-weight: 750;
+}
+
+.prose-zihai hr {
+  margin: 1.5em 0;
+  border-color: var(--border);
+}
+
+.prose-zihai table {
+  width: 100%;
+  margin: 1.1em 0;
+  border-collapse: collapse;
+  font-size: 0.925em;
+}
+
+.prose-zihai th,
+.prose-zihai td {
+  border: 1px solid var(--border);
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+}
+
+.prose-zihai th {
+  background: var(--muted);
+  color: var(--foreground);
+  font-weight: 750;
+}
+
+.prose-zihai img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.1em auto;
+  border-radius: 0.75rem;
 }
 
 .prose-zihai a {

@@ -3,10 +3,9 @@
 import { History, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import { useI18n } from "@/components/i18n-provider";
+import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { formatDate } from "@/lib/utils";
 
 export type RecentUpdateItem = {
@@ -134,11 +133,9 @@ export function RecentUpdates({ items }: { items: RecentUpdateItem[] }) {
                       ))}
                     </div>
                   ) : null}
-                  <div className="prose-zihai mt-5">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {item.description}
-                    </ReactMarkdown>
-                  </div>
+                  <MarkdownContent className="mt-5">
+                    {item.description}
+                  </MarkdownContent>
                 </article>
               ))}
             </div>

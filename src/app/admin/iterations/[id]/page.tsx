@@ -2,11 +2,10 @@ import { Check, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import { approveIterationAction } from "@/actions/admin-iteration";
 import { RejectionForm } from "@/components/admin/review-form";
+import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,10 +82,8 @@ export default async function AdminIterationPage({
           <CardTitle>{t("What changed?")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <article className="prose-zihai">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {iteration.description}
-            </ReactMarkdown>
+          <article>
+            <MarkdownContent>{iteration.description}</MarkdownContent>
           </article>
         </CardContent>
       </Card>

@@ -2,8 +2,6 @@ import { Archive, Check, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import {
   approveProjectAction,
@@ -11,6 +9,7 @@ import {
   republishProjectAction,
 } from "@/actions/admin-project";
 import { RejectionForm } from "@/components/admin/review-form";
+import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { Avatar } from "@/components/ui/avatar";
 import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
 import { Badge } from "@/components/ui/badge";
@@ -91,10 +90,8 @@ export default async function AdminProjectPage({
           <CardTitle>{t("Description")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <article className="prose-zihai">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {project.description}
-            </ReactMarkdown>
+          <article>
+            <MarkdownContent>{project.description}</MarkdownContent>
           </article>
         </CardContent>
       </Card>

@@ -253,6 +253,50 @@ export function FormPageSkeleton() {
   );
 }
 
+export function SubmitProjectSkeleton() {
+  return (
+    <LoadingRegion>
+      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+        <div className="mb-7 space-y-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-10 w-72 max-w-full" />
+          <Skeleton className="h-4 w-full max-w-xl" />
+          <Skeleton className="h-4 w-4/5 max-w-lg" />
+        </div>
+        <div className="rounded-2xl border bg-white">
+          <div className="space-y-3 border-b p-5 sm:p-6">
+            <Skeleton className="h-6 w-36" />
+            <Skeleton className="h-4 w-3/4 max-w-md" />
+          </div>
+          <div className="space-y-5 p-5 sm:p-6">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-11 w-full rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-8 w-40 rounded-lg" />
+              <Skeleton className="h-60 w-full rounded-xl" />
+            </div>
+            <div className="rounded-2xl border bg-muted/40 p-4">
+              <Skeleton className="h-4 w-44" />
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {Array.from({ length: 2 }, (_, index) => (
+                  <div key={index} className="space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Skeleton className="h-10 w-36 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </LoadingRegion>
+  );
+}
+
 export function AdminOverviewSkeleton() {
   return (
     <LoadingRegion>
