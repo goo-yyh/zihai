@@ -3,24 +3,35 @@
 import { LoaderCircle, Save, Send, Trash2 } from "lucide-react";
 import {
   createContext,
+  useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
 import { toast } from "sonner";
 
 import { useI18n } from "@/components/i18n-provider";
+import { saveThenSubmitProject } from "@/components/project/review-submit-flow";
 import { Button } from "@/components/ui/button";
+
+type SaveProjectBeforeSubmit = () => Promise<boolean>;
 
 type ReviewActionState = {
   submitting: boolean;
   setSubmitting: (value: boolean) => void;
   saving: boolean;
   setSaving: (value: boolean) => void;
+  registerSaveProject: (handler: SaveProjectBeforeSubmit) => () => void;
+  saveProjectBeforeSubmit: SaveProjectBeforeSubmit;
 };
 
 const ReviewActionContext = createContext<ReviewActionState | null>(null);
+
+function ignoreSaveProjectRegistration() {
+  return () => undefined;
+}
 
 // Guards the whole edit page while footer actions are in flight: the submit
 // button shows its own loading state, and the surrounding content is made
@@ -32,9 +43,30 @@ export function ReviewSubmitBarrier({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const saveProjectRef = useRef<SaveProjectBeforeSubmit | null>(null);
+  const registerSaveProject = useCallback(
+    (handler: SaveProjectBeforeSubmit) => {
+      saveProjectRef.current = handler;
+      return () => {
+        if (saveProjectRef.current === handler) saveProjectRef.current = null;
+      };
+    },
+    [],
+  );
+  const saveProjectBeforeSubmit = useCallback(async () => {
+    const handler = saveProjectRef.current;
+    return handler ? handler() : false;
+  }, []);
   const value = useMemo(
-    () => ({ submitting, setSubmitting, saving, setSaving }),
-    [submitting, saving],
+    () => ({
+      submitting,
+      setSubmitting,
+      saving,
+      setSaving,
+      registerSaveProject,
+      saveProjectBeforeSubmit,
+    }),
+    [registerSaveProject, saveProjectBeforeSubmit, submitting, saving],
   );
 
   return (
@@ -58,8 +90,11 @@ export function useReviewActions() {
   const context = useContext(ReviewActionContext);
   const [localSaving, setLocalSaving] = useState(false);
   return {
+    submitting: context?.submitting ?? false,
     saving: context?.saving ?? localSaving,
     setSaving: context?.setSaving ?? setLocalSaving,
+    registerSaveProject:
+      context?.registerSaveProject ?? ignoreSaveProjectRegistration,
   };
 }
 
@@ -83,7 +118,7 @@ export function SubmitReviewForm({
 }) {
   const { t } = useI18n();
   const context = useContext(ReviewActionContext);
-  const busy = context?.submitting ?? false;
+  const busy = Boolean(context?.submitting || context?.saving);
   const [, startTransition] = useTransition();
 
   return (
@@ -95,7 +130,14 @@ export function SubmitReviewForm({
         context?.setSubmitting(true);
         startTransition(async () => {
           try {
-            await action();
+            const submitted = await saveThenSubmitProject(
+              async () => context?.saveProjectBeforeSubmit() ?? false,
+              action,
+            );
+            if (!submitted) {
+              context?.setSubmitting(false);
+              return;
+            }
             context?.setSubmitting(false);
           } catch (error) {
             if (isRedirectError(error)) {
@@ -174,9 +216,14 @@ export function DeleteProjectButton({
 // the pending state comes from the form itself via useReviewActions().
 export function SaveProjectButton({ formId }: { formId: string }) {
   const { t } = useI18n();
-  const { saving } = useReviewActions();
+  const { saving, submitting } = useReviewActions();
   return (
-    <Button type="submit" form={formId} variant="outline" disabled={saving}>
+    <Button
+      type="submit"
+      form={formId}
+      variant="outline"
+      disabled={saving || submitting}
+    >
       {saving ? (
         <LoaderCircle className="size-4 animate-spin" />
       ) : (

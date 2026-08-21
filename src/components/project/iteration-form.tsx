@@ -9,9 +9,9 @@ import {
 import { FieldError, FormMessage } from "@/components/forms/form-message";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { useI18n } from "@/components/i18n-provider";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { initialActionState } from "@/types/actions";
 
 export function IterationForm({
@@ -47,10 +47,10 @@ export function IterationForm({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="description">{t("What changed?")}</Label>
-        <Textarea
+        <MarkdownEditor
           id="description"
           name="description"
-          defaultValue={iteration?.description}
+          initialValue={iteration?.description}
           minLength={10}
           maxLength={4000}
           rows={9}

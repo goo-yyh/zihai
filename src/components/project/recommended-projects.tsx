@@ -1,11 +1,11 @@
 "use client";
 
 import { Compass } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
+import { ProductScreenshot } from "@/components/project/product-screenshot";
 
 type PoolProject = {
   id: string;
@@ -16,22 +16,12 @@ type PoolProject = {
 
 const RECOMMENDATION_COUNT = 5;
 
-// The pick happens in client state on mount: likes and other Server Action
-// revalidations re-render the page but keep this component's state, so the
-// list only reshuffles on a real page load or navigation.
+// The server passes one selected snapshot so SSR and hydration render the same
+// projects. Keeping that snapshot in state also prevents Server Action
+// revalidations (for example liking) from reshuffling the current sidebar.
 export function RecommendedProjects({ pool }: { pool: PoolProject[] }) {
   const { t } = useI18n();
-  const [projects] = useState(() => {
-    const candidates = [...pool];
-    for (let index = candidates.length - 1; index > 0; index -= 1) {
-      const swap = Math.floor(Math.random() * (index + 1));
-      [candidates[index], candidates[swap]] = [
-        candidates[swap],
-        candidates[index],
-      ];
-    }
-    return candidates.slice(0, RECOMMENDATION_COUNT);
-  });
+  const [projects] = useState(() => pool.slice(0, RECOMMENDATION_COUNT));
 
   if (!projects.length) return null;
 
@@ -49,12 +39,10 @@ export function RecommendedProjects({ pool }: { pool: PoolProject[] }) {
             >
               <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg border bg-muted">
                 {project.imageUrl ? (
-                  <Image
+                  <ProductScreenshot
                     src={project.imageUrl}
                     alt={project.name}
-                    fill
                     sizes="80px"
-                    className="object-cover"
                   />
                 ) : null}
               </div>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 
 import { I18nProvider } from "@/components/i18n-provider";
@@ -41,6 +42,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <main className="flex-1">{children}</main>
           <Toaster richColors position="bottom-right" />
         </I18nProvider>
+        <Analytics />
       </body>
     </html>
   );

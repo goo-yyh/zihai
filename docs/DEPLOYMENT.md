@@ -10,6 +10,7 @@ The target deployment is Vercel (Pro recommended for production controls), Neon 
 4. Generate a unique production `BETTER_AUTH_SECRET`; never reuse the local or preview secret.
 5. Set `BETTER_AUTH_URL` and `NEXT_PUBLIC_SITE_URL` to the final HTTPS origin with no trailing slash.
 6. Create a Resend API key for the verified `aioff.dev` domain and set `RESEND_API_KEY`. `AUTH_EMAIL_FROM` is optional and defaults to `zihAI <auth@aioff.dev>`. Resend configuration is validated only when an authentication email is sent, so public routes do not depend on the mail provider.
+7. Open the Vercel project's Analytics page and enable Web Analytics. The application mounts `@vercel/analytics` in the root layout, so no analytics environment variable is required.
 
 Use separate databases, Blob stores, OAuth apps, Resend API keys, and auth secrets for preview and production deployments.
 
@@ -70,6 +71,7 @@ Deploy the same commit verified by CI. After deployment:
 6. Approve the project and confirm it appears on `/`, `/p/{slug}`, `/u/{username}`, and `/sitemap.xml`.
 7. Create and approve an iteration, then verify the public build log.
 8. Confirm `/admin`, `/dashboard`, and `/settings` are inaccessible to unauthorized users.
+9. Confirm a page visit sends a request to Vercel's Web Analytics endpoint and appears in the Analytics dashboard.
 
 ## 5. Operations and rollback
 
