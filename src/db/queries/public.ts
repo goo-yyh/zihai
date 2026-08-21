@@ -150,10 +150,9 @@ export const getPublicProjects = cache(getCachedPublicProjects);
 
 const RECOMMENDATION_POOL_SIZE = 20;
 
-// Returns the latest approved projects as a stable ordered pool; the random
-// pick of five happens in the client component so that Server Action
-// revalidations (e.g. liking) do not reshuffle the sidebar, while a real page
-// load does.
+// Returns the latest approved projects as a stable ordered pool. The public
+// page selects a random server snapshot before passing it to the client so the
+// server-rendered HTML and hydration payload always agree.
 export const getRecommendationPool = cache(async (excludeSlug: string) => {
   return getDb()
     .select({

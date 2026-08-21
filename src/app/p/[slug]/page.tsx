@@ -3,9 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
+import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { ProjectImageCarousel } from "@/components/project/project-image-carousel";
 import { LikeButton } from "@/components/project/like-button";
 import { RecentUpdates } from "@/components/project/recent-updates";
@@ -22,6 +21,7 @@ import {
 import { isFeatureEnabled } from "@/lib/features";
 import { getSession } from "@/lib/session";
 import { getTranslations } from "@/lib/i18n-server";
+import { selectRandomRecommendations } from "@/lib/recommendations";
 import { SITE_DESCRIPTION } from "@/lib/site";
 import { formatDate, truncate } from "@/lib/utils";
 
@@ -32,32 +32,34 @@ async function ProjectSidebar({
   slug: string;
   iterationsEnabled: boolean;
 }) {
-  if (!iterationsEnabled) {
-    const recommendations = await getRecommendationPool(slug);
-    return <RecommendedProjects pool={recommendations} />;
+  if (iterationsEnabled) {
+    const iterations = await getPublicProjectIterations(slug);
+    if (iterations.length) {
+      return (
+        <RecentUpdates
+          items={iterations.map((iteration) => ({
+            id: iteration.id,
+            versionLabel: iteration.versionLabel,
+            description: iteration.description,
+            approvedAt: iteration.approvedAt
+              ? new Date(iteration.approvedAt).toISOString()
+              : null,
+            createdAt: new Date(iteration.createdAt).toISOString(),
+            images: iteration.images.map((image) => ({
+              id: image.id,
+              url: image.url,
+            })),
+          }))}
+        />
+      );
+    }
   }
 
-  const iterations = await getPublicProjectIterations(slug);
-  if (!iterations.length) {
-    const recommendations = await getRecommendationPool(slug);
-    return <RecommendedProjects pool={recommendations} />;
-  }
-
+  const recommendations = await getRecommendationPool(slug);
   return (
-    <RecentUpdates
-      items={iterations.map((iteration) => ({
-        id: iteration.id,
-        versionLabel: iteration.versionLabel,
-        description: iteration.description,
-        approvedAt: iteration.approvedAt
-          ? new Date(iteration.approvedAt).toISOString()
-          : null,
-        createdAt: new Date(iteration.createdAt).toISOString(),
-        images: iteration.images.map((image) => ({
-          id: image.id,
-          url: image.url,
-        })),
-      }))}
+    <RecommendedProjects
+      key={slug}
+      pool={selectRandomRecommendations(recommendations, 5)}
     />
   );
 }
@@ -206,10 +208,8 @@ export default async function ProjectPage({ params }: PageProps<"/p/[slug]">) {
             projectName={project.name}
           />
 
-          <article className="prose-zihai mt-10 rounded-2xl border bg-white p-6 sm:p-8">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {project.description}
-            </ReactMarkdown>
+          <article className="mt-10 rounded-2xl border bg-white p-6 sm:p-8">
+            <MarkdownContent>{project.description}</MarkdownContent>
           </article>
         </main>
 

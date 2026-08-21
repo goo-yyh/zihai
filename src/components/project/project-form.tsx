@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { createProjectAction, updateProjectAction } from "@/actions/project";
 import { FieldError } from "@/components/forms/form-message";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { useI18n } from "@/components/i18n-provider";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { useReviewActions } from "@/components/project/review-submit";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { initialActionState, type ActionState } from "@/types/actions";
 
 type ProjectValues = {
@@ -40,34 +40,61 @@ export function ProjectForm({
   formId?: string;
 }) {
   const { t } = useI18n();
-  const { setSaving } = useReviewActions();
+  const { registerSaveProject, setSaving } = useReviewActions();
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, setState] = useState<ActionState>(initialActionState);
-  const serverAction = project.id
-    ? updateProjectAction.bind(null, project.id)
-    : createProjectAction;
+
+  const saveProject = useCallback(
+    async (formData: FormData, notifyOnSuccess = true) => {
+      setSaving(true);
+      try {
+        const result = project.id
+          ? await updateProjectAction(project.id, initialActionState, formData)
+          : await createProjectAction(initialActionState, formData);
+        setState(result);
+        if (result.status === "success" && result.message && notifyOnSuccess) {
+          toast.success(t(result.message));
+        } else if (result.status === "error" && result.message) {
+          toast.error(t(result.message));
+        }
+        return result.status === "success";
+      } catch (error) {
+        if (isRedirectError(error)) throw error;
+        setState({
+          status: "error",
+          message: "Unable to save the project.",
+        });
+        toast.error(t("Unable to save the project."));
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [project.id, setSaving, t],
+  );
+
+  const saveCurrentProject = useCallback(async () => {
+    const form = formRef.current;
+    if (!form) {
+      toast.error(t("Unable to save the project."));
+      return false;
+    }
+    if (!form.reportValidity()) return false;
+    return saveProject(new FormData(form), false);
+  }, [saveProject, t]);
+
+  useEffect(() => {
+    if (!formId || !project.id) return;
+    return registerSaveProject(saveCurrentProject);
+  }, [formId, project.id, registerSaveProject, saveCurrentProject]);
 
   async function submit(formData: FormData) {
-    setSaving(true);
-    try {
-      const result = await serverAction(initialActionState, formData);
-      setState(result);
-      if (result.status === "success" && result.message) {
-        toast.success(t(result.message));
-      }
-    } catch (error) {
-      if (isRedirectError(error)) throw error;
-      setState({
-        status: "error",
-        message: "Unable to save the project.",
-      });
-      toast.error(t("Unable to save the project."));
-    } finally {
-      setSaving(false);
-    }
+    await saveProject(formData);
   }
 
   return (
     <form
+      ref={formRef}
       id={formId}
       action={submit}
       // React runs form actions inside a transition that defers state
@@ -92,10 +119,10 @@ export function ProjectForm({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="description">{t("What did you build?")}</Label>
-        <Textarea
+        <MarkdownEditor
           id="description"
           name="description"
-          defaultValue={project.description}
+          initialValue={project.description}
           minLength={10}
           maxLength={4000}
           rows={10}

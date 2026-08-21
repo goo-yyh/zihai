@@ -1,1 +1,1 @@
-export { FormPageSkeleton as default } from "@/components/loading/page-skeletons";
+export { SubmitProjectSkeleton as default } from "@/components/loading/page-skeletons";
