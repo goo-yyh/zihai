@@ -65,7 +65,7 @@ export default async function OnboardingPage({
           </CardTitle>
           <CardDescription className="mt-2 leading-6">
             {t(
-              "Choose a public username, confirm your avatar, and verify a private contact email.",
+              "Choose a public username and password, confirm your avatar, and add a private contact email.",
             )}
           </CardDescription>
         </CardHeader>
@@ -75,7 +75,7 @@ export default async function OnboardingPage({
             suggestedUsername={suggested.length >= 3 ? suggested : "builder"}
             contactEmail={contactEmail}
             contactEmailMissing={!contactEmail}
-            oauthProvider={identity?.provider}
+            identityProvider={identity?.provider}
             returnTo={returnTo}
           />
         </CardContent>

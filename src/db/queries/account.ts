@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { account, user } from "@/db/schema";
@@ -9,6 +9,7 @@ export async function getOnboardingIdentity(userId: string) {
   const rows = await getDb()
     .select({
       email: user.email,
+      emailVerified: user.emailVerified,
       contactEmail: user.contactEmail,
       providerId: account.providerId,
     })
@@ -26,11 +27,29 @@ export async function getOnboardingIdentity(userId: string) {
     ? "google"
     : providers.includes("github")
       ? "github"
-      : providers[0] || null;
+      : first.emailVerified
+        ? "email"
+        : providers[0] || null;
 
   return {
     email: first.email,
     contactEmail: first.contactEmail,
     provider,
   };
+}
+
+export async function hasCredentialAccount(userId: string) {
+  const [credential] = await getDb()
+    .select({ id: account.id })
+    .from(account)
+    .where(
+      and(
+        eq(account.userId, userId),
+        eq(account.providerId, "credential"),
+        isNotNull(account.password),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(credential);
 }

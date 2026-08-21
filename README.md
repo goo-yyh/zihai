@@ -1,13 +1,13 @@
 # zihAI
 
-zihAI 是一个面向独立 AI 产品的人工审核发布平台。开发者通过 GitHub 或 Google 登录，完成个人资料后即可提交产品截图和持续更新日志；项目与迭代内容只有通过管理员审核后才会公开展示。
+zihAI 是一个面向独立 AI 产品的人工审核发布平台。开发者通过 `qq.com` 或 `163.com` 邮箱验证码、GitHub 或 Google 完成身份验证，设置用户名和密码后即可提交产品截图和持续更新日志；项目与迭代内容只有通过管理员审核后才会公开展示。
 
 > 当前迭代功能暂时关闭。相关数据模型和实现仍然保留，但用户端、公开页和管理端入口均不可访问；恢复时只需调整 `src/lib/features.ts` 中的集中功能开关。
 
 ## 核心能力
 
-- 使用 Better Auth 接入 GitHub、Google OAuth，登录页仅提供这两种 OAuth 方式
-- 强制完成用户名、头像和私密联系邮箱设置后才能创建内容或点赞；OAuth 头像不可用时使用站点默认头像
+- 使用 Better Auth 接入 Resend 邮箱验证码（身份邮箱仅支持 `qq.com` 和 `163.com`）、GitHub 和 Google OAuth，并支持用户名密码登录；发送邮件前必须完成一次性图片验证码
+- 强制完成用户名、密码、头像和私密联系邮箱设置后才能创建内容或点赞；OAuth 头像不可用时使用站点默认头像
 - 支持项目草稿、提交审核、驳回反馈、重新提交与删除
 - 每个项目和迭代支持 1～3 张有序截图
 - 只允许点赞已审核项目，数据库保证同一用户不能重复点赞
@@ -58,7 +58,7 @@ flowchart TD
 
 ## 关键业务规则
 
-- 新账号只能通过 GitHub 或 Google OAuth 创建。
+- 新账号只能在 `qq.com` 或 `163.com` 邮箱验证码、GitHub 或 Google 完成身份验证后创建；私密联系邮箱不受该身份邮箱后缀限制。
 - 未完成引导流程的用户不能创建项目、迭代或点赞。
 - 一个项目至少填写网站地址或 GitHub 仓库地址之一，也可以同时填写两者。
 - 项目和迭代在提交及审核时必须拥有 1～3 张 JPEG、PNG 或 WebP 图片。
@@ -78,6 +78,7 @@ flowchart TD
 - Neon PostgreSQL 数据库
 - 公开访问的 Vercel Blob Store
 - GitHub 和 Google OAuth 应用
+- 已验证 `aioff.dev` 的 Resend 账号与 API Key
 
 ## 本地开发
 
@@ -132,17 +133,21 @@ flowchart TD
 | `GITHUB_CLIENT_SECRET`  | GitHub OAuth Client Secret                       |
 | `GOOGLE_CLIENT_ID`      | Google OAuth Client ID                           |
 | `GOOGLE_CLIENT_SECRET`  | Google OAuth Client Secret                       |
+| `RESEND_API_KEY`        | Resend API Key，在发送认证邮件时校验             |
+| `AUTH_EMAIL_FROM`       | 可选；默认 `zihAI <auth@aioff.dev>`              |
 | `BLOB_READ_WRITE_TOKEN` | 公开 Vercel Blob Store 的读写令牌                |
 | `NEXT_PUBLIC_SITE_URL`  | 不带末尾斜杠的站点公开规范地址                   |
 
-只有 `NEXT_PUBLIC_SITE_URL` 可以暴露给浏览器。数据库、认证、OAuth 和 Blob 密钥都不能使用 `NEXT_PUBLIC_` 前缀。
+只有 `NEXT_PUBLIC_SITE_URL` 可以暴露给浏览器。数据库、认证、OAuth、Resend 和 Blob 密钥都不能使用 `NEXT_PUBLIC_` 前缀。
+
+Resend 配置采用按需初始化：缺少邮件配置不会阻止公开页面或 OAuth/用户名密码认证读取会话，但发送邮箱验证码前仍会严格校验 `RESEND_API_KEY`。本地开发和部署环境需要提供真实的 `re_` 开头 API Key；未设置 `AUTH_EMAIL_FROM` 时使用已验证的 `aioff.dev` 发件人默认值。
 
 ## 创建首位管理员
 
 系统不会自动将第一个注册用户提升为管理员：
 
-1. 使用 GitHub 或 Google 登录。
-2. 完成用户名、头像和联系邮箱设置；Google 默认使用 Google 邮箱，GitHub 未返回邮箱时需要手动填写。
+1. 使用 `qq.com` 或 `163.com` 邮箱验证码、GitHub 或 Google 登录。
+2. 完成用户名、密码、头像和联系邮箱设置；验证邮箱和 Google 默认使用身份邮箱，GitHub 未返回邮箱时需要手动填写。
 3. 对目标环境运行：
 
    ```bash

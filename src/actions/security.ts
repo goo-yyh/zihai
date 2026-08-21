@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getDb, withTransaction } from "@/db";
+import { hasCredentialAccount } from "@/db/queries/account";
 import {
   iterationImages,
   projectImages,
@@ -16,10 +17,91 @@ import {
   user,
 } from "@/db/schema";
 import { getAuth } from "@/lib/auth";
+import { safeActionError, validationError } from "@/lib/action-utils";
 import { UserFacingError } from "@/lib/errors";
 import { assertOnboardedUser } from "@/lib/session";
+import { passwordSchema } from "@/lib/validations";
 import { deleteBlobsBestEffort } from "@/server/blob";
 import { revalidateUserPresentation } from "@/server/cache";
+import type { ActionState } from "@/types/actions";
+
+const newPasswordSchema = z
+  .object({
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match.",
+  });
+
+const changePasswordSchema = newPasswordSchema.and(
+  z.object({
+    currentPassword: z.string().min(1, "Enter your current password."),
+  }),
+);
+
+export async function setPasswordAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await assertOnboardedUser();
+  const parsed = newPasswordSchema.safeParse({
+    newPassword: formData.get("newPassword"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+  if (!parsed.success) return validationError(parsed.error);
+
+  if (await hasCredentialAccount(session.user.id)) {
+    return { status: "error", message: "A password is already set." };
+  }
+
+  try {
+    await getAuth().api.setPassword({
+      headers: await headers(),
+      body: { newPassword: parsed.data.newPassword },
+    });
+    return { status: "success", message: "Password set successfully." };
+  } catch (error) {
+    return safeActionError(error, "Unable to set password.");
+  }
+}
+
+export async function changePasswordAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await assertOnboardedUser();
+  const parsed = changePasswordSchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    newPassword: formData.get("newPassword"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+  if (!parsed.success) return validationError(parsed.error);
+
+  if (!(await hasCredentialAccount(session.user.id))) {
+    return { status: "error", message: "Set a password before changing it." };
+  }
+
+  try {
+    await getAuth().api.changePassword({
+      headers: await headers(),
+      body: {
+        currentPassword: parsed.data.currentPassword,
+        newPassword: parsed.data.newPassword,
+        revokeOtherSessions: true,
+      },
+    });
+    return { status: "success", message: "Password changed successfully." };
+  } catch (error) {
+    console.error("Unable to change password", error);
+    return {
+      status: "error",
+      message:
+        "Current password is incorrect or the password could not be changed.",
+    };
+  }
+}
 
 export async function logoutAction() {
   await getAuth().api.signOut({ headers: await headers() });

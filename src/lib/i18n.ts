@@ -115,13 +115,48 @@ const zhCN: Record<string, string> = {
     "登录后即可提交产品并支持独立 AI 创作者。",
   "Continue with GitHub": "使用 GitHub 继续",
   "Continue with Google": "使用 Google 继续",
-  "Sign in with GitHub or Google.": "请使用 GitHub 或 Google 登录。",
+  "Continue with email": "使用邮箱继续",
+  "Sign up with email": "使用邮箱注册",
+  "Create an account": "注册",
+  "Create your zihAI account": "注册 zihAI 账户",
+  "Verify your email before creating your builder identity.":
+    "验证邮箱后即可创建你的创造者身份。",
+  "Don't have an account?": "还没有账户？",
+  "Already have an account?": "已有账户？",
+  "Email address": "邮箱地址",
+  "Send verification code": "发送验证码",
+  "Verification code": "验证码",
+  "Verify and continue": "验证并继续",
+  "Use a different email": "使用其他邮箱",
+  "A new account is created only after the email is verified.":
+    "只有完成邮箱验证后才会创建新账户。",
+  "Verification code sent. Check your inbox.": "验证码已发送，请检查收件箱。",
+  "Unable to send verification code.": "无法发送验证码。",
+  "Verification code is invalid or expired.": "验证码无效或已过期。",
+  "Supported email domains: qq.com and 163.com.":
+    "仅支持 qq.com 和 163.com 邮箱。",
+  "Only qq.com and 163.com email addresses are supported.":
+    "仅支持 qq.com 和 163.com 邮箱。",
+  "Image verification code": "图片验证码",
+  "Enter the characters shown": "请输入图片中的字符",
+  "Verify and send code": "验证并发送邮件验证码",
+  "Refresh image": "换一张",
+  "Change email address": "修改邮箱地址",
+  "Image verification code is invalid or expired.": "图片验证码错误或已过期。",
+  "Unable to load image verification code.": "无法加载图片验证码。",
+  "Too many verification requests. Try again later.":
+    "验证码请求过于频繁，请稍后再试。",
+  "Sign in with username and password": "使用用户名和密码登录",
+  Password: "密码",
+  "Confirm password": "确认密码",
+  "Username or password is incorrect.": "用户名或密码错误。",
+  or: "或",
   Username: "用户名",
   "Sign in failed.": "登录失败。",
   "One last step": "最后一步",
   "Create your builder identity": "创建你的创造者身份",
-  "Choose a public username, confirm your avatar, and verify a private contact email.":
-    "选择公开用户名、确认头像，并确认一个私密联系邮箱。",
+  "Choose a public username and password, confirm your avatar, and add a private contact email.":
+    "设置公开用户名和密码、确认头像，并添加一个私密联系邮箱。",
   "Your public avatar": "你的公开头像",
   "Use the zihAI default avatar or upload a custom image.":
     "使用 zihAI 默认头像，或上传自定义图片。",
@@ -132,8 +167,12 @@ const zhCN: Record<string, string> = {
     "GitHub 未提供邮箱，请填写一个邮箱用于审核和账户沟通。",
   "Using your Google email. It is private and used only for review and account communications.":
     "默认使用你的 Google 邮箱。该邮箱不会公开，仅用于审核和账户沟通。",
+  "Using your verified email. It is private and used only for review and account communications.":
+    "默认使用已验证的邮箱。该邮箱不会公开，仅用于审核和账户沟通。",
   "Using your OAuth email. It is private and used only for review and account communications.":
     "默认使用 OAuth 返回的邮箱。该邮箱不会公开，仅用于审核和账户沟通。",
+  "After setup, you can sign in with this username and password.":
+    "完成设置后，可以使用该用户名和密码登录。",
   "Setting up your account…": "正在设置账户…",
   "Nothing shipped here": "这里还没有内容",
   "This page does not exist, or the content is not publicly approved.":
@@ -300,10 +339,18 @@ const zhCN: Record<string, string> = {
     "该邮箱不会公开，仅用于审核和账户沟通。",
   "Save profile": "保存个人资料",
   "Security settings": "安全设置",
-  "Manage OAuth access and account data.": "管理 OAuth 登录和账户数据。",
-  "OAuth-only sign-in": "仅使用 OAuth 登录",
-  "Your account uses GitHub or Google. Password sign-in is disabled.":
-    "你的账户使用 GitHub 或 Google 登录，密码登录已关闭。",
+  "Manage sign-in methods and account data.": "管理登录方式和账户数据。",
+  "Set password": "设置密码",
+  "Change password": "修改密码",
+  "Set a password to sign in with your public username.":
+    "设置密码后即可使用公开用户名登录。",
+  "Changing your password revokes your other active sessions.":
+    "修改密码后，其他活跃会话将被撤销。",
+  "New password": "新密码",
+  "Confirm new password": "确认新密码",
+  "Current password": "当前密码",
+  "Setting password…": "正在设置密码…",
+  "Changing password…": "正在修改密码…",
   "Delete account": "删除账户",
   "This permanently removes your profile, projects, iterations, likes, and uploaded Blob images.":
     "这会永久删除你的个人资料、项目、迭代、点赞和已上传的 Blob 图片。",
@@ -420,6 +467,17 @@ const zhCN: Record<string, string> = {
   "Profile updated.": "个人资料已更新。",
   "Unable to update your profile.": "无法更新个人资料。",
   "Unable to finish onboarding.": "无法完成账户设置。",
+  "Password set successfully.": "密码设置成功。",
+  "Password changed successfully.": "密码修改成功。",
+  "Unable to set password.": "无法设置密码。",
+  "A password is already set.": "密码已设置。",
+  "Set a password before changing it.": "请先设置密码。",
+  "Current password is incorrect or the password could not be changed.":
+    "当前密码错误，或密码无法修改。",
+  "Enter your current password.": "请输入当前密码。",
+  "Passwords do not match.": "两次输入的密码不一致。",
+  "Password must be at least 8 characters.": "密码至少需要 8 个字符。",
+  "Password must be at most 128 characters.": "密码最多 128 个字符。",
   "Username must be at least 3 characters.": "用户名至少需要 3 个字符。",
   "Username must be at most 24 characters.": "用户名最多 24 个字符。",
   "Use only a-z, 0-9, _ or -.": "只能使用 a-z、0-9、_ 或 -。",

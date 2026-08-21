@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { deleteAccountAction } from "@/actions/security";
+import { PasswordForm } from "@/components/settings/password-form";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { hasCredentialAccount } from "@/db/queries/account";
 import { getTranslations } from "@/lib/i18n-server";
 import { requireOnboardedUser } from "@/lib/session";
 
@@ -20,27 +22,35 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SecuritySettingsPage() {
-  const [, { t }] = await Promise.all([
+  const [session, { t }] = await Promise.all([
     requireOnboardedUser(),
     getTranslations(),
   ]);
+  const hasPassword = await hasCredentialAccount(session.user.id);
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-black tracking-tight">{t("Security")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {t("Manage OAuth access and account data.")}
+          {t("Manage sign-in methods and account data.")}
         </p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>{t("OAuth-only sign-in")}</CardTitle>
+          <CardTitle>
+            {t(hasPassword ? "Change password" : "Set password")}
+          </CardTitle>
           <CardDescription>
             {t(
-              "Your account uses GitHub or Google. Password sign-in is disabled.",
+              hasPassword
+                ? "Changing your password revokes your other active sessions."
+                : "Set a password to sign in with your public username.",
             )}
           </CardDescription>
         </CardHeader>
+        <CardContent className="pt-4">
+          <PasswordForm hasPassword={hasPassword} />
+        </CardContent>
       </Card>
       <Card className="border-rose-200">
         <CardHeader>
