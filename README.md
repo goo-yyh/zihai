@@ -16,6 +16,7 @@ zihAI 是一个面向独立 AI 产品的人工审核发布平台。开发者通�
 - 提供项目/迭代审核、用户角色、封禁和审计日志后台
 - 使用 Neon PostgreSQL、Drizzle ORM 与版本化 SQL 迁移
 - 使用带签名、短时效上传意图的 Vercel Blob 浏览器直传
+- 使用 Vercel Web Analytics 统计页面访问
 - 覆盖公开页、工作台、设置页和管理后台的响应式界面
 - 提供完整的简体中文和英文界面，并在站点顶部即时切换语言
 
@@ -25,7 +26,7 @@ zihAI 是一个面向独立 AI 产品的人工审核发布平台。开发者通�
 - Tailwind CSS 4
 - Better Auth 1.6
 - Neon PostgreSQL、Drizzle ORM
-- Vercel Blob
+- Vercel Blob、Web Analytics
 - Zod 4
 - Vitest、ESLint、Prettier、GitHub Actions
 

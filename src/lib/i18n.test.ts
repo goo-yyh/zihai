@@ -22,6 +22,7 @@ describe("i18n", () => {
     expect(
       translate("en", "Welcome back, @{username}", { username: "ai" }),
     ).toBe("Welcome back, @ai");
+    expect(translate("zh-CN", "Enlarge image")).toBe("放大图片");
   });
 
   it("keeps unknown provider messages safe and readable", () => {
