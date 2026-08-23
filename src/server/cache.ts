@@ -96,6 +96,15 @@ export function revalidateAdminUsers() {
   revalidatePath("/admin/audit");
 }
 
+export function revalidateIdeaContent(ideaId?: string) {
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/ideas");
+  revalidatePath("/admin");
+  revalidatePath("/admin/ideas");
+  revalidatePath("/admin/audit");
+  if (ideaId) revalidatePath(`/admin/ideas/${ideaId}`);
+}
+
 export function revalidateUserPresentation(
   userId: string,
   ...usernames: Array<string | null | undefined>

@@ -2,6 +2,7 @@ import {
   CheckCircle2,
   Clock3,
   FolderKanban,
+  Lightbulb,
   ListChecks,
   Mailbox,
   Users,
@@ -40,6 +41,8 @@ export default async function AdminPage() {
     ["Approved", stats.approvedProjects, CheckCircle2],
     ["Rejected", stats.rejectedProjects, XCircle],
     ["Feedback", stats.feedback, Mailbox],
+    ["ideas", stats.ideas, Lightbulb],
+    ["Pending ideas", stats.pendingIdeas, Clock3],
   ];
   return (
     <div className="space-y-8">

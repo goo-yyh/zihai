@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { AccountMenu } from "@/components/account-menu";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { FeedbackButton } from "@/components/feedback-button";
+import { IdeaButton } from "@/components/idea-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
 import { getTranslations } from "@/lib/i18n-server";
@@ -65,6 +66,16 @@ async function AccountNav() {
   );
 }
 
+async function IdeaNav() {
+  const session = await getSession();
+  const accountState = !session
+    ? "guest"
+    : session.user.onboardingCompleted
+      ? "ready"
+      : "onboarding";
+  return <IdeaButton accountState={accountState} />;
+}
+
 export async function SiteHeader() {
   const { t } = await getTranslations();
   return (
@@ -80,6 +91,13 @@ export async function SiteHeader() {
           aria-label={t("Main navigation")}
           className="flex shrink-0 items-center gap-1 text-sm font-semibold"
         >
+          <Suspense
+            fallback={
+              <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
+            }
+          >
+            <IdeaNav />
+          </Suspense>
           <LanguageSwitcher />
           <Suspense
             fallback={

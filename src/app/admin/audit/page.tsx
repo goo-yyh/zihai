@@ -21,6 +21,7 @@ export default async function AuditPage({
   const iterationsEnabled = isFeatureEnabled("iterations");
   const targetType =
     target === "project" ||
+    target === "idea" ||
     target === "user" ||
     (iterationsEnabled && target === "iteration")
       ? target
@@ -58,6 +59,7 @@ export default async function AuditPage({
         >
           <option value="">{t("All target types")}</option>
           <option value="project">{t("Projects")}</option>
+          <option value="idea">{t("ideas")}</option>
           {iterationsEnabled ? (
             <option value="iteration">{t("Iterations")}</option>
           ) : null}

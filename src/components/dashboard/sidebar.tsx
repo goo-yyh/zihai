@@ -2,6 +2,7 @@ import {
   ClipboardCheck,
   FileClock,
   LayoutDashboard,
+  Lightbulb,
   ListChecks,
   Mailbox,
   Settings,
@@ -19,6 +20,7 @@ type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
 const userItems: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/projects", label: "My projects", icon: FileClock },
+  { href: "/dashboard/ideas", label: "My ideas", icon: Lightbulb },
   { href: "/settings/profile", label: "Profile", icon: Settings },
 ];
 
@@ -28,6 +30,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/iterations", label: "Iterations", icon: ListChecks },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/feedback", label: "Feedback", icon: Mailbox },
+  { href: "/admin/ideas", label: "ideas", icon: Lightbulb },
   { href: "/admin/audit", label: "Audit log", icon: FileClock },
 ];
 

@@ -14,8 +14,11 @@ import {
   AUTH_CAPTCHA_ID_HEADER,
 } from "@/lib/auth-captcha";
 import { isValidIdentityEmail } from "@/lib/auth-email";
-import { githubFallbackEmail } from "@/lib/contact-email";
 import { getServerEnv } from "@/lib/env";
+import {
+  mapGitHubProfileToUser,
+  mapGoogleProfileToUser,
+} from "@/lib/oauth-profile";
 import { getSiteUrl } from "@/lib/site";
 import { usernameSchema } from "@/lib/validations";
 import { verifyAndConsumeAuthCaptcha } from "@/server/auth-captcha";
@@ -49,13 +52,12 @@ function createAuth() {
       github: {
         clientId: env.GITHUB_CLIENT_ID,
         clientSecret: env.GITHUB_CLIENT_SECRET,
-        mapProfileToUser: (profile) => ({
-          email: profile.email?.trim() || githubFallbackEmail(profile.id),
-        }),
+        mapProfileToUser: mapGitHubProfileToUser,
       },
       google: {
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
+        mapProfileToUser: mapGoogleProfileToUser,
       },
     },
     user: {
