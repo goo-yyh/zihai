@@ -4,12 +4,33 @@ import { and, asc, count, desc, eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import {
+  ideas,
   iterationImages,
   projectImages,
   projectIterations,
   projectLikes,
   projects,
 } from "@/db/schema";
+
+export async function getUserIdeas(userId: string) {
+  return getDb()
+    .select({
+      id: ideas.id,
+      title: ideas.title,
+      description: ideas.description,
+      status: ideas.status,
+      rejectionReason: ideas.rejectionReason,
+      resultUrl: ideas.resultUrl,
+      githubUrl: ideas.githubUrl,
+      reviewedAt: ideas.reviewedAt,
+      completedAt: ideas.completedAt,
+      createdAt: ideas.createdAt,
+      updatedAt: ideas.updatedAt,
+    })
+    .from(ideas)
+    .where(eq(ideas.userId, userId))
+    .orderBy(desc(ideas.updatedAt));
+}
 
 export async function getUserProjects(ownerId: string) {
   return getDb()

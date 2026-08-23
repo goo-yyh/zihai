@@ -35,6 +35,77 @@ const zhCN: Record<string, string> = {
   Users: "用户",
   "Audit log": "审计日志",
   Feedback: "建议反馈",
+  ideas: "点子",
+  "My ideas": "我的点子",
+  "I have an idea": "我有一个 idea",
+  "Have an idea? Let us help build it.": "有点子？让我们帮你实现。",
+  "Describe the product you wish existed. We will review it and may help turn it into a working product.":
+    "告诉我们你希望出现的产品。我们会认真评估，并可能帮助你把它变成真正可用的产品。",
+  "Checking your account…": "正在检查账户…",
+  "Sign in to submit an idea and follow its progress.":
+    "登录后即可提交点子并查看处理进度。",
+  "Finish account setup before submitting an idea.":
+    "提交点子前，请先完成账户设置。",
+  "idea title": "点子标题",
+  "A short name for your idea": "给点子起一个简短的名字",
+  "Describe your idea": "描述你的点子",
+  "What should it do, and who would it help?":
+    "它应该解决什么问题？能够帮助哪些人？",
+  "Submit idea": "提交点子",
+  "idea submitted.": "点子已提交。",
+  "Unable to submit your idea.": "点子提交失败，请稍后再试。",
+  "idea title must be at least 3 characters.": "点子标题至少需要 3 个字符。",
+  "idea title must be at most 120 characters.": "点子标题最多 120 个字符。",
+  "idea description must be at least 10 characters.":
+    "点子描述至少需要 10 个字符。",
+  "idea description must be at most 4,000 characters.":
+    "点子描述最多 4,000 个字符。",
+  "Follow every idea from review to a finished product.":
+    "查看每个点子从评估到产品完成的全部进度。",
+  "Submitted {date}": "提交于 {date}",
+  "Reason not accepted": "不受理理由",
+  "Reason not accepted:": "不受理理由：",
+  "Your idea has been built": "你的点子已经实现",
+  "Open product": "打开产品",
+  "Open GitHub": "打开 GitHub",
+  "No ideas submitted yet.": "还没有提交过点子。",
+  "Use the lightbulb in the header when you think of something we could build together.":
+    "当你想到可以一起实现的产品时，点击 Header 中的灯泡告诉我们。",
+  "Explain clearly why this idea will not be taken on.":
+    "请清楚说明为什么不受理这个点子。",
+  "Do not accept": "不受理",
+  "Mark this idea as completed": "将这个点子标记为已完成",
+  "Provide a product URL, a GitHub repository, or both.":
+    "请提供产品 URL、GitHub 仓库地址，或同时提供两者。",
+  "Product URL": "产品 URL",
+  "GitHub URL": "GitHub URL",
+  "Completing…": "正在完成…",
+  "Mark completed": "标记为已完成",
+  "idea management": "点子管理",
+  "Review ideas, record decisions, and share finished results.":
+    "评估用户点子、记录处理决定，并向用户交付完成结果。",
+  idea: "点子",
+  "No ideas in this view.": "此视图中没有点子。",
+  "idea description": "点子描述",
+  Reviewed: "处理时间",
+  Completed: "完成时间",
+  "Accept this idea": "受理这个点子",
+  "The user will see that the idea has been accepted and is waiting to be built.":
+    "用户将看到该点子已受理，并等待实现。",
+  Accept: "受理",
+  "Pending ideas": "待处理点子",
+  Pending: "待处理",
+  Accepted: "已受理",
+  "Not accepted": "不受理",
+  accepted: "已受理",
+  completed: "已完成",
+  "idea not found.": "未找到点子。",
+  "Only pending ideas can be reviewed.": "只能处理待处理的点子。",
+  "Only accepted ideas can be completed.": "只有已受理的点子才能完成。",
+  "idea rejected.": "点子已标记为不受理。",
+  "Unable to reject the idea.": "无法将点子标记为不受理。",
+  "idea marked as completed.": "点子已标记为完成。",
+  "Unable to complete the idea.": "无法完成该点子。",
   "Suggestions submitted by signed-in users, newest first.":
     "登录用户提交的建议，按时间倒序排列。",
   From: "来自",
@@ -365,8 +436,8 @@ const zhCN: Record<string, string> = {
   "Setting password…": "正在设置密码…",
   "Changing password…": "正在修改密码…",
   "Delete account": "删除账户",
-  "This permanently removes your profile, projects, iterations, likes, and uploaded Blob images.":
-    "这会永久删除你的个人资料、项目、迭代、点赞和已上传的 Blob 图片。",
+  "This permanently removes your profile, projects, iterations, ideas, likes, and uploaded Blob images.":
+    "这会永久删除你的个人资料、项目、迭代、点子、点赞和已上传的 Blob 图片。",
   "Type DELETE to confirm": "输入 DELETE 以确认",
   "Delete my account": "删除我的账户",
   "Review operations": "审核运营",

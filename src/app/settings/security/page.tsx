@@ -57,7 +57,7 @@ export default async function SecuritySettingsPage() {
           <CardTitle className="text-danger">{t("Delete account")}</CardTitle>
           <CardDescription>
             {t(
-              "This permanently removes your profile, projects, iterations, likes, and uploaded Blob images.",
+              "This permanently removes your profile, projects, iterations, ideas, likes, and uploaded Blob images.",
             )}
           </CardDescription>
         </CardHeader>
