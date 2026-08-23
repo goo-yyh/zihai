@@ -17,6 +17,7 @@ import { getDb } from "@/db";
 import {
   account,
   feedback,
+  ideas,
   ITERATION_STATUSES,
   iterationImages,
   moderationLogs,
@@ -26,6 +27,7 @@ import {
   projects,
   user,
 } from "@/db/schema";
+import { IDEA_STATUSES } from "@/lib/idea-lifecycle";
 import {
   createCursorPage,
   decodePageCursor,
@@ -42,7 +44,7 @@ type AdminPageOptions = {
 
 type AuditLogFilters = {
   search?: string;
-  targetType?: "project" | "iteration" | "user";
+  targetType?: "project" | "iteration" | "idea" | "user";
 };
 
 function keysetCondition(
@@ -87,6 +89,10 @@ export async function getAdminStats() {
         where ${projectIterations.status} = 'pending'
       )`,
       feedback: sql<number>`(select count(*)::int from ${feedback})`,
+      ideas: sql<number>`(select count(*)::int from ${ideas})`,
+      pendingIdeas: sql<number>`(
+        select count(*)::int from ${ideas} where ${ideas.status} = 'pending'
+      )`,
     })
     .from(projects);
 
@@ -98,7 +104,85 @@ export async function getAdminStats() {
     rejectedProjects: stats?.rejectedProjects ?? 0,
     pendingIterations: stats?.pendingIterations ?? 0,
     feedback: stats?.feedback ?? 0,
+    ideas: stats?.ideas ?? 0,
+    pendingIdeas: stats?.pendingIdeas ?? 0,
   };
+}
+
+export async function getAdminIdeas(
+  status?: string,
+  options: AdminPageOptions = {},
+) {
+  const statusFilter = IDEA_STATUSES.find((value) => value === status);
+  const { cursor, pageSize } = paginationOptions(options, "uuid");
+  const previous = cursor?.direction === "previous";
+
+  const rows = await getDb()
+    .select({
+      id: ideas.id,
+      title: ideas.title,
+      status: ideas.status,
+      createdAt: ideas.createdAt,
+      updatedAt: ideas.updatedAt,
+      userId: ideas.userId,
+      userEmail: sql<string>`coalesce(${user.contactEmail}, ${user.email})`,
+      userUsername: user.username,
+    })
+    .from(ideas)
+    .innerJoin(user, eq(ideas.userId, user.id))
+    .where(
+      and(
+        statusFilter ? eq(ideas.status, statusFilter) : undefined,
+        keysetCondition(ideas.updatedAt, ideas.id, cursor),
+      ),
+    )
+    .orderBy(
+      previous ? asc(ideas.updatedAt) : desc(ideas.updatedAt),
+      previous ? asc(ideas.id) : desc(ideas.id),
+    )
+    .limit(pageSize + 1);
+
+  return createCursorPage(rows, pageSize, cursor, (idea) => idea.updatedAt);
+}
+
+export async function getAdminIdea(ideaId: string) {
+  const ideaQuery = getDb()
+    .select({
+      id: ideas.id,
+      title: ideas.title,
+      description: ideas.description,
+      status: ideas.status,
+      rejectionReason: ideas.rejectionReason,
+      resultUrl: ideas.resultUrl,
+      githubUrl: ideas.githubUrl,
+      reviewedAt: ideas.reviewedAt,
+      completedAt: ideas.completedAt,
+      createdAt: ideas.createdAt,
+      updatedAt: ideas.updatedAt,
+      userId: ideas.userId,
+      userEmail: sql<string>`coalesce(${user.contactEmail}, ${user.email})`,
+      userUsername: user.username,
+      userImage: user.image,
+    })
+    .from(ideas)
+    .innerJoin(user, eq(ideas.userId, user.id))
+    .where(eq(ideas.id, ideaId))
+    .limit(1);
+  const logsQuery = getDb()
+    .select()
+    .from(moderationLogs)
+    .where(
+      and(
+        eq(moderationLogs.targetType, "idea"),
+        eq(moderationLogs.targetId, ideaId),
+      ),
+    )
+    .orderBy(desc(moderationLogs.createdAt));
+  const [ideaRows, logs] = await getDb().batch([ideaQuery, logsQuery]);
+  const idea = ideaRows[0];
+  if (!idea) return null;
+
+  return { ...idea, logs };
 }
 
 export async function getAdminProjects(

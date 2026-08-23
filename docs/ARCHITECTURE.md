@@ -114,11 +114,22 @@ Username/password sign-in is available only after a credential account has been 
 
 Each user can own at most ten projects across all statuses, including drafts, rejected projects, and archived projects. Deleting a project frees one slot. `createProjectAction` acquires a transaction-scoped PostgreSQL advisory lock derived from the owner ID, counts the owner's rows, and inserts the new project in the same transaction. This serializes concurrent creation attempts so two requests cannot both pass the limit check.
 
-Avatar rendering always has a local default. Missing OAuth images are replaced with that default during onboarding, while remote images that fail in the browser fall back without exposing broken-image alternative text or changing layout. A later custom upload replaces the database reference through the normal Blob workflow.
+Avatar rendering always has a local default. GitHub and Google profile images are ignored during OAuth registration, and new accounts start with the site default instead. A later custom upload replaces the database reference through the normal Blob workflow.
 
 GitHub accounts without a provider email receive a reserved `.invalid` internal identity address so OAuth account linking remains stable. That placeholder is never treated as a contact address or shown publicly. Contact email input is validated in the onboarding and profile Server Actions and is visible only in account settings and administrator workflows.
 
 ## Moderation lifecycle
+
+### ideas
+
+Signed-in, onboarded users can submit private product ideas from the global header and track them under `/dashboard/ideas`. These ideas are separate from general feedback because they carry an explicit delivery lifecycle:
+
+```text
+pending -> accepted -> completed
+       \-> rejected
+```
+
+Administrators process ideas under `/admin/ideas`. Rejecting a pending idea requires a user-visible reason. Completing an accepted idea requires a valid website URL, GitHub repository URL, or both. Each transition locks the idea row and writes its moderation log in the same database transaction. The database check constraint keeps rejection details and completion destinations aligned with the stored status. Submitted ideas are private to their owner and administrators and are never included in public project queries.
 
 ### Projects
 
@@ -193,6 +204,7 @@ database network roundtrips with the HTTP driver.
 - Iteration changes affect the project detail page and its dashboard editor.
 - Avatar or username changes affect the homepage, profile, project pages, and account UI. Contact email changes also invalidate administrator user views.
 - Admin mutations refresh the relevant queue and dashboard count.
+- Submissions and decisions for an idea refresh the owner dashboard, idea queue, detail page, admin overview, and audit log.
 
 When adding a mutation, list every page that consumes the changed data before choosing a cache helper.
 
@@ -206,6 +218,7 @@ Application validation provides useful errors; PostgreSQL remains the final auth
 - Triggers serialize image inserts and enforce the three-image limit under concurrency.
 - An iteration owner must match the parent project owner.
 - Role changes use a PostgreSQL advisory transaction lock so the final administrator cannot be revoked concurrently.
+- State constraints for an idea require a rejection reason for rejected ideas and at least one result destination for completed ideas.
 
 Schema changes require a new Drizzle migration. Never use production runtime schema synchronization.
 

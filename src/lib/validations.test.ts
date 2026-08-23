@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   feedbackSchema,
+  ideaCompletionSchema,
+  ideaSubmissionSchema,
   normalizeGithubUrl,
   passwordSchema,
   projectInputSchema,
@@ -162,5 +164,47 @@ describe("feedbackSchema", () => {
     expect(
       feedbackSchema.safeParse({ content: "x".repeat(2001) }).success,
     ).toBe(false);
+  });
+});
+
+describe("idea schemas", () => {
+  it("accepts a useful idea and trims its fields", () => {
+    expect(
+      ideaSubmissionSchema.parse({
+        title: "  AI meeting notes  ",
+        description: "  Turn recordings into clear decisions and tasks.  ",
+      }),
+    ).toEqual({
+      title: "AI meeting notes",
+      description: "Turn recordings into clear decisions and tasks.",
+    });
+  });
+
+  it("rejects empty or oversized idea fields", () => {
+    expect(
+      ideaSubmissionSchema.safeParse({ title: "AI", description: "short" })
+        .success,
+    ).toBe(false);
+    expect(
+      ideaSubmissionSchema.safeParse({
+        title: "x".repeat(121),
+        description: "x".repeat(4001),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires and normalizes at least one completion destination", () => {
+    expect(
+      ideaCompletionSchema.safeParse({ websiteUrl: "", githubUrl: "" }).success,
+    ).toBe(false);
+    expect(
+      ideaCompletionSchema.parse({
+        websiteUrl: "https://example.com/idea#demo",
+        githubUrl: "https://github.com/acme/idea.git?tab=readme",
+      }),
+    ).toEqual({
+      websiteUrl: "https://example.com/idea",
+      githubUrl: "https://github.com/acme/idea",
+    });
   });
 });

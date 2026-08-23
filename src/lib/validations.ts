@@ -64,6 +64,59 @@ const githubUrlSchema = z
     );
   }, "Use a GitHub repository URL such as https://github.com/owner/repo.");
 
+const destinationFields = {
+  websiteUrl: z.string().trim().optional().default(""),
+  githubUrl: z.string().trim().optional().default(""),
+};
+
+type DestinationInput = {
+  websiteUrl: string;
+  githubUrl: string;
+};
+
+function validateDestinations(
+  data: DestinationInput,
+  context: z.RefinementCtx,
+) {
+  const website = data.websiteUrl.length > 0;
+  const github = data.githubUrl.length > 0;
+  if (!website && !github) {
+    context.addIssue({
+      code: "custom",
+      path: ["websiteUrl"],
+      message: "Provide a Website URL, a GitHub URL, or both.",
+    });
+    return;
+  }
+  if (website) {
+    const parsed = websiteUrlSchema.safeParse(data.websiteUrl);
+    if (!parsed.success) {
+      context.addIssue({
+        code: "custom",
+        path: ["websiteUrl"],
+        message: parsed.error.issues[0]?.message ?? "Invalid website URL.",
+      });
+    }
+  }
+  if (github) {
+    const parsed = githubUrlSchema.safeParse(data.githubUrl);
+    if (!parsed.success) {
+      context.addIssue({
+        code: "custom",
+        path: ["githubUrl"],
+        message: parsed.error.issues[0]?.message ?? "Invalid GitHub URL.",
+      });
+    }
+  }
+}
+
+function normalizeDestinations(data: DestinationInput) {
+  return {
+    websiteUrl: data.websiteUrl ? normalizeUrl(data.websiteUrl) : null,
+    githubUrl: data.githubUrl ? normalizeGithubUrl(data.githubUrl) : null,
+  };
+}
+
 export const projectInputSchema = z
   .object({
     name: z
@@ -76,46 +129,13 @@ export const projectInputSchema = z
       .trim()
       .min(10, "Description must be at least 10 characters.")
       .max(4000, "Description must be at most 4,000 characters."),
-    websiteUrl: z.string().trim().optional().default(""),
-    githubUrl: z.string().trim().optional().default(""),
+    ...destinationFields,
   })
-  .superRefine((data, context) => {
-    const website = data.websiteUrl.length > 0;
-    const github = data.githubUrl.length > 0;
-    if (!website && !github) {
-      context.addIssue({
-        code: "custom",
-        path: ["websiteUrl"],
-        message: "Provide a Website URL, a GitHub URL, or both.",
-      });
-      return;
-    }
-    if (website) {
-      const parsed = websiteUrlSchema.safeParse(data.websiteUrl);
-      if (!parsed.success) {
-        context.addIssue({
-          code: "custom",
-          path: ["websiteUrl"],
-          message: parsed.error.issues[0]?.message ?? "Invalid website URL.",
-        });
-      }
-    }
-    if (github) {
-      const parsed = githubUrlSchema.safeParse(data.githubUrl);
-      if (!parsed.success) {
-        context.addIssue({
-          code: "custom",
-          path: ["githubUrl"],
-          message: parsed.error.issues[0]?.message ?? "Invalid GitHub URL.",
-        });
-      }
-    }
-  })
+  .superRefine(validateDestinations)
   .transform((data) => ({
     name: data.name,
     description: data.description,
-    websiteUrl: data.websiteUrl ? normalizeUrl(data.websiteUrl) : null,
-    githubUrl: data.githubUrl ? normalizeGithubUrl(data.githubUrl) : null,
+    ...normalizeDestinations(data),
   }));
 
 export const iterationInputSchema = z.object({
@@ -147,6 +167,24 @@ export const feedbackSchema = z.object({
     .min(1, "Feedback must be at least 1 character.")
     .max(2000, "Feedback must be at most 2,000 characters."),
 });
+
+export const ideaSubmissionSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(3, "idea title must be at least 3 characters.")
+    .max(120, "idea title must be at most 120 characters."),
+  description: z
+    .string()
+    .trim()
+    .min(10, "idea description must be at least 10 characters.")
+    .max(4000, "idea description must be at most 4,000 characters."),
+});
+
+export const ideaCompletionSchema = z
+  .object(destinationFields)
+  .superRefine(validateDestinations)
+  .transform(normalizeDestinations);
 
 export const uploadKindSchema = z.enum(UPLOAD_KINDS);
 

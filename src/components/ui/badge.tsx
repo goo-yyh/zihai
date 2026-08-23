@@ -8,9 +8,11 @@ import { cn } from "@/lib/utils";
 const variants = {
   draft: "bg-zinc-100 text-zinc-700",
   pending: "bg-amber-100 text-amber-800",
+  accepted: "bg-sky-100 text-sky-800",
   approved: "bg-emerald-100 text-emerald-800",
   rejected: "bg-rose-100 text-rose-800",
   archived: "bg-slate-100 text-slate-700",
+  completed: "bg-emerald-100 text-emerald-800",
   admin: "bg-violet-100 text-violet-800",
   user: "bg-zinc-100 text-zinc-700",
   default: "bg-muted text-foreground",
