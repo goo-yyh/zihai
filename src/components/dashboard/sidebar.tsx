@@ -3,7 +3,6 @@ import {
   FileClock,
   LayoutDashboard,
   Lightbulb,
-  ListChecks,
   Mailbox,
   Settings,
   Shield,
@@ -11,7 +10,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import { isFeatureEnabled } from "@/lib/features";
 import { getTranslations } from "@/lib/i18n-server";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +25,6 @@ const userItems: NavItem[] = [
 const adminItems: NavItem[] = [
   { href: "/admin", label: "Overview", icon: Shield },
   { href: "/admin/projects", label: "Projects", icon: ClipboardCheck },
-  { href: "/admin/iterations", label: "Iterations", icon: ListChecks },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/feedback", label: "Feedback", icon: Mailbox },
   { href: "/admin/ideas", label: "ideas", icon: Lightbulb },
@@ -42,10 +39,7 @@ export async function Sidebar({
   className?: string;
 }) {
   const { t } = await getTranslations();
-  const items = (admin ? adminItems : userItems).filter(
-    (item) =>
-      item.href !== "/admin/iterations" || isFeatureEnabled("iterations"),
-  );
+  const items = admin ? adminItems : userItems;
   return (
     <aside
       className={cn("w-full lg:sticky lg:top-20 lg:h-fit lg:w-56", className)}

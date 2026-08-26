@@ -44,12 +44,6 @@ export function revalidatePublicProject(
   }
 }
 
-export function revalidateProjectDetail(project: PublicProjectReference) {
-  expireTag(publicProjectTag(project.id));
-  revalidatePath(publicProjectPath(project));
-  revalidatePath(`/p/${project.slug}`);
-}
-
 export function revalidateProjectLike(
   project: PublicProjectReference,
   owner?: PublicProfileReference,
@@ -74,21 +68,9 @@ export function revalidateProjectWorkspace(projectId: string) {
   revalidatePath(`/dashboard/projects/${projectId}/edit`);
 }
 
-export function revalidateIterationWorkspace(
-  projectId: string,
-  iterationId?: string,
-) {
-  revalidatePath(`/dashboard/projects/${projectId}/edit`);
-  if (iterationId) {
-    revalidatePath(
-      `/dashboard/projects/${projectId}/iterations/${iterationId}/edit`,
-    );
-  }
-}
-
-export function revalidateAdminContent(kind: "projects" | "iterations") {
+export function revalidateAdminProjects() {
   revalidatePath("/admin");
-  revalidatePath(`/admin/${kind}`);
+  revalidatePath("/admin/projects");
 }
 
 export function revalidateAdminUsers() {

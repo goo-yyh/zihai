@@ -12,7 +12,6 @@ const signedUploadIntentSchema = z.object({
   userId: z.string().min(1),
   pathname: z.string().min(1),
   projectId: z.uuid().optional(),
-  iterationId: z.uuid().optional(),
   contentType: z.enum(ALLOWED_IMAGE_TYPES),
   expiresAt: z.number().int().positive(),
 });

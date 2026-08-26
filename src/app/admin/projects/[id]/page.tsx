@@ -127,7 +127,7 @@ export default async function AdminProjectPage({
               <Check className="size-4" /> {t("Approve")}
             </Button>
           </form>
-          <RejectionForm kind="project" resourceId={project.id} />
+          <RejectionForm resourceId={project.id} />
         </div>
       ) : project.rejectionReason ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">

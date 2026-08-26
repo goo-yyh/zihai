@@ -15,7 +15,6 @@ import { authorizeUpload, issueUploadIntent } from "@/server/upload-policy";
 const issueIntentSchema = z.object({
   kind: uploadKindSchema,
   projectId: z.uuid().optional(),
-  iterationId: z.uuid().optional(),
   contentType: z.enum(ALLOWED_IMAGE_TYPES),
 });
 
@@ -27,7 +26,6 @@ export async function GET(request: NextRequest) {
   const parsed = issueIntentSchema.safeParse({
     kind: request.nextUrl.searchParams.get("kind"),
     projectId: request.nextUrl.searchParams.get("projectId") || undefined,
-    iterationId: request.nextUrl.searchParams.get("iterationId") || undefined,
     contentType: request.nextUrl.searchParams.get("contentType"),
   });
   if (!parsed.success) {

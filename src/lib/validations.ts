@@ -138,20 +138,6 @@ export const projectInputSchema = z
     ...normalizeDestinations(data),
   }));
 
-export const iterationInputSchema = z.object({
-  versionLabel: z
-    .string()
-    .trim()
-    .max(80, "Version label must be at most 80 characters.")
-    .optional()
-    .default(""),
-  description: z
-    .string()
-    .trim()
-    .min(10, "Description must be at least 10 characters.")
-    .max(4000, "Description must be at most 4,000 characters."),
-});
-
 export const rejectionSchema = z.object({
   reason: z
     .string()
@@ -191,7 +177,6 @@ export const uploadKindSchema = z.enum(UPLOAD_KINDS);
 export const uploadPayloadSchema = z.object({
   kind: uploadKindSchema,
   projectId: z.uuid().optional(),
-  iterationId: z.uuid().optional(),
 });
 
 export const uploadCompletionSchema = z.object({

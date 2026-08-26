@@ -3,15 +3,9 @@ import "server-only";
 import { and, count, eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
-import {
-  iterationImages,
-  projectImages,
-  projectIterations,
-  projects,
-} from "@/db/schema";
+import { projectImages, projects } from "@/db/schema";
 import { MAX_CONTENT_IMAGES } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
-import { assertFeatureEnabled } from "@/lib/features";
 import {
   extensionForContentType,
   signUploadIntent,
@@ -29,7 +23,6 @@ type UploadUser = {
 type UploadRequest = {
   kind: UploadIntent["kind"];
   projectId?: string;
-  iterationId?: string;
   contentType: UploadIntent["contentType"];
 };
 
@@ -42,7 +35,7 @@ function pathnameFor(request: UploadRequest & { userId: string }) {
   if (request.kind === "project-image") {
     return `projects/${request.userId}/${request.projectId}/${filename}`;
   }
-  return `iterations/${request.userId}/${request.projectId}/${request.iterationId}/${filename}`;
+  throw new UserFacingError("Unsupported upload kind.");
 }
 
 export async function validateUploadOwnership(intent: UploadIntent) {
@@ -85,46 +78,6 @@ export async function validateUploadOwnership(intent: UploadIntent) {
       );
     }
     return;
-  }
-
-  assertFeatureEnabled("iterations");
-  if (!intent.iterationId || !intent.projectId) {
-    throw new UserFacingError("Iteration and project are required.");
-  }
-
-  const [iteration] = await getDb()
-    .select({ id: projectIterations.id })
-    .from(projectIterations)
-    .where(
-      and(
-        eq(projectIterations.id, intent.iterationId),
-        eq(projectIterations.projectId, intent.projectId),
-        eq(projectIterations.ownerId, intent.userId),
-      ),
-    )
-    .limit(1);
-  if (!iteration) throw new UserFacingError("Iteration not found.");
-
-  const [existingImage] = await getDb()
-    .select({ id: iterationImages.id })
-    .from(iterationImages)
-    .where(
-      and(
-        eq(iterationImages.iterationId, intent.iterationId),
-        eq(iterationImages.blobPathname, intent.pathname),
-      ),
-    )
-    .limit(1);
-  if (existingImage) return;
-
-  const [images] = await getDb()
-    .select({ value: count() })
-    .from(iterationImages)
-    .where(eq(iterationImages.iterationId, intent.iterationId));
-  if ((images?.value ?? 0) >= MAX_CONTENT_IMAGES) {
-    throw new UserFacingError(
-      `An iteration can have at most ${MAX_CONTENT_IMAGES} images.`,
-    );
   }
 }
 

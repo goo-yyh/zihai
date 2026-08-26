@@ -14,7 +14,7 @@ import { UserFacingError } from "@/lib/errors";
 import { assertAdmin } from "@/lib/session";
 import { rejectionSchema } from "@/lib/validations";
 import {
-  revalidateAdminContent,
+  revalidateAdminProjects,
   revalidatePublicProject,
 } from "@/server/cache";
 import type { ActionState } from "@/types/actions";
@@ -53,7 +53,7 @@ export async function approveProjectAction(projectId: string) {
       .select({ value: count() })
       .from(projectImages)
       .where(eq(projectImages.projectId, id));
-    assertImageCount(images?.value ?? 0, "Project");
+    assertImageCount(images?.value ?? 0);
 
     const now = new Date();
     await tx
@@ -81,7 +81,7 @@ export async function approveProjectAction(projectId: string) {
     { id, slug: project.slug },
     await ownerProfile(project.ownerId),
   );
-  revalidateAdminContent("projects");
+  revalidateAdminProjects();
   redirect(`/admin/projects/${id}?approved=1`);
 }
 
@@ -137,7 +137,7 @@ export async function rejectProjectAction(
       { id, slug: project.slug },
       await ownerProfile(project.ownerId),
     );
-    revalidateAdminContent("projects");
+    revalidateAdminProjects();
     return { status: "success", message: "Project rejected." };
   } catch (error) {
     return safeActionError(error, "Unable to reject the project.");
@@ -185,7 +185,7 @@ export async function archiveProjectAction(projectId: string) {
     { id, slug: project.slug },
     await ownerProfile(project.ownerId),
   );
-  revalidateAdminContent("projects");
+  revalidateAdminProjects();
   redirect(`/admin/projects/${id}?archived=1`);
 }
 
@@ -212,7 +212,7 @@ export async function republishProjectAction(projectId: string) {
       .select({ value: count() })
       .from(projectImages)
       .where(eq(projectImages.projectId, id));
-    assertImageCount(images?.value ?? 0, "Project");
+    assertImageCount(images?.value ?? 0);
 
     const now = new Date();
     await tx
@@ -237,6 +237,6 @@ export async function republishProjectAction(projectId: string) {
     { id, slug: project.slug },
     await ownerProfile(project.ownerId),
   );
-  revalidateAdminContent("projects");
+  revalidateAdminProjects();
   redirect(`/admin/projects/${id}?republished=1`);
 }

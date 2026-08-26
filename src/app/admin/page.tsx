@@ -3,7 +3,6 @@ import {
   Clock3,
   FolderKanban,
   Lightbulb,
-  ListChecks,
   Mailbox,
   Users,
   XCircle,
@@ -15,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getAdminProjects, getAdminStats } from "@/db/queries/admin";
-import { isFeatureEnabled } from "@/lib/features";
 import { getTranslations } from "@/lib/i18n-server";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
@@ -28,16 +26,10 @@ export default async function AdminPage() {
     getTranslations(),
   ]);
   const pending = pendingPage.items;
-  const iterationCards: Array<[string, number, LucideIcon]> = isFeatureEnabled(
-    "iterations",
-  )
-    ? [["Pending iterations", stats.pendingIterations, ListChecks]]
-    : [];
   const cards: Array<[string, number, LucideIcon]> = [
     ["Users", stats.users, Users],
     ["All projects", stats.projects, FolderKanban],
     ["Pending projects", stats.pendingProjects, Clock3],
-    ...iterationCards,
     ["Approved", stats.approvedProjects, CheckCircle2],
     ["Rejected", stats.rejectedProjects, XCircle],
     ["Feedback", stats.feedback, Mailbox],

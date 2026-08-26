@@ -3,17 +3,8 @@ import "server-only";
 import { and, eq, max } from "drizzle-orm";
 
 import { getDb, withTransaction } from "@/db";
-import {
-  iterationImages,
-  projectImages,
-  projectIterations,
-  projects,
-  user,
-} from "@/db/schema";
-import {
-  contentEditPatch,
-  iterationContentEditPatch,
-} from "@/lib/content-lifecycle";
+import { projectImages, projects, user } from "@/db/schema";
+import { contentEditPatch } from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
 import { ALLOWED_IMAGE_TYPES } from "@/lib/image-policy";
 import type { UploadIntent } from "@/lib/upload-intent";
@@ -33,12 +24,6 @@ export type PersistedUpload =
       projectSlug: string;
       ownerId: string;
       ownerUsername: string | null;
-    }
-  | {
-      kind: "iteration-image";
-      projectId: string;
-      projectSlug: string;
-      iterationId: string;
     };
 
 async function verifiedBlobMetadata(blob: UploadedBlob, intent: UploadIntent) {
@@ -163,64 +148,5 @@ export async function persistUpload(
     };
   }
 
-  if (!intent.iterationId || !intent.projectId) {
-    throw new UserFacingError("Iteration and project are required.");
-  }
-
-  const projectSlug = await withTransaction(async (tx) => {
-    const [iteration] = await tx
-      .select({
-        status: projectIterations.status,
-        projectSlug: projects.slug,
-      })
-      .from(projectIterations)
-      .innerJoin(projects, eq(projectIterations.projectId, projects.id))
-      .where(
-        and(
-          eq(projectIterations.id, intent.iterationId!),
-          eq(projectIterations.projectId, intent.projectId!),
-          eq(projectIterations.ownerId, intent.userId),
-        ),
-      )
-      .for("update");
-    if (!iteration) throw new UserFacingError("Iteration not found.");
-
-    const [existingImage] = await tx
-      .select({ id: iterationImages.id })
-      .from(iterationImages)
-      .where(
-        and(
-          eq(iterationImages.iterationId, intent.iterationId!),
-          eq(iterationImages.blobPathname, blob.pathname),
-        ),
-      )
-      .limit(1);
-    if (existingImage) return iteration.projectSlug;
-
-    const [position] = await tx
-      .select({ value: max(iterationImages.sortOrder) })
-      .from(iterationImages)
-      .where(eq(iterationImages.iterationId, intent.iterationId!));
-    await tx.insert(iterationImages).values({
-      iterationId: intent.iterationId!,
-      blobUrl: blob.url,
-      blobPathname: blob.pathname,
-      mimeType: metadata.contentType,
-      sizeBytes: metadata.size,
-      sortOrder: (position?.value ?? -1) + 1,
-    });
-    await tx
-      .update(projectIterations)
-      .set(iterationContentEditPatch(iteration.status))
-      .where(eq(projectIterations.id, intent.iterationId!));
-
-    return iteration.projectSlug;
-  });
-
-  return {
-    kind: "iteration-image",
-    projectId: intent.projectId,
-    projectSlug,
-    iterationId: intent.iterationId,
-  };
+  throw new UserFacingError("Unsupported upload kind.");
 }

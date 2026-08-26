@@ -7,7 +7,6 @@ import { Suspense } from "react";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { ProjectImageCarousel } from "@/components/project/project-image-carousel";
 import { LikeButton } from "@/components/project/like-button";
-import { RecentUpdates } from "@/components/project/recent-updates";
 import { RecommendedProjects } from "@/components/project/recommended-projects";
 import { Avatar } from "@/components/ui/avatar";
 import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
@@ -15,10 +14,8 @@ import { Button } from "@/components/ui/button";
 import {
   getPublicProject,
   getRecommendationPool,
-  getPublicProjectIterations,
   getViewerProjectLike,
 } from "@/db/queries/public";
-import { isFeatureEnabled } from "@/lib/features";
 import { publicProfilePath, publicProjectPath } from "@/lib/public-routes";
 import { getSession } from "@/lib/session";
 import { getTranslations } from "@/lib/i18n-server";
@@ -26,36 +23,7 @@ import { selectRandomRecommendations } from "@/lib/recommendations";
 import { SITE_DESCRIPTION } from "@/lib/site";
 import { formatDate, truncate } from "@/lib/utils";
 
-async function ProjectSidebar({
-  projectId,
-  iterationsEnabled,
-}: {
-  projectId: string;
-  iterationsEnabled: boolean;
-}) {
-  if (iterationsEnabled) {
-    const iterations = await getPublicProjectIterations(projectId);
-    if (iterations.length) {
-      return (
-        <RecentUpdates
-          items={iterations.map((iteration) => ({
-            id: iteration.id,
-            versionLabel: iteration.versionLabel,
-            description: iteration.description,
-            approvedAt: iteration.approvedAt
-              ? new Date(iteration.approvedAt).toISOString()
-              : null,
-            createdAt: new Date(iteration.createdAt).toISOString(),
-            images: iteration.images.map((image) => ({
-              id: image.id,
-              url: image.url,
-            })),
-          }))}
-        />
-      );
-    }
-  }
-
+async function ProjectSidebar({ projectId }: { projectId: string }) {
   const recommendations = await getRecommendationPool(projectId);
   return (
     <RecommendedProjects
@@ -144,8 +112,6 @@ export default async function ProjectPage({
   ]);
   if (!project) notFound();
   if (slug !== project.slug) permanentRedirect(publicProjectPath(project));
-  const iterationsEnabled = isFeatureEnabled("iterations");
-
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="grid gap-9 lg:grid-cols-[1fr_19rem]">
@@ -268,10 +234,7 @@ export default async function ProjectPage({
               </div>
             }
           >
-            <ProjectSidebar
-              projectId={project.id}
-              iterationsEnabled={iterationsEnabled}
-            />
+            <ProjectSidebar projectId={project.id} />
           </Suspense>
         </aside>
       </div>

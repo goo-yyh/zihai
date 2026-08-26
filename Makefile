@@ -8,9 +8,9 @@ PREVIEW_SITE_HOST ?= staging.zihai.dev
 PRODUCTION_SITE_HOST ?= www.zihai.dev
 VERCEL ?= vercel
 
-DEVELOPMENT_ENV = env -u DATABASE_ENVIRONMENT -u DATABASE_URL -u BETTER_AUTH_URL -u RESEND_API_KEY -u AUTH_EMAIL_FROM -u NEXT_PUBLIC_SITE_URL DOTENV_CONFIG_PATH="$(DEV_ENV_FILE)"
-PREVIEW_ENV = env -u DATABASE_ENVIRONMENT -u DATABASE_URL -u BETTER_AUTH_URL -u RESEND_API_KEY -u AUTH_EMAIL_FROM -u NEXT_PUBLIC_SITE_URL DOTENV_CONFIG_PATH="$(PREVIEW_ENV_FILE)"
-PRODUCTION_ENV = env -u DATABASE_ENVIRONMENT -u DATABASE_URL -u BETTER_AUTH_URL -u RESEND_API_KEY -u AUTH_EMAIL_FROM -u NEXT_PUBLIC_SITE_URL DOTENV_CONFIG_PATH="$(PRODUCTION_ENV_FILE)"
+DEVELOPMENT_ENV = env -u DATABASE_ENVIRONMENT -u DATABASE_URL -u BETTER_AUTH_URL -u BLOB_READ_WRITE_TOKEN -u RESEND_API_KEY -u AUTH_EMAIL_FROM -u NEXT_PUBLIC_SITE_URL DOTENV_CONFIG_PATH="$(DEV_ENV_FILE)"
+PREVIEW_ENV = env -u DATABASE_ENVIRONMENT -u DATABASE_URL -u BETTER_AUTH_URL -u BLOB_READ_WRITE_TOKEN -u RESEND_API_KEY -u AUTH_EMAIL_FROM -u NEXT_PUBLIC_SITE_URL DOTENV_CONFIG_PATH="$(PREVIEW_ENV_FILE)"
+PRODUCTION_ENV = env -u DATABASE_ENVIRONMENT -u DATABASE_URL -u BETTER_AUTH_URL -u BLOB_READ_WRITE_TOKEN -u RESEND_API_KEY -u AUTH_EMAIL_FROM -u NEXT_PUBLIC_SITE_URL DOTENV_CONFIG_PATH="$(PRODUCTION_ENV_FILE)"
 
 .PHONY: \
 	help install dev build start format format-check lint typecheck test check vercel-version \
@@ -18,7 +18,9 @@ PRODUCTION_ENV = env -u DATABASE_ENVIRONMENT -u DATABASE_URL -u BETTER_AUTH_URL 
 	db-studio-development db-seed-development db-check-preview db-migrate-preview \
 	db-check-production db-migrate-production admin-promote-development \
 	admin-promote-preview admin-promote-production guard-development-env \
-	guard-preview-env guard-production-env guard-email guard-production
+	retire-iteration-blobs-development retire-iteration-blobs-preview \
+	retire-iteration-blobs-production guard-preview-env guard-production-env \
+	guard-email guard-iteration-retirement guard-production
 
 help: ## 显示常用命令
 	@awk 'BEGIN { FS = ":.*## "; printf "Usage: make <target> [VARIABLE=value]\n\n" } /^[a-zA-Z0-9_-]+:.*## / { printf "  %-30s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -74,11 +76,17 @@ db-studio-development: ## 使用 Development 数据库启动 Drizzle Studio
 db-seed-development: ## 创建 10 个 Development 模拟用户及每人 2～4 个已发布项目
 	CONFIRM_DEVELOPMENT_SEED=yes $(DEVELOPMENT_ENV) $(PNPM) db:seed
 
+retire-iteration-blobs-development: guard-development-env guard-iteration-retirement ## 删除 Development 的历史迭代 Blob，迁移前执行
+	CONFIRM_ITERATION_RETIREMENT=yes $(DEVELOPMENT_ENV) $(PNPM) exec tsx scripts/retire-iteration-blobs.ts
+
 db-check-preview: guard-preview-env ## 使用 .env.preview 检查 Preview 迁移
 	$(PREVIEW_ENV) $(PNPM) db:check
 
 db-migrate-preview: db-check-preview ## 检查并迁移 Preview 数据库
 	$(PREVIEW_ENV) $(PNPM) db:migrate
+
+retire-iteration-blobs-preview: guard-preview-env guard-iteration-retirement ## 删除 Preview 的历史迭代 Blob，迁移前执行
+	CONFIRM_ITERATION_RETIREMENT=yes $(PREVIEW_ENV) $(PNPM) exec tsx scripts/retire-iteration-blobs.ts
 
 db-check-production: guard-production-env ## 使用 .env.production 只读检查 Production 迁移
 	$(PRODUCTION_ENV) $(PNPM) db:check
@@ -86,6 +94,9 @@ db-check-production: guard-production-env ## 使用 .env.production 只读检查
 db-migrate-production: guard-production guard-production-env ## 检查并迁移 Production 数据库，必须显式确认
 	$(MAKE) db-check-production
 	$(PRODUCTION_ENV) $(PNPM) db:migrate
+
+retire-iteration-blobs-production: guard-production guard-production-env guard-iteration-retirement ## 删除 Production 的历史迭代 Blob，迁移前执行
+	CONFIRM_ITERATION_RETIREMENT=yes $(PRODUCTION_ENV) $(PNPM) exec tsx scripts/retire-iteration-blobs.ts
 
 admin-promote-development: guard-email guard-development-env ## 在 Development 提升已有用户，传入 EMAIL=
 	$(DEVELOPMENT_ENV) $(PNPM) admin:promote "$(EMAIL)"
@@ -120,6 +131,13 @@ guard-production-env:
 guard-email:
 	@if [ -z "$(EMAIL)" ]; then \
 		echo "EMAIL is required. Example: make admin-promote-development EMAIL=admin@example.com"; \
+		exit 1; \
+	fi
+
+guard-iteration-retirement:
+	@if [ "$(CONFIRM_ITERATION_RETIREMENT)" != "yes" ]; then \
+		echo "Refusing to delete iteration Blobs without explicit confirmation."; \
+		echo "Re-run with CONFIRM_ITERATION_RETIREMENT=yes after verifying the target environment."; \
 		exit 1; \
 	fi
 

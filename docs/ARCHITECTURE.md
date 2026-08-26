@@ -147,10 +147,6 @@ An approved-project edit clears the previous approval and publication timestamps
 
 Owner edits and submissions lock the content row before reading its status. Submission keeps the image-count check and state transition in the same transaction, serialized with upload callbacks that lock the same row.
 
-### Iterations
-
-Iterations use the same draft, pending, approved, and rejected states. A pending iteration remains private without changing the parent project's approved status.
-
 ## Upload protocol
 
 Browser-to-Blob uploads use three checks rather than trusting client metadata:
@@ -163,7 +159,7 @@ Browser-to-Blob uploads use three checks rather than trusting client metadata:
 6. The completion service re-checks the signed user/path/resource binding, reads Blob metadata, validates MIME type and size again, and stores the Blob URL and pathname in PostgreSQL before the UI reports success.
 7. On Vercel, the Blob completion webhook invokes the same idempotent service as a delivery fallback. Local `next dev` does not require a public webhook URL.
 
-Duplicate browser/webhook completion is safe: avatar writes converge on the same pathname, while project and iteration inserts re-check the stored pathname under the resource row lock. If persistence fails, the newly uploaded Blob is deleted as compensation. When an avatar replacement commits successfully, failure to delete the old object is logged but does not delete the new object that PostgreSQL now references.
+Duplicate browser/webhook completion is safe: avatar writes converge on the same pathname, while project image inserts re-check the stored pathname under the project row lock. If persistence fails, the newly uploaded Blob is deleted as compensation. When an avatar replacement commits successfully, failure to delete the old object is logged but does not delete the new object that PostgreSQL now references.
 
 ## Blob and database consistency
 
@@ -194,14 +190,13 @@ detail content and the session start in parallel; the viewer's like state loads
 in its own Suspense boundary after authentication resolves.
 
 Neon HTTP read models that need several independent result sets use
-`getDb().batch(...)`. This sends the project, image, iteration, moderation, or
+`getDb().batch(...)`. This sends the project, image, moderation, or
 related statements in one HTTP transaction request while preserving named query
 boundaries and authorization filters. Do not replace these batches with
 sequential awaits or independent `Promise.all` queries, because both forms add
 database network roundtrips with the HTTP driver.
 
 - Project publication, rejection, edits, images, deletion, and likes affect `/`, `/p/{projectId}/{slug}`, and `/u/{userId}/{username}`.
-- Iteration changes affect the project detail page and its dashboard editor.
 - Avatar or username changes affect the homepage, profile, project pages, and account UI. Contact email changes also invalidate administrator user views.
 - Admin mutations refresh the relevant queue and dashboard count.
 - Submissions and decisions for an idea refresh the owner dashboard, idea queue, detail page, admin overview, and audit log.
@@ -214,9 +209,8 @@ Application validation provides useful errors; PostgreSQL remains the final auth
 
 - Projects require a website URL, a GitHub URL, or both.
 - Likes use a composite primary key.
-- Project and iteration image pathnames and positions are unique.
-- Triggers serialize image inserts and enforce the three-image limit under concurrency.
-- An iteration owner must match the parent project owner.
+- Project image pathnames and positions are unique.
+- Triggers serialize image inserts and enforce the five-image limit under concurrency.
 - Role changes use a PostgreSQL advisory transaction lock so the final administrator cannot be revoked concurrently.
 - State constraints for an idea require a rejection reason for rejected ideas and at least one result destination for completed ideas.
 

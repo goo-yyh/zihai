@@ -16,14 +16,7 @@ import { cache } from "react";
 import { z } from "zod";
 
 import { getDb } from "@/db";
-import {
-  iterationImages,
-  projectImages,
-  projectIterations,
-  projectLikes,
-  projects,
-  user,
-} from "@/db/schema";
+import { projectImages, projectLikes, projects, user } from "@/db/schema";
 import {
   projectSearchPatterns,
   PUBLIC_PROJECT_PAGE_SIZE,
@@ -235,63 +228,6 @@ async function queryPublicProject(projectId: string) {
   };
 }
 
-async function queryPublicProjectIterations(projectId: string) {
-  const projectFilter = and(
-    eq(projects.id, projectId),
-    eq(projects.status, "approved"),
-  );
-  const iterationsQuery = getDb()
-    .select({
-      id: projectIterations.id,
-      versionLabel: projectIterations.versionLabel,
-      description: projectIterations.description,
-      approvedAt: projectIterations.approvedAt,
-      createdAt: projectIterations.createdAt,
-    })
-    .from(projectIterations)
-    .innerJoin(projects, eq(projectIterations.projectId, projects.id))
-    .where(and(projectFilter, eq(projectIterations.status, "approved")))
-    .orderBy(
-      desc(projectIterations.approvedAt),
-      desc(projectIterations.createdAt),
-    );
-  const iterationImagesQuery = getDb()
-    .select({
-      id: iterationImages.id,
-      iterationId: iterationImages.iterationId,
-      url: iterationImages.blobUrl,
-      sortOrder: iterationImages.sortOrder,
-    })
-    .from(iterationImages)
-    .innerJoin(
-      projectIterations,
-      eq(iterationImages.iterationId, projectIterations.id),
-    )
-    .innerJoin(projects, eq(projectIterations.projectId, projects.id))
-    .where(and(projectFilter, eq(projectIterations.status, "approved")))
-    .orderBy(asc(iterationImages.sortOrder));
-
-  const [approvedIterations, allIterationImages] = await getDb().batch([
-    iterationsQuery,
-    iterationImagesQuery,
-  ]);
-
-  const imagesByIteration = new Map<
-    string,
-    (typeof allIterationImages)[number][]
-  >();
-  for (const image of allIterationImages) {
-    const images = imagesByIteration.get(image.iterationId) ?? [];
-    images.push(image);
-    imagesByIteration.set(image.iterationId, images);
-  }
-
-  return approvedIterations.map((iteration) => ({
-    ...iteration,
-    images: imagesByIteration.get(iteration.id) ?? [],
-  }));
-}
-
 export const getPublicProject = cache(async (projectId: string) => {
   if (!projectIdSchema.safeParse(projectId).success) return null;
   const getCachedProject = unstable_cache(
@@ -303,19 +239,6 @@ export const getPublicProject = cache(async (projectId: string) => {
     },
   );
   return getCachedProject();
-});
-
-export const getPublicProjectIterations = cache(async (projectId: string) => {
-  if (!projectIdSchema.safeParse(projectId).success) return [];
-  const getCachedIterations = unstable_cache(
-    () => queryPublicProjectIterations(projectId),
-    ["public-project-iterations", projectId],
-    {
-      revalidate: 3600,
-      tags: [PUBLIC_PROJECT_DETAILS_TAG, publicProjectTag(projectId)],
-    },
-  );
-  return getCachedIterations();
 });
 
 export async function getViewerProjectLike(
