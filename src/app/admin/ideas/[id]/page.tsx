@@ -7,6 +7,7 @@ import {
   IdeaCompletionForm,
   IdeaRejectionForm,
 } from "@/components/admin/idea-review-forms";
+import { CursorPagination } from "@/components/admin/cursor-pagination";
 import { Avatar } from "@/components/ui/avatar";
 import { GitHubIcon } from "@/components/ui/brand-icons";
 import { Badge } from "@/components/ui/badge";
@@ -20,13 +21,17 @@ import { formatDate } from "@/lib/utils";
 
 export default async function AdminIdeaPage({
   params,
+  searchParams,
 }: PageProps<"/admin/ideas/[id]">) {
-  const [{ id }, , { locale, t }] = await Promise.all([
+  const [{ id }, { cursor }, , { locale, t }] = await Promise.all([
     params,
+    searchParams,
     requireAdmin(),
     getTranslations(),
   ]);
-  const idea = await getAdminIdea(id);
+  const idea = await getAdminIdea(id, {
+    cursor: typeof cursor === "string" ? cursor : undefined,
+  });
   if (!idea) notFound();
 
   return (
@@ -82,7 +87,7 @@ export default async function AdminIdeaPage({
         {[
           ["Submitted", idea.createdAt],
           ["Reviewed", idea.reviewedAt],
-          ["Completed", idea.completedAt],
+          ["Completed at", idea.completedAt],
         ].map(([label, value]) => (
           <Card key={String(label)} className="p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -125,13 +130,13 @@ export default async function AdminIdeaPage({
         </div>
       ) : null}
 
-      {idea.logs.length ? (
+      {idea.logs.items.length ? (
         <Card>
           <CardHeader>
             <CardTitle>{t("Moderation history")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {idea.logs.map((log) => (
+            {idea.logs.items.map((log) => (
               <div
                 key={log.id}
                 className="flex justify-between gap-4 border-b pb-3 text-sm last:border-0"
@@ -145,6 +150,10 @@ export default async function AdminIdeaPage({
                 </span>
               </div>
             ))}
+            <CursorPagination
+              page={idea.logs}
+              basePath={`/admin/ideas/${idea.id}`}
+            />
           </CardContent>
         </Card>
       ) : null}

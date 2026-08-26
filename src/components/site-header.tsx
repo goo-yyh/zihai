@@ -7,6 +7,7 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { FeedbackButton } from "@/components/feedback-button";
 import { IdeaButton } from "@/components/idea-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { NotificationButton } from "@/components/notifications/notification-button";
 import { Button } from "@/components/ui/button";
 import { getTranslations } from "@/lib/i18n-server";
 import { getSession } from "@/lib/session";
@@ -31,6 +32,7 @@ async function AccountNav() {
       <FeedbackButton />
       {session.user.onboardingCompleted ? (
         <>
+          <NotificationButton />
           {session.user.role === "admin" ? (
             <Button
               asChild

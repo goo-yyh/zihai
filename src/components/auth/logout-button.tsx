@@ -1,12 +1,13 @@
 "use client";
 
 import { LoaderCircle, LogOut } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
+
+const SIGN_OUT_TIMEOUT_MS = 10_000;
 
 export function LogoutButton({
   label,
@@ -15,8 +16,6 @@ export function LogoutButton({
   label: string;
   errorMessage: string;
 }) {
-  const pathname = usePathname();
-  const router = useRouter();
   const [pending, setPending] = useState(false);
 
   async function logout() {
@@ -27,21 +26,21 @@ export function LogoutButton({
     setPending(true);
 
     try {
-      const result = await authClient.signOut();
+      const result = await authClient.signOut({
+        fetchOptions: { timeout: SIGN_OUT_TIMEOUT_MS },
+      });
 
       if (result.error) {
         toast.error(errorMessage);
-        setPending(false);
         return;
       }
 
-      if (pathname === "/") {
-        router.refresh();
-      } else {
-        router.replace("/");
-      }
+      // Authentication changes must clear preserved client state. A soft
+      // refresh can leave this button and the old avatar mounted indefinitely.
+      window.location.replace(new URL("/", window.location.origin));
     } catch {
       toast.error(errorMessage);
+    } finally {
       setPending(false);
     }
   }

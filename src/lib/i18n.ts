@@ -36,6 +36,84 @@ const zhCN: Record<string, string> = {
   Feedback: "建议反馈",
   ideas: "点子",
   "My ideas": "我的点子",
+  "Project suggestions": "项目建议",
+  Suggestions: "建议",
+  "Submit a suggestion": "提交建议",
+  "Suggest an improvement": "提出改进建议",
+  "Share a problem or improvement for {project}.":
+    "分享你对 {project} 的问题反馈或改进建议。",
+  "Sign in to submit a project suggestion.": "登录后即可提交项目建议。",
+  "Finish account setup before submitting a suggestion.":
+    "提交建议前，请先完成账户设置。",
+  "Describe the issue and what you would like to see improved.":
+    "请描述遇到的问题，以及你希望如何改进。",
+  "Plain text only": "仅支持纯文本",
+  "10–2,000 characters": "10～2,000 个字符",
+  "Send suggestion": "发送建议",
+  "Suggestion sent.": "建议已发送。",
+  "Unable to send your suggestion.": "建议发送失败，请稍后再试。",
+  "Suggestion must be at least 10 characters.": "建议内容至少需要 10 个字符。",
+  "Suggestion must be at most 2,000 characters.": "建议内容最多 2,000 个字符。",
+  "You cannot submit a suggestion to your own project.":
+    "不能给自己的项目提交建议。",
+  "Only approved projects can receive suggestions.":
+    "只有已发布的项目可以接收建议。",
+  "Latest suggestions": "最近建议",
+  "View all ({count})": "查看全部（{count}）",
+  "Public feedback and the project owner's response.":
+    "公开查看用户建议和项目所有者的回应。",
+  "Loading suggestions…": "正在加载建议…",
+  "No suggestions in this view.": "当前视图没有建议。",
+  "Received suggestions": "收到的建议",
+  "My suggestions": "我提交的建议",
+  "Track suggestions you receive and send.": "跟踪收到和提交的项目建议。",
+  "Selected suggestion": "定位的建议",
+  "This suggestion no longer exists or is unavailable.":
+    "该建议已不存在或当前不可访问。",
+  "Suggestion not found.": "未找到建议。",
+  "Invalid suggestion.": "建议无效。",
+  "Only the project owner can update this suggestion.":
+    "只有项目所有者可以处理该建议。",
+  "This suggestion can no longer be updated.": "该建议已无法继续更新。",
+  "Suggestion accepted.": "建议已受理。",
+  "Suggestion rejected.": "建议已拒绝。",
+  "Suggestion completed.": "建议已完成。",
+  "Suggestion updated.": "建议状态已更新。",
+  "Unable to accept the suggestion.": "无法受理该建议。",
+  "Unable to reject the suggestion.": "无法拒绝该建议。",
+  "Unable to complete the suggestion.": "无法完成该建议。",
+  "Unable to update the suggestion.": "无法更新该建议。",
+  "Rejection reason": "拒绝理由",
+  "Rejection reason must be between 3 and 2,000 characters.":
+    "拒绝理由必须为 3～2,000 个字符。",
+  "Confirm rejection": "确认拒绝",
+  "Owner:": "项目所有者：",
+  All: "全部",
+  "Deleted user": "已删除用户",
+  Notifications: "通知",
+  "Opening this list marks all current notifications as read.":
+    "打开通知列表后，当前全部未读通知会被标记为已读。",
+  "Loading notifications…": "正在加载通知…",
+  "Loading more notifications…": "正在加载更多通知…",
+  "All notifications are loaded.": "全部通知已加载。",
+  "Unable to load notifications.": "无法加载通知。",
+  "No notifications yet.": "暂时没有通知。",
+  "{actor} liked {project}.": "{actor} 点赞了项目 {project}。",
+  "{actor} submitted a suggestion for {project}.":
+    "{actor} 为项目 {project} 提交了建议。",
+  "Your suggestion for {project} was accepted.":
+    "你为项目 {project} 提交的建议已被受理。",
+  "Your suggestion for {project} was rejected.":
+    "你为项目 {project} 提交的建议已被拒绝。",
+  "Your suggestion for {project} was completed.":
+    "你为项目 {project} 提交的建议已完成。",
+  "Your project {project} was approved.": "你的项目 {project} 已审核通过。",
+  "Your project {project} was rejected.": "你的项目 {project} 审核未通过。",
+  "Your project {project} was taken down.": "你的项目 {project} 已被下架。",
+  "Your project {project} was republished.": "你的项目 {project} 已重新上架。",
+  "Invalid suggestion filters.": "建议筛选条件无效。",
+  "Unable to load suggestions.": "无法加载建议。",
+  "Invalid notification pagination.": "通知分页参数无效。",
   "I have an idea": "我有一个 idea",
   "Have an idea? Let us help build it.": "有点子？让我们帮你实现。",
   "Describe the product you wish existed. We will review it and may help turn it into a working product.":
@@ -87,7 +165,8 @@ const zhCN: Record<string, string> = {
   "No ideas in this view.": "此视图中没有点子。",
   "idea description": "点子描述",
   Reviewed: "处理时间",
-  Completed: "完成时间",
+  Completed: "已完成",
+  "Completed at": "完成时间",
   "Accept this idea": "受理这个点子",
   "The user will see that the idea has been accepted and is waiting to be built.":
     "用户将看到该点子已受理，并等待实现。",
@@ -246,6 +325,12 @@ const zhCN: Record<string, string> = {
   "This page does not exist, or the content is not publicly approved.":
     "该页面不存在，或相关内容尚未通过公开审核。",
   "Something went sideways": "出现了一些问题",
+  "Project temporarily unavailable": "项目暂时无法访问",
+  "The project could not be loaded right now. The rest of the site is still available.":
+    "暂时无法加载这个项目，网站的其他页面仍可正常使用。",
+  "This section is temporarily unavailable.": "这个区域暂时无法加载。",
+  "The rest of the project page is still available.":
+    "项目页面的其他内容仍可正常使用。",
   "The request could not be completed. No changes were made.":
     "请求未能完成，未产生任何更改。",
   "Try again": "重试",
@@ -462,6 +547,7 @@ const zhCN: Record<string, string> = {
   Filter: "筛选",
   Target: "目标",
   Reason: "原因",
+  "Reason:": "原因：",
   Date: "日期",
   "deleted admin": "已删除的管理员",
   "No moderation actions recorded yet.": "还没有审核操作记录。",

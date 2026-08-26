@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import { UPLOAD_KINDS } from "@/lib/image-policy";
+import { decodePageCursor } from "@/lib/pagination";
+import { PROJECT_SUGGESTION_STATUSES } from "@/lib/project-suggestion-lifecycle";
 
 export const RESERVED_USERNAMES = new Set([
   "admin",
@@ -171,6 +173,53 @@ export const ideaCompletionSchema = z
   .object(destinationFields)
   .superRefine(validateDestinations)
   .transform(normalizeDestinations);
+
+export const projectSuggestionSubmissionSchema = z.object({
+  content: z
+    .string()
+    .trim()
+    .min(10, "Suggestion must be at least 10 characters.")
+    .max(2000, "Suggestion must be at most 2,000 characters."),
+});
+
+export const projectSuggestionRejectionSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Rejection reason must be at least 3 characters.")
+    .max(2000, "Rejection reason must be at most 2,000 characters."),
+});
+
+export const projectSuggestionStatusFilterSchema = z.enum([
+  "all",
+  ...PROJECT_SUGGESTION_STATUSES,
+]);
+
+const uuidPageCursorSchema = z
+  .string()
+  .max(1024, "Cursor is too long.")
+  .refine((value) => decodePageCursor(value, "uuid") !== null, {
+    message: "Invalid cursor.",
+  });
+
+export const publicProjectSuggestionParamsSchema = z.object({
+  projectId: z.uuid(),
+  status: projectSuggestionStatusFilterSchema.default("all"),
+  cursor: uuidPageCursorSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+export const dashboardSuggestionParamsSchema = z.object({
+  view: z.enum(["received", "submitted"]).default("received"),
+  status: projectSuggestionStatusFilterSchema.default("all"),
+  cursor: uuidPageCursorSchema.optional(),
+  focus: z.uuid().optional(),
+});
+
+export const notificationListParamsSchema = z.object({
+  cursor: uuidPageCursorSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
 
 export const uploadKindSchema = z.enum(UPLOAD_KINDS);
 

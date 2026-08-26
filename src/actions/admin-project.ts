@@ -17,6 +17,7 @@ import {
   revalidateAdminProjects,
   revalidatePublicProject,
 } from "@/server/cache";
+import { scheduleNotification } from "@/server/notifications";
 import type { ActionState } from "@/types/actions";
 
 const idSchema = z.uuid();
@@ -38,6 +39,7 @@ export async function approveProjectAction(projectId: string) {
     const [pendingProject] = await tx
       .select({
         status: projects.status,
+        name: projects.name,
         slug: projects.slug,
         ownerId: projects.ownerId,
       })
@@ -73,10 +75,16 @@ export async function approveProjectAction(projectId: string) {
       targetId: id,
       action: "approve_project",
     });
-
     return pendingProject;
   });
 
+  scheduleNotification({
+    recipientId: project.ownerId,
+    actorId: session.user.id,
+    type: "project_approved",
+    projectId: id,
+    payload: { projectName: project.name },
+  });
   revalidatePublicProject(
     { id, slug: project.slug },
     await ownerProfile(project.ownerId),
@@ -100,6 +108,7 @@ export async function rejectProjectAction(
       const [pendingProject] = await tx
         .select({
           status: projects.status,
+          name: projects.name,
           slug: projects.slug,
           ownerId: projects.ownerId,
         })
@@ -129,10 +138,19 @@ export async function rejectProjectAction(
         action: "reject_project",
         reason: parsed.data.reason,
       });
-
       return pendingProject;
     });
 
+    scheduleNotification({
+      recipientId: project.ownerId,
+      actorId: session.user.id,
+      type: "project_rejected",
+      projectId: id,
+      payload: {
+        projectName: project.name,
+        rejectionReason: parsed.data.reason,
+      },
+    });
     revalidatePublicProject(
       { id, slug: project.slug },
       await ownerProfile(project.ownerId),
@@ -152,6 +170,7 @@ export async function archiveProjectAction(projectId: string) {
     const [approvedProject] = await tx
       .select({
         status: projects.status,
+        name: projects.name,
         slug: projects.slug,
         ownerId: projects.ownerId,
       })
@@ -177,10 +196,16 @@ export async function archiveProjectAction(projectId: string) {
       targetId: id,
       action: "archive_project",
     });
-
     return approvedProject;
   });
 
+  scheduleNotification({
+    recipientId: project.ownerId,
+    actorId: session.user.id,
+    type: "project_archived",
+    projectId: id,
+    payload: { projectName: project.name },
+  });
   revalidatePublicProject(
     { id, slug: project.slug },
     await ownerProfile(project.ownerId),
@@ -197,6 +222,7 @@ export async function republishProjectAction(projectId: string) {
     const [archivedProject] = await tx
       .select({
         status: projects.status,
+        name: projects.name,
         slug: projects.slug,
         ownerId: projects.ownerId,
       })
@@ -229,10 +255,16 @@ export async function republishProjectAction(projectId: string) {
       targetId: id,
       action: "republish_project",
     });
-
     return archivedProject;
   });
 
+  scheduleNotification({
+    recipientId: project.ownerId,
+    actorId: session.user.id,
+    type: "project_republished",
+    projectId: id,
+    payload: { projectName: project.name },
+  });
   revalidatePublicProject(
     { id, slug: project.slug },
     await ownerProfile(project.ownerId),

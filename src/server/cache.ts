@@ -5,9 +5,11 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import {
   PUBLIC_PROJECT_DETAILS_TAG,
   PUBLIC_PROJECT_LIST_TAG,
+  PUBLIC_PROJECT_SUGGESTIONS_TAG,
   PUBLIC_SITEMAP_TAG,
   publicProfileTag,
   publicProjectTag,
+  publicProjectSuggestionsTag,
 } from "@/lib/cache-tags";
 import { publicProfilePath, publicProjectPath } from "@/lib/public-routes";
 
@@ -68,6 +70,13 @@ export function revalidateProjectWorkspace(projectId: string) {
   revalidatePath(`/dashboard/projects/${projectId}/edit`);
 }
 
+export function revalidateProjectSuggestions(project: PublicProjectReference) {
+  expireTag(publicProjectSuggestionsTag(project.id));
+  revalidatePath(publicProjectPath(project));
+  revalidatePath(`/p/${project.slug}`);
+  revalidatePath("/dashboard/suggestions");
+}
+
 export function revalidateAdminProjects() {
   revalidatePath("/admin");
   revalidatePath("/admin/projects");
@@ -93,6 +102,7 @@ export function revalidateUserPresentation(
 ) {
   expireTag(PUBLIC_PROJECT_LIST_TAG);
   expireTag(PUBLIC_PROJECT_DETAILS_TAG);
+  expireTag(PUBLIC_PROJECT_SUGGESTIONS_TAG);
   expireTag(PUBLIC_SITEMAP_TAG);
   revalidatePath("/");
   revalidatePath("/dashboard");

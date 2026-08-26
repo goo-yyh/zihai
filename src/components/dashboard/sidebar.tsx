@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Lightbulb,
   Mailbox,
+  MessageSquareText,
   Settings,
   Shield,
   Users,
@@ -19,6 +20,11 @@ const userItems: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/projects", label: "My projects", icon: FileClock },
   { href: "/dashboard/ideas", label: "My ideas", icon: Lightbulb },
+  {
+    href: "/dashboard/suggestions",
+    label: "Project suggestions",
+    icon: MessageSquareText,
+  },
   { href: "/settings/profile", label: "Profile", icon: Settings },
 ];
 

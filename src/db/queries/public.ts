@@ -148,7 +148,7 @@ const RECOMMENDATION_POOL_SIZE = 20;
 // Returns the latest approved projects as a stable ordered pool. The public
 // page selects a random server snapshot before passing it to the client so the
 // server-rendered HTML and hydration payload always agree.
-export const getRecommendationPool = cache(async (excludeProjectId: string) => {
+async function queryRecommendationPool(excludeProjectId: string) {
   return getDb()
     .select({
       id: projects.id,
@@ -169,7 +169,18 @@ export const getRecommendationPool = cache(async (excludeProjectId: string) => {
     )
     .orderBy(desc(projects.publishedAt), desc(projects.id))
     .limit(RECOMMENDATION_POOL_SIZE);
-});
+}
+
+const getCachedRecommendationPool = unstable_cache(
+  queryRecommendationPool,
+  ["public-project-recommendation-pool"],
+  {
+    revalidate: 300,
+    tags: [PUBLIC_PROJECT_LIST_TAG],
+  },
+);
+
+export const getRecommendationPool = cache(getCachedRecommendationPool);
 
 async function queryPublicProject(projectId: string) {
   const projectFilter = and(

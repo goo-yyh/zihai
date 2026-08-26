@@ -7,6 +7,7 @@ import {
   archiveProjectAction,
   republishProjectAction,
 } from "@/actions/admin-project";
+import { CursorPagination } from "@/components/admin/cursor-pagination";
 import { RejectionForm } from "@/components/admin/review-form";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { ProductScreenshot } from "@/components/project/product-screenshot";
@@ -22,13 +23,17 @@ import { formatDate } from "@/lib/utils";
 
 export default async function AdminProjectPage({
   params,
+  searchParams,
 }: PageProps<"/admin/projects/[id]">) {
-  const [{ id }, , { locale, t }] = await Promise.all([
+  const [{ id }, { cursor }, , { locale, t }] = await Promise.all([
     params,
+    searchParams,
     requireAdmin(),
     getTranslations(),
   ]);
-  const project = await getAdminProject(id);
+  const project = await getAdminProject(id, {
+    cursor: typeof cursor === "string" ? cursor : undefined,
+  });
   if (!project) notFound();
   return (
     <div className="space-y-7">
@@ -170,13 +175,13 @@ export default async function AdminProjectPage({
           </Button>
         </form>
       ) : null}
-      {project.logs.length ? (
+      {project.logs.items.length ? (
         <Card>
           <CardHeader>
             <CardTitle>{t("Moderation history")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {project.logs.map((log) => (
+            {project.logs.items.map((log) => (
               <div
                 key={log.id}
                 className="flex justify-between gap-4 border-b pb-3 text-sm last:border-0"
@@ -190,6 +195,10 @@ export default async function AdminProjectPage({
                 </span>
               </div>
             ))}
+            <CursorPagination
+              page={project.logs}
+              basePath={`/admin/projects/${project.id}`}
+            />
           </CardContent>
         </Card>
       ) : null}

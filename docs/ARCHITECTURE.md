@@ -52,7 +52,9 @@ Server modules begin with `import "server-only"` and must not be imported by cli
 
 ### `src/db`
 
-`schema` defines storage and inferred database types. `queries` contains named, screen-oriented read models. Reusable reads belong here instead of in `page.tsx`; mutations with broader business meaning belong in an Action or server service. Large administrative collections use bounded keyset pagination with a timestamp plus stable ID tie-breaker; filters and search terms remain part of the page URL while cursors only describe position.
+`schema` defines storage and inferred database types. `queries` contains named, screen-oriented read models. Reusable reads belong here instead of in `page.tsx`; mutations with broader business meaning belong in an Action or server service. Every user-facing collection that can grow without a product limit uses bounded keyset pagination with a timestamp plus stable ID tie-breaker; filters and search terms remain part of the page URL while cursors only describe position. This includes public and private project suggestions, notifications, user Ideas, administrative indexes, and moderation history on administrative detail pages.
+
+Deliberately bounded collections do not add pagination: one user can own at most ten projects, one project has at most five images, the public suggestion summary has three items, and the recommendation pool is capped at twenty. Sitemap generation is a full cached export rather than an interactive collection. Any new unbounded list must add a database limit and a continuation cursor in the same change.
 
 Public project discovery is served by `GET /api/projects`. The Route Handler validates the sort, keyword, and page boundary before calling the shared read model. The homepage server-renders page one, then the client requests bounded follow-up pages for infinite scrolling. Keyword matching covers project names and descriptions; the selected latest or hot ordering is applied to the filtered result set.
 
@@ -78,7 +80,9 @@ for the whole `BEGIN..COMMIT` window, so `FOR UPDATE`,
 `pg_advisory_xact_lock`, and rollback semantics are preserved. Real-database
 integration tests for this contract live in `src/db/integration.test.ts` and run
 only with `RUN_DB_IT=1` plus a `DATABASE_TEST_URL` whose database name ends with
-`_test`.
+`_test`. Tests against a non-Neon PostgreSQL instance may additionally provide
+`DATABASE_TEST_WS_PROXY`; this setting is scoped to integration tests and is not
+an application runtime fallback.
 
 ### `src/lib`
 
@@ -147,6 +151,70 @@ An approved-project edit clears the previous approval and publication timestamps
 
 Owner edits and submissions lock the content row before reading its status. Submission keeps the image-count check and state transition in the same transaction, serialized with upload callbacks that lock the same row.
 
+The public project detail treats its main project record as required data and
+likes, viewer session controls, suggestion summaries, and recommendations as
+optional UI data. Required-query failures render a safe in-page retry state;
+optional-query failures are logged server-side and replace only that section,
+never the project body. Recommendation pools use the public project list cache
+tag so transient Neon failures and repeated project visits do not create an
+uncached database query for every sidebar render.
+
+### Project suggestions
+
+Project suggestions are the explicit exception to the moderated-public-field
+rule. An onboarded user may submit plain text directly to another user's
+approved project, and the suggestion, status, and rejection reason are public
+immediately. Existing suggestions remain available in the private owner/author
+dashboards while a project is not public, but public queries always join an
+approved project.
+
+```text
+pending -> accepted -> completed
+       \-> rejected
+```
+
+Only the project owner can process a suggestion. Actions lock the suggestion
+row and include ownership and current status in the update predicate. The
+database state check keeps response timestamps, responder, rejection reason,
+and completion time aligned. After the business transaction commits, the
+Action schedules its response notification as best-effort after-response work;
+notification failure never rolls back or delays the suggestion transition. An
+insert trigger locks and re-checks the project, preventing both self-submission
+and suggestions to non-approved projects even when application checks race an
+archive operation. Multiple suggestions from the same author are allowed.
+
+The public project page uses a cached three-item summary. Once any suggestion
+exists it replaces recommendations with that summary; the complete public list
+uses an uncached, status-filtered keyset Route Handler with ten items per page.
+Its drawer keeps the page result count and navigation controls visible even
+when only one page exists. Private received and submitted lists use twenty
+items per page and are never placed in shared cache entries.
+
+### Notifications
+
+Notifications are typed events with a minimal JSON snapshot rather than stored
+localized sentences. They cover new likes, suggestions and suggestion
+responses, plus project approval, rejection, archive, and republication.
+Self-notifications are suppressed. Foreign keys use `set null` for deleted
+actors/projects/suggestions so historical text remains renderable without a
+dead link, while deleting the recipient removes the notification.
+
+After hydration, the Header makes one private, no-store request for the current
+user's unread count, so notification availability and query latency do not
+block server rendering. It does not poll and no WebSocket or SSE channel
+exists. Opening the notification drawer uses one transaction to mark every
+unread row belonging to that user and then read the first page. Notifications
+committed after that update stay unread until the next page load, matching the
+intentionally non-real-time contract. Subsequent cursor pages append
+automatically when the drawer reaches the scroll sentinel.
+
+Notification-producing mutations commit the originating business change
+first, then register an `after()` callback that attempts the notification
+insert. The callback catches and logs persistence failures without exposing
+them to the client. This deliberately allows a notification to be lost so that
+notification database work never extends the business transaction, holds its
+row locks, or delays its response.
+
 ## Upload protocol
 
 Browser-to-Blob uploads use three checks rather than trusting client metadata:
@@ -197,6 +265,7 @@ sequential awaits or independent `Promise.all` queries, because both forms add
 database network roundtrips with the HTTP driver.
 
 - Project publication, rejection, edits, images, deletion, and likes affect `/`, `/p/{projectId}/{slug}`, and `/u/{userId}/{username}`.
+- Suggestion creation and owner decisions expire the project suggestion tag, the project detail, and `/dashboard/suggestions`; private notification state is never placed in the public cache.
 - Avatar or username changes affect the homepage, profile, project pages, and account UI. Contact email changes also invalidate administrator user views.
 - Admin mutations refresh the relevant queue and dashboard count.
 - Submissions and decisions for an idea refresh the owner dashboard, idea queue, detail page, admin overview, and audit log.
@@ -213,6 +282,8 @@ Application validation provides useful errors; PostgreSQL remains the final auth
 - Triggers serialize image inserts and enforce the five-image limit under concurrency.
 - Role changes use a PostgreSQL advisory transaction lock so the final administrator cannot be revoked concurrently.
 - State constraints for an idea require a rejection reason for rejected ideas and at least one result destination for completed ideas.
+- Suggestion constraints and a project-locking trigger enforce legal lifecycle details, approved-project submission, and the no-self-suggestion rule.
+- Notification foreign keys preserve history with nullable targets, and the recipient/read indexes keep unread and reverse-time paging bounded.
 
 Schema changes require a new Drizzle migration. Never use production runtime schema synchronization.
 
@@ -224,7 +295,11 @@ Do not use substring matching as the primary contract between business logic and
 
 ## Verification strategy
 
-Pure lifecycle and validation rules use Vitest. Database constraints are checked through Drizzle migration validation and should gain integration coverage when a test database is introduced. `pnpm check` is the required local gate:
+Pure lifecycle and validation rules use Vitest. Migration source tests protect
+critical triggers, constraints, indexes, and transaction wiring. Opt-in tests
+exercise rollback, row locking, concurrent suggestion decisions, recipient-only
+read updates, and foreign-key behavior against a disposable `_test` database.
+`pnpm check` is the required local gate:
 
 ```text
 format check → ESLint → route/type generation → unit tests → production build
