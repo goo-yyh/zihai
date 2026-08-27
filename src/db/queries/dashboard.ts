@@ -1,42 +1,27 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gt, lt, or } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { ideas, projectImages, projectLikes, projects } from "@/db/schema";
 import {
-  createCursorPage,
-  decodePageCursor,
-  normalizePageSize,
-  type PageCursor,
-} from "@/lib/pagination";
+  createTimestampCursorPage,
+  exactTimestamp,
+  timestampCursorCondition,
+} from "@/db/queries/cursor-pagination";
+import { decodePageCursor, normalizePageSize } from "@/lib/pagination";
 
 type DashboardPageOptions = {
   cursor?: string;
   pageSize?: number;
 };
 
-function ideaCursorCondition(cursor: PageCursor | null) {
-  if (!cursor) return undefined;
-  const updatedAt = new Date(cursor.sortValue);
-  if (cursor.direction === "previous") {
-    return or(
-      gt(ideas.updatedAt, updatedAt),
-      and(eq(ideas.updatedAt, updatedAt), gt(ideas.id, cursor.id)),
-    );
-  }
-  return or(
-    lt(ideas.updatedAt, updatedAt),
-    and(eq(ideas.updatedAt, updatedAt), lt(ideas.id, cursor.id)),
-  );
-}
-
 export async function getUserIdeas(
   userId: string,
   options: DashboardPageOptions = {},
 ) {
   const cursor = decodePageCursor(options.cursor, "uuid");
-  const pageSize = normalizePageSize(options.pageSize ?? 20);
+  const pageSize = normalizePageSize(options.pageSize ?? 10);
   const previous = cursor?.direction === "previous";
   const rows = await getDb()
     .select({
@@ -51,16 +36,22 @@ export async function getUserIdeas(
       completedAt: ideas.completedAt,
       createdAt: ideas.createdAt,
       updatedAt: ideas.updatedAt,
+      cursorSortValue: exactTimestamp(ideas.updatedAt),
     })
     .from(ideas)
-    .where(and(eq(ideas.userId, userId), ideaCursorCondition(cursor)))
+    .where(
+      and(
+        eq(ideas.userId, userId),
+        timestampCursorCondition(ideas.updatedAt, ideas.id, cursor),
+      ),
+    )
     .orderBy(
       previous ? asc(ideas.updatedAt) : desc(ideas.updatedAt),
       previous ? asc(ideas.id) : desc(ideas.id),
     )
     .limit(pageSize + 1);
 
-  return createCursorPage(rows, pageSize, cursor, (idea) => idea.updatedAt);
+  return createTimestampCursorPage(rows, pageSize, cursor);
 }
 
 export async function getUserProjects(ownerId: string) {

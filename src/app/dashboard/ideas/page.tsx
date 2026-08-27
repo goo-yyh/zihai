@@ -20,7 +20,7 @@ export default async function DashboardIdeasPage({
   ]);
   const ideaPage = await getUserIdeas(session.user.id, {
     cursor: typeof cursor === "string" ? cursor : undefined,
-    pageSize: 20,
+    pageSize: 10,
   });
 
   return (

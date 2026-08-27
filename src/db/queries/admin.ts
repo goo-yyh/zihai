@@ -5,15 +5,18 @@ import {
   asc,
   desc,
   eq,
-  gt,
+  getTableColumns,
   ilike,
-  lt,
   or,
   sql,
-  type SQLWrapper,
 } from "drizzle-orm";
 
 import { getDb } from "@/db";
+import {
+  createTimestampCursorPage,
+  exactTimestamp,
+  timestampCursorCondition,
+} from "@/db/queries/cursor-pagination";
 import {
   account,
   feedback,
@@ -26,12 +29,10 @@ import {
 } from "@/db/schema";
 import { IDEA_STATUSES } from "@/lib/idea-lifecycle";
 import {
-  createCursorPage,
   decodePageCursor,
   DEFAULT_ADMIN_PAGE_SIZE,
   normalizePageSize,
   type CursorIdKind,
-  type PageCursor,
 } from "@/lib/pagination";
 
 type AdminPageOptions = {
@@ -43,27 +44,6 @@ type AuditLogFilters = {
   search?: string;
   targetType?: "project" | "idea" | "user";
 };
-
-function keysetCondition(
-  sortColumn: SQLWrapper,
-  idColumn: SQLWrapper,
-  cursor: PageCursor | null,
-) {
-  if (!cursor) return undefined;
-
-  const sortValue = new Date(cursor.sortValue);
-  if (cursor.direction === "previous") {
-    return or(
-      gt(sortColumn, sortValue),
-      and(eq(sortColumn, sortValue), gt(idColumn, cursor.id)),
-    );
-  }
-
-  return or(
-    lt(sortColumn, sortValue),
-    and(eq(sortColumn, sortValue), lt(idColumn, cursor.id)),
-  );
-}
 
 function paginationOptions(options: AdminPageOptions, idKind: CursorIdKind) {
   return {
@@ -80,13 +60,20 @@ function moderationLogPageQuery(
   const { cursor, pageSize } = paginationOptions(options, "uuid");
   const previous = cursor?.direction === "previous";
   const query = getDb()
-    .select()
+    .select({
+      ...getTableColumns(moderationLogs),
+      cursorSortValue: exactTimestamp(moderationLogs.createdAt),
+    })
     .from(moderationLogs)
     .where(
       and(
         eq(moderationLogs.targetType, targetType),
         eq(moderationLogs.targetId, targetId),
-        keysetCondition(moderationLogs.createdAt, moderationLogs.id, cursor),
+        timestampCursorCondition(
+          moderationLogs.createdAt,
+          moderationLogs.id,
+          cursor,
+        ),
       ),
     )
     .orderBy(
@@ -144,13 +131,14 @@ export async function getAdminIdeas(
       userId: ideas.userId,
       userEmail: sql<string>`coalesce(${user.contactEmail}, ${user.email})`,
       userUsername: user.username,
+      cursorSortValue: exactTimestamp(ideas.updatedAt),
     })
     .from(ideas)
     .innerJoin(user, eq(ideas.userId, user.id))
     .where(
       and(
         statusFilter ? eq(ideas.status, statusFilter) : undefined,
-        keysetCondition(ideas.updatedAt, ideas.id, cursor),
+        timestampCursorCondition(ideas.updatedAt, ideas.id, cursor),
       ),
     )
     .orderBy(
@@ -159,7 +147,7 @@ export async function getAdminIdeas(
     )
     .limit(pageSize + 1);
 
-  return createCursorPage(rows, pageSize, cursor, (idea) => idea.updatedAt);
+  return createTimestampCursorPage(rows, pageSize, cursor);
 }
 
 export async function getAdminIdea(
@@ -195,12 +183,7 @@ export async function getAdminIdea(
 
   return {
     ...idea,
-    logs: createCursorPage(
-      logRows,
-      logs.pageSize,
-      logs.cursor,
-      (log) => log.createdAt,
-    ),
+    logs: createTimestampCursorPage(logRows, logs.pageSize, logs.cursor),
   };
 }
 
@@ -223,13 +206,14 @@ export async function getAdminProjects(
       ownerId: projects.ownerId,
       ownerEmail: sql<string>`coalesce(${user.contactEmail}, ${user.email})`,
       ownerUsername: user.username,
+      cursorSortValue: exactTimestamp(projects.updatedAt),
     })
     .from(projects)
     .innerJoin(user, eq(projects.ownerId, user.id))
     .where(
       and(
         statusFilter ? eq(projects.status, statusFilter) : undefined,
-        keysetCondition(projects.updatedAt, projects.id, cursor),
+        timestampCursorCondition(projects.updatedAt, projects.id, cursor),
       ),
     )
     .orderBy(
@@ -238,12 +222,7 @@ export async function getAdminProjects(
     )
     .limit(pageSize + 1);
 
-  return createCursorPage(
-    rows,
-    pageSize,
-    cursor,
-    (project) => project.updatedAt,
-  );
+  return createTimestampCursorPage(rows, pageSize, cursor);
 }
 
 export async function getAdminProject(
@@ -289,12 +268,7 @@ export async function getAdminProject(
   return {
     ...project,
     images,
-    logs: createCursorPage(
-      logRows,
-      logs.pageSize,
-      logs.cursor,
-      (log) => log.createdAt,
-    ),
+    logs: createTimestampCursorPage(logRows, logs.pageSize, logs.cursor),
   };
 }
 
@@ -325,11 +299,14 @@ export async function getAdminUsers(
       createdAt: user.createdAt,
       projectCount: sql<number>`count(distinct ${projects.id})::int`,
       providers: sql<string>`coalesce(string_agg(distinct ${account.providerId}, ', '), '')`,
+      cursorSortValue: exactTimestamp(user.createdAt),
     })
     .from(user)
     .leftJoin(projects, eq(projects.ownerId, user.id))
     .leftJoin(account, eq(account.userId, user.id))
-    .where(and(filter, keysetCondition(user.createdAt, user.id, cursor)))
+    .where(
+      and(filter, timestampCursorCondition(user.createdAt, user.id, cursor)),
+    )
     .groupBy(user.id)
     .orderBy(
       previous ? asc(user.createdAt) : desc(user.createdAt),
@@ -337,12 +314,7 @@ export async function getAdminUsers(
     )
     .limit(pageSize + 1);
 
-  return createCursorPage(
-    rows,
-    pageSize,
-    cursor,
-    (profile) => profile.createdAt,
-  );
+  return createTimestampCursorPage(rows, pageSize, cursor);
 }
 
 export async function getAdminUser(userId: string) {
@@ -414,6 +386,7 @@ export async function getAuditLogs(
       createdAt: moderationLogs.createdAt,
       adminEmail: user.email,
       adminUsername: user.username,
+      cursorSortValue: exactTimestamp(moderationLogs.createdAt),
     })
     .from(moderationLogs)
     .leftJoin(user, eq(moderationLogs.adminId, user.id))
@@ -423,7 +396,11 @@ export async function getAuditLogs(
           ? eq(moderationLogs.targetType, filters.targetType)
           : undefined,
         searchFilter,
-        keysetCondition(moderationLogs.createdAt, moderationLogs.id, cursor),
+        timestampCursorCondition(
+          moderationLogs.createdAt,
+          moderationLogs.id,
+          cursor,
+        ),
       ),
     )
     .orderBy(
@@ -432,7 +409,7 @@ export async function getAuditLogs(
     )
     .limit(pageSize + 1);
 
-  return createCursorPage(rows, pageSize, cursor, (log) => log.createdAt);
+  return createTimestampCursorPage(rows, pageSize, cursor);
 }
 
 export async function getAdminFeedback(options: AdminPageOptions = {}) {
@@ -448,15 +425,16 @@ export async function getAdminFeedback(options: AdminPageOptions = {}) {
       userEmail: user.email,
       userUsername: user.username,
       userImage: user.image,
+      cursorSortValue: exactTimestamp(feedback.createdAt),
     })
     .from(feedback)
     .innerJoin(user, eq(feedback.userId, user.id))
-    .where(keysetCondition(feedback.createdAt, feedback.id, cursor))
+    .where(timestampCursorCondition(feedback.createdAt, feedback.id, cursor))
     .orderBy(
       previous ? asc(feedback.createdAt) : desc(feedback.createdAt),
       previous ? asc(feedback.id) : desc(feedback.id),
     )
     .limit(pageSize + 1);
 
-  return createCursorPage(rows, pageSize, cursor, (entry) => entry.createdAt);
+  return createTimestampCursorPage(rows, pageSize, cursor);
 }
