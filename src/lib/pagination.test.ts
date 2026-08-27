@@ -30,6 +30,29 @@ describe("page cursors", () => {
     expect(decodePageCursor(encodePageCursor(cursor), "uuid")).toBeNull();
   });
 
+  it("preserves exact database microseconds in generated cursors", () => {
+    const exactRows = [
+      {
+        id: "02",
+        cursorSortValue: "2026-08-27T00:00:00.123456Z",
+      },
+      {
+        id: "01",
+        cursorSortValue: "2026-08-27T00:00:00.123123Z",
+      },
+    ];
+    const page = createCursorPage(
+      exactRows,
+      1,
+      null,
+      (row) => row.cursorSortValue,
+    );
+
+    expect(decodePageCursor(page.nextCursor)?.sortValue).toBe(
+      "2026-08-27T00:00:00.123456Z",
+    );
+  });
+
   it("creates a first page with only a next cursor", () => {
     const page = createCursorPage(
       rows(["05", "04", "03"]),
@@ -59,6 +82,36 @@ describe("page cursors", () => {
 
     expect(page.items.map(({ id }) => id)).toEqual(["05", "04"]);
     expect(decodePageCursor(page.previousCursor)?.direction).toBe("previous");
+    expect(decodePageCursor(page.nextCursor)?.direction).toBe("next");
+  });
+
+  it("removes the previous control after returning to the first page", () => {
+    const incoming = {
+      version: 1 as const,
+      direction: "previous" as const,
+      sortValue: "2026-08-01T00:00:00.000Z",
+      id: "01",
+    };
+    const page = createCursorPage(
+      rows(["02", "03", "04", "05", "06", "07", "08", "09", "10", "11"]),
+      10,
+      incoming,
+      (row) => row.createdAt,
+    );
+
+    expect(page.items.map(({ id }) => id)).toEqual([
+      "11",
+      "10",
+      "09",
+      "08",
+      "07",
+      "06",
+      "05",
+      "04",
+      "03",
+      "02",
+    ]);
+    expect(page.previousCursor).toBeNull();
     expect(decodePageCursor(page.nextCursor)?.direction).toBe("next");
   });
 

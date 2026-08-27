@@ -5,9 +5,11 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import {
   PUBLIC_PROJECT_DETAILS_TAG,
   PUBLIC_PROJECT_LIST_TAG,
+  PUBLIC_PROJECT_SUGGESTIONS_TAG,
   PUBLIC_SITEMAP_TAG,
   publicProfileTag,
   publicProjectTag,
+  publicProjectSuggestionsTag,
 } from "@/lib/cache-tags";
 import { publicProfilePath, publicProjectPath } from "@/lib/public-routes";
 
@@ -44,12 +46,6 @@ export function revalidatePublicProject(
   }
 }
 
-export function revalidateProjectDetail(project: PublicProjectReference) {
-  expireTag(publicProjectTag(project.id));
-  revalidatePath(publicProjectPath(project));
-  revalidatePath(`/p/${project.slug}`);
-}
-
 export function revalidateProjectLike(
   project: PublicProjectReference,
   owner?: PublicProfileReference,
@@ -74,21 +70,16 @@ export function revalidateProjectWorkspace(projectId: string) {
   revalidatePath(`/dashboard/projects/${projectId}/edit`);
 }
 
-export function revalidateIterationWorkspace(
-  projectId: string,
-  iterationId?: string,
-) {
-  revalidatePath(`/dashboard/projects/${projectId}/edit`);
-  if (iterationId) {
-    revalidatePath(
-      `/dashboard/projects/${projectId}/iterations/${iterationId}/edit`,
-    );
-  }
+export function revalidateProjectSuggestions(project: PublicProjectReference) {
+  expireTag(publicProjectSuggestionsTag(project.id));
+  revalidatePath(publicProjectPath(project));
+  revalidatePath(`/p/${project.slug}`);
+  revalidatePath("/dashboard/suggestions");
 }
 
-export function revalidateAdminContent(kind: "projects" | "iterations") {
+export function revalidateAdminProjects() {
   revalidatePath("/admin");
-  revalidatePath(`/admin/${kind}`);
+  revalidatePath("/admin/projects");
 }
 
 export function revalidateAdminUsers() {
@@ -111,6 +102,7 @@ export function revalidateUserPresentation(
 ) {
   expireTag(PUBLIC_PROJECT_LIST_TAG);
   expireTag(PUBLIC_PROJECT_DETAILS_TAG);
+  expireTag(PUBLIC_PROJECT_SUGGESTIONS_TAG);
   expireTag(PUBLIC_SITEMAP_TAG);
   revalidatePath("/");
   revalidatePath("/dashboard");

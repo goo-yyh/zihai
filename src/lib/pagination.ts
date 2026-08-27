@@ -51,7 +51,7 @@ export function createCursorPage<T extends { id: string }>(
   rows: T[],
   pageSize: number,
   cursor: PageCursor | null,
-  sortValue: (item: T) => Date,
+  sortValue: (item: T) => Date | string,
 ): CursorPage<T> {
   const normalizedPageSize = normalizePageSize(pageSize);
   const hasMoreInQueryDirection = rows.length > normalizedPageSize;
@@ -69,6 +69,10 @@ export function createCursorPage<T extends { id: string }>(
       : hasMoreInQueryDirection;
   const first = items[0];
   const last = items.at(-1);
+  const serializeSortValue = (item: T) => {
+    const value = sortValue(item);
+    return value instanceof Date ? value.toISOString() : value;
+  };
 
   return {
     items,
@@ -77,7 +81,7 @@ export function createCursorPage<T extends { id: string }>(
         ? encodePageCursor({
             version: 1,
             direction: "previous",
-            sortValue: sortValue(first).toISOString(),
+            sortValue: serializeSortValue(first),
             id: first.id,
           })
         : null,
@@ -86,7 +90,7 @@ export function createCursorPage<T extends { id: string }>(
         ? encodePageCursor({
             version: 1,
             direction: "next",
-            sortValue: sortValue(last).toISOString(),
+            sortValue: serializeSortValue(last),
             id: last.id,
           })
         : null,

@@ -209,13 +209,13 @@ export async function submitProjectAction(projectId: string) {
       .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)))
       .for("update");
     if (!project) throw new UserFacingError("Project not found.");
-    assertSubmittable(project.status, "project");
+    assertSubmittable(project.status);
 
     const [images] = await tx
       .select({ value: count() })
       .from(projectImages)
       .where(eq(projectImages.projectId, id));
-    assertImageCount(images?.value ?? 0, "Project");
+    assertImageCount(images?.value ?? 0);
 
     const now = new Date();
     await tx

@@ -25,6 +25,7 @@ export default async function AdminIdeasPage({
       : "all";
   const ideaPage = await getAdminIdeas(active === "all" ? undefined : active, {
     cursor: typeof cursor === "string" ? cursor : undefined,
+    pageSize: 10,
   });
 
   return (

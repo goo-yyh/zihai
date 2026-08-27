@@ -36,15 +36,15 @@ describe("contentEditPatch", () => {
 
 describe("submission invariants", () => {
   it("accepts only draft and rejected content", () => {
-    expect(() => assertSubmittable("draft", "project")).not.toThrow();
-    expect(() => assertSubmittable("rejected", "project")).not.toThrow();
-    expect(() => assertSubmittable("pending", "project")).toThrow();
+    expect(() => assertSubmittable("draft")).not.toThrow();
+    expect(() => assertSubmittable("rejected")).not.toThrow();
+    expect(() => assertSubmittable("pending")).toThrow();
   });
 
   it("requires one to five images", () => {
-    expect(() => assertImageCount(1, "Project")).not.toThrow();
-    expect(() => assertImageCount(5, "Project")).not.toThrow();
-    expect(() => assertImageCount(0, "Project")).toThrow();
-    expect(() => assertImageCount(6, "Project")).toThrow();
+    expect(() => assertImageCount(1)).not.toThrow();
+    expect(() => assertImageCount(5)).not.toThrow();
+    expect(() => assertImageCount(0)).toThrow();
+    expect(() => assertImageCount(6)).toThrow();
   });
 });

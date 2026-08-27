@@ -6,10 +6,6 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 
 import {
-  deleteIterationImageAction,
-  reorderIterationImagesAction,
-} from "@/actions/iteration-images";
-import {
   deleteProjectImageAction,
   reorderProjectImagesAction,
 } from "@/actions/project-images";
@@ -21,13 +17,9 @@ import { ImageUploader } from "@/components/upload/image-uploader";
 type ManagedImage = { id: string; blobUrl: string; sortOrder: number };
 
 export function ImageManager({
-  kind,
-  resourceId,
   projectId,
   images,
 }: {
-  kind: "project-image" | "iteration-image";
-  resourceId: string;
   projectId: string;
   images: ManagedImage[];
 }) {
@@ -54,20 +46,15 @@ export function ImageManager({
     if (nextIndex < 0 || nextIndex >= images.length) return;
     const ids = images.map((image) => image.id);
     [ids[index], ids[nextIndex]] = [ids[nextIndex], ids[index]];
-    const action =
-      kind === "project-image"
-        ? () => reorderProjectImagesAction(resourceId, ids)
-        : () => reorderIterationImagesAction(resourceId, ids);
-    run(action, "Image order updated.");
+    run(
+      () => reorderProjectImagesAction(projectId, ids),
+      "Image order updated.",
+    );
   }
 
   function remove(imageId: string) {
     if (!window.confirm(t("Delete this image permanently?"))) return;
-    const action =
-      kind === "project-image"
-        ? () => deleteProjectImageAction(imageId)
-        : () => deleteIterationImageAction(imageId);
-    run(action, "Image deleted.");
+    run(() => deleteProjectImageAction(imageId), "Image deleted.");
   }
 
   return (
@@ -136,9 +123,8 @@ export function ImageManager({
         </div>
       ) : null}
       <ImageUploader
-        kind={kind}
+        kind="project-image"
         projectId={projectId}
-        iterationId={kind === "iteration-image" ? resourceId : undefined}
         currentCount={images.length}
       />
     </div>

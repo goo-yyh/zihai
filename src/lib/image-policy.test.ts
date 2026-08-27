@@ -14,15 +14,12 @@ describe("image upload policy", () => {
     });
   });
 
-  it.each(["project-image", "iteration-image"] as const)(
-    "applies the shared content limits to %s",
-    (kind) => {
-      expect(imageUploadPolicy(kind)).toEqual({
-        maxFiles: MAX_CONTENT_IMAGES,
-        maxBytes: 5 * 1024 * 1024,
-      });
-    },
-  );
+  it("applies the shared content limits to project images", () => {
+    expect(imageUploadPolicy("project-image")).toEqual({
+      maxFiles: MAX_CONTENT_IMAGES,
+      maxBytes: 5 * 1024 * 1024,
+    });
+  });
 
   it("allows only browser-safe raster formats", () => {
     expect(ALLOWED_IMAGE_TYPES).toEqual([

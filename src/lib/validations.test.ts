@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 
+import { encodePageCursor } from "@/lib/pagination";
 import {
+  dashboardSuggestionParamsSchema,
   feedbackSchema,
   ideaCompletionSchema,
   ideaSubmissionSchema,
+  notificationListParamsSchema,
   normalizeGithubUrl,
   passwordSchema,
   projectInputSchema,
+  projectSuggestionRejectionSchema,
+  projectSuggestionSubmissionSchema,
+  publicProjectSuggestionParamsSchema,
   uploadCompletionSchema,
   usernameSchema,
 } from "@/lib/validations";
@@ -206,5 +212,66 @@ describe("idea schemas", () => {
       websiteUrl: "https://example.com/idea",
       githubUrl: "https://github.com/acme/idea",
     });
+  });
+});
+
+describe("project suggestion schemas", () => {
+  it("trims and bounds project suggestions", () => {
+    expect(
+      projectSuggestionSubmissionSchema.parse({
+        content: "  Please add a public roadmap.  ",
+      }),
+    ).toEqual({ content: "Please add a public roadmap." });
+    expect(
+      projectSuggestionSubmissionSchema.safeParse({ content: "too short" })
+        .success,
+    ).toBe(false);
+    expect(
+      projectSuggestionSubmissionSchema.safeParse({
+        content: "x".repeat(2001),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("validates rejection reasons", () => {
+    expect(
+      projectSuggestionRejectionSchema.parse({ reason: "  not planned  " }),
+    ).toEqual({ reason: "not planned" });
+    expect(
+      projectSuggestionRejectionSchema.safeParse({ reason: "no" }).success,
+    ).toBe(false);
+  });
+
+  it("validates suggestion and notification pagination parameters", () => {
+    const cursor = encodePageCursor({
+      version: 1,
+      direction: "next",
+      sortValue: "2026-08-26T00:00:00.000Z",
+      id: "01995a50-71e8-7000-8000-000000000001",
+    });
+    expect(
+      publicProjectSuggestionParamsSchema.parse({
+        projectId: "01995a50-71e8-7000-8000-000000000002",
+        status: "accepted",
+        cursor,
+        limit: "10",
+      }).limit,
+    ).toBe(10);
+    expect(
+      dashboardSuggestionParamsSchema.parse({
+        view: "submitted",
+        status: "completed",
+        cursor,
+      }).view,
+    ).toBe("submitted");
+    expect(notificationListParamsSchema.parse({ cursor }).limit).toBe(20);
+    expect(
+      publicProjectSuggestionParamsSchema.safeParse({
+        projectId: "invalid",
+        status: "unknown",
+        cursor: "invalid",
+        limit: 51,
+      }).success,
+    ).toBe(false);
   });
 });

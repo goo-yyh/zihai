@@ -31,12 +31,90 @@ const zhCN: Record<string, string> = {
   "My projects": "我的项目",
   Profile: "个人资料",
   Projects: "项目",
-  Iterations: "迭代",
   Users: "用户",
   "Audit log": "审计日志",
   Feedback: "建议反馈",
   ideas: "点子",
   "My ideas": "我的点子",
+  "Project suggestions": "项目建议",
+  Suggestions: "建议",
+  "Submit a suggestion": "提交建议",
+  "Suggest an improvement": "提出改进建议",
+  "Share a problem or improvement for {project}.":
+    "分享你对 {project} 的问题反馈或改进建议。",
+  "Sign in to submit a project suggestion.": "登录后即可提交项目建议。",
+  "Finish account setup before submitting a suggestion.":
+    "提交建议前，请先完成账户设置。",
+  "Describe the issue and what you would like to see improved.":
+    "请描述遇到的问题，以及你希望如何改进。",
+  "Plain text only": "仅支持纯文本",
+  "10–2,000 characters": "10～2,000 个字符",
+  "Send suggestion": "发送建议",
+  "Suggestion sent.": "建议已发送。",
+  "Unable to send your suggestion.": "建议发送失败，请稍后再试。",
+  "Suggestion must be at least 10 characters.": "建议内容至少需要 10 个字符。",
+  "Suggestion must be at most 2,000 characters.": "建议内容最多 2,000 个字符。",
+  "You cannot submit a suggestion to your own project.":
+    "不能给自己的项目提交建议。",
+  "Only approved projects can receive suggestions.":
+    "只有已发布的项目可以接收建议。",
+  "Latest suggestions": "最近建议",
+  "View all ({count})": "查看全部（{count}）",
+  "Public feedback and the project owner's response.":
+    "公开查看用户建议和项目所有者的回应。",
+  "Loading suggestions…": "正在加载建议…",
+  "No suggestions in this view.": "当前视图没有建议。",
+  "Received suggestions": "收到的建议",
+  "My suggestions": "我提交的建议",
+  "Track suggestions you receive and send.": "跟踪收到和提交的项目建议。",
+  "Selected suggestion": "定位的建议",
+  "This suggestion no longer exists or is unavailable.":
+    "该建议已不存在或当前不可访问。",
+  "Suggestion not found.": "未找到建议。",
+  "Invalid suggestion.": "建议无效。",
+  "Only the project owner can update this suggestion.":
+    "只有项目所有者可以处理该建议。",
+  "This suggestion can no longer be updated.": "该建议已无法继续更新。",
+  "Suggestion accepted.": "建议已受理。",
+  "Suggestion rejected.": "建议已拒绝。",
+  "Suggestion completed.": "建议已完成。",
+  "Suggestion updated.": "建议状态已更新。",
+  "Unable to accept the suggestion.": "无法受理该建议。",
+  "Unable to reject the suggestion.": "无法拒绝该建议。",
+  "Unable to complete the suggestion.": "无法完成该建议。",
+  "Unable to update the suggestion.": "无法更新该建议。",
+  "Rejection reason": "拒绝理由",
+  "Rejection reason must be between 3 and 2,000 characters.":
+    "拒绝理由必须为 3～2,000 个字符。",
+  "Confirm rejection": "确认拒绝",
+  "Owner:": "项目所有者：",
+  All: "全部",
+  "Deleted user": "已删除用户",
+  Notifications: "通知",
+  "Notifications, {count} unread": "通知，{count} 条未读",
+  "Opening this list marks all current notifications as read.":
+    "打开通知列表后，当前全部未读通知会被标记为已读。",
+  "Loading notifications…": "正在加载通知…",
+  "Loading more notifications…": "正在加载更多通知…",
+  "All notifications are loaded.": "全部通知已加载。",
+  "Unable to load notifications.": "无法加载通知。",
+  "No notifications yet.": "暂时没有通知。",
+  "{actor} liked {project}.": "{actor} 点赞了项目 {project}。",
+  "{actor} submitted a suggestion for {project}.":
+    "{actor} 为项目 {project} 提交了建议。",
+  "Your suggestion for {project} was accepted.":
+    "你为项目 {project} 提交的建议已被受理。",
+  "Your suggestion for {project} was rejected.":
+    "你为项目 {project} 提交的建议已被拒绝。",
+  "Your suggestion for {project} was completed.":
+    "你为项目 {project} 提交的建议已完成。",
+  "Your project {project} was approved.": "你的项目 {project} 已审核通过。",
+  "Your project {project} was rejected.": "你的项目 {project} 审核未通过。",
+  "Your project {project} was taken down.": "你的项目 {project} 已被下架。",
+  "Your project {project} was republished.": "你的项目 {project} 已重新上架。",
+  "Invalid suggestion filters.": "建议筛选条件无效。",
+  "Unable to load suggestions.": "无法加载建议。",
+  "Invalid notification pagination.": "通知分页参数无效。",
   "I have an idea": "我有一个 idea",
   "Have an idea? Let us help build it.": "有点子？让我们帮你实现。",
   "Describe the product you wish existed. We will review it and may help turn it into a working product.":
@@ -88,7 +166,8 @@ const zhCN: Record<string, string> = {
   "No ideas in this view.": "此视图中没有点子。",
   "idea description": "点子描述",
   Reviewed: "处理时间",
-  Completed: "完成时间",
+  Completed: "已完成",
+  "Completed at": "完成时间",
   "Accept this idea": "受理这个点子",
   "The user will see that the idea has been accepted and is waiting to be built.":
     "用户将看到该点子已受理，并等待实现。",
@@ -142,8 +221,6 @@ const zhCN: Record<string, string> = {
     "只有已下架的项目才能重新上架。",
   "Built with AI. Shipped by humans.": "AI 辅助构建，由人类完成交付。",
   "Find the next useful thing.": "发现下一个真正有用的产品。",
-  "A curated launchpad for independent AI products. Discover what builders are shipping, follow every iteration, and support the work you want to see win.":
-    "一个精选的独立 AI 产品发布平台。发现创造者正在交付的产品，关注每一次迭代，并支持你希望脱颖而出的作品。",
   "Explore products": "探索产品",
   "Submit yours": "提交你的产品",
   "The zihAI standard": "zihAI 标准",
@@ -151,8 +228,6 @@ const zhCN: Record<string, string> = {
   "A working website or public GitHub repository.":
     "提供可用的网站或公开的 GitHub 仓库。",
   "Human review": "人工审核",
-  "Every launch and iteration is checked before publishing.":
-    "每次产品发布和迭代都会在公开前经过审核。",
   "Visible progress": "进展可见",
   "Updates stay attached to the product that inspired them.":
     "所有更新都会保留在对应产品下，持续展示成长过程。",
@@ -251,6 +326,12 @@ const zhCN: Record<string, string> = {
   "This page does not exist, or the content is not publicly approved.":
     "该页面不存在，或相关内容尚未通过公开审核。",
   "Something went sideways": "出现了一些问题",
+  "Project temporarily unavailable": "项目暂时无法访问",
+  "The project could not be loaded right now. The rest of the site is still available.":
+    "暂时无法加载这个项目，网站的其他页面仍可正常使用。",
+  "This section is temporarily unavailable.": "这个区域暂时无法加载。",
+  "The rest of the project page is still available.":
+    "项目页面的其他内容仍可正常使用。",
   "The request could not be completed. No changes were made.":
     "请求未能完成，未产生任何更改。",
   "Try again": "重试",
@@ -269,14 +350,8 @@ const zhCN: Record<string, string> = {
   "Enlarged screenshot {number}": "放大的第 {number} 张截图",
   "Go to image {number}": "查看第 {number} 张图片",
   "Image {current} of {total}": "第 {current} 张，共 {total} 张",
-  "Build log": "构建日志",
-  "Recent updates": "最近更新",
   "More to explore": "更多推荐",
-  "All updates": "全部更新",
   Close: "关闭",
-  UPDATE: "更新",
-  "Product update": "产品更新",
-  Iteration: "迭代",
   Joined: "加入时间",
   Published: "发布时间",
   "Builder profile": "创造者主页",
@@ -312,7 +387,6 @@ const zhCN: Record<string, string> = {
     "创建你的第一个 AI 产品条目并准备提交审核。",
   "Created {date} · Public URL {path}": "创建于 {date} · 公开地址 {path}",
   "View public page": "查看公开页面",
-  "Iteration submitted for review.": "迭代已提交审核。",
   "Reviewer feedback": "审核反馈",
   "This project is in review. You can still edit it, but changes remain private until approved.":
     "该项目正在审核中。你仍可编辑，但更改会在批准前保持私密。",
@@ -322,36 +396,13 @@ const zhCN: Record<string, string> = {
   Screenshots: "截图",
   "Add between 1 and 5 images. The first image becomes the listing cover.":
     "添加 1–5 张图片，第一张将作为产品封面。",
-  "Publish meaningful updates after the project itself is approved.":
-    "项目获批后，可以发布有意义的更新。",
-  "New iteration": "新建迭代",
-  "Untitled update": "未命名更新",
-  "No iterations yet.": "还没有迭代。",
   "Ready for review?": "准备好提交审核了吗？",
   "A project needs at least one screenshot and complete details.":
     "项目至少需要一张截图和完整信息。",
-  "Delete this project, all iterations, and every uploaded image permanently?":
-    "确定永久删除此项目、所有迭代和全部已上传图片吗？",
+  "Delete this project and every uploaded image permanently?":
+    "确定永久删除此项目和全部已上传图片吗？",
   Delete: "删除",
   "Submit for review": "提交审核",
-  "Create an iteration": "创建迭代",
-  "Capture what changed. You will add screenshots on the next screen.":
-    "记录本次变化，你将在下一步添加截图。",
-  "Update details": "更新详情",
-  "Focus on meaningful product progress, not a changelog dump.":
-    "聚焦有意义的产品进展，而不是简单堆砌变更日志。",
-  "Untitled iteration": "未命名迭代",
-  "For {project} · Created {date}": "所属项目 {project} · 创建于 {date}",
-  "Iteration story": "迭代故事",
-  "Editing an approved iteration sends it back to review.":
-    "编辑已批准的迭代后，会重新进入审核。",
-  "Add 1–5 images that make the improvement visible.":
-    "添加 1–5 张能够直观展示改进的图片。",
-  "Review controls": "审核操作",
-  "Only approved parent projects can receive new iterations.":
-    "只有已批准的上级项目才能添加新迭代。",
-  "Delete this iteration and every uploaded image permanently?":
-    "确定永久删除此迭代和全部已上传图片吗？",
   "New launch": "新产品发布",
   "Show us what you built": "展示你构建的产品",
   "Start with the story and destination. You will add 1–5 screenshots before submitting for human review.":
@@ -376,14 +427,6 @@ const zhCN: Record<string, string> = {
   "Saving…": "保存中…",
   "Creating…": "创建中…",
   "Save project": "保存项目",
-  "Version label": "版本标签",
-  "(optional)": "（可选）",
-  "v1.2, August update, New onboarding…": "v1.2、八月更新、全新引导…",
-  "What changed?": "有哪些变化？",
-  "Share the decisions, improvements, and lessons behind this iteration. Markdown is supported.":
-    "分享本次迭代背后的决策、改进和经验。支持 Markdown。",
-  "Save iteration": "保存迭代",
-  "Create iteration": "创建迭代",
   "Action failed.": "操作失败。",
   "Image order updated.": "图片顺序已更新。",
   "Delete this image permanently?": "确定永久删除这张图片吗？",
@@ -436,8 +479,8 @@ const zhCN: Record<string, string> = {
   "Setting password…": "正在设置密码…",
   "Changing password…": "正在修改密码…",
   "Delete account": "删除账户",
-  "This permanently removes your profile, projects, iterations, ideas, likes, and uploaded Blob images.":
-    "这会永久删除你的个人资料、项目、迭代、点子、点赞和已上传的 Blob 图片。",
+  "This permanently removes your profile, projects, ideas, likes, and uploaded Blob images.":
+    "这会永久删除你的个人资料、项目、点子、点赞和已上传的 Blob 图片。",
   "Type DELETE to confirm": "输入 DELETE 以确认",
   "Delete my account": "删除我的账户",
   "Review operations": "审核运营",
@@ -446,7 +489,6 @@ const zhCN: Record<string, string> = {
     "管理产品发布、访问权限和平台安全。",
   "All projects": "全部项目",
   "Pending projects": "待审核项目",
-  "Pending iterations": "待审核迭代",
   Rejected: "已拒绝",
   "Open queue": "打开队列",
   "@{owner} · submitted {date}": "@{owner} · 提交于 {date}",
@@ -477,16 +519,6 @@ const zhCN: Record<string, string> = {
   Approve: "批准",
   "Rejection reason:": "拒绝原因：",
   "Moderation history": "审核历史",
-  "Iteration moderation": "迭代审核",
-  "Keep published build logs useful, specific, and safe.":
-    "确保公开的构建日志有用、具体且安全。",
-  "for {project}": "所属项目 {project}",
-  "No iterations in this view.": "此视图中没有迭代。",
-  "Public project": "公开项目",
-  "Iteration screenshot {number}": "迭代截图 {number}",
-  "Approve iteration": "批准迭代",
-  "This update will be added to the project’s public build log.":
-    "此更新将添加到项目的公开构建日志中。",
   "Inspect access, linked providers, publishing activity, and bans.":
     "检查访问权限、关联登录提供商、发布活动和封禁状态。",
   "Search contact email or username": "搜索联系邮箱或用户名",
@@ -516,6 +548,7 @@ const zhCN: Record<string, string> = {
   Filter: "筛选",
   Target: "目标",
   Reason: "原因",
+  "Reason:": "原因：",
   Date: "日期",
   "deleted admin": "已删除的管理员",
   "No moderation actions recorded yet.": "还没有审核操作记录。",
@@ -584,15 +617,6 @@ const zhCN: Record<string, string> = {
     "更改已保存并提交审核，公开页面会在批准前保持隐藏。",
   "Project saved.": "项目已保存。",
   "Unable to save the project.": "无法保存项目。",
-  "Invalid iteration.": "迭代无效。",
-  "Iteration not found.": "未找到迭代。",
-  "Iterations can only be added to approved projects.":
-    "只能为已批准的项目添加迭代。",
-  "Unable to create the iteration.": "无法创建迭代。",
-  "Changes saved and submitted for review.": "更改已保存并提交审核。",
-  "Iteration saved.": "迭代已保存。",
-  "Unable to save the iteration.": "无法保存迭代。",
-  "This feature is temporarily unavailable.": "此功能暂时不可用。",
   "Complete onboarding before continuing.": "请先完成账户设置。",
   Unauthorized: "未授权",
   Forbidden: "禁止访问",
@@ -606,8 +630,6 @@ const zhCN: Record<string, string> = {
   "Missing upload intent.": "缺少上传意图。",
   "Project is required.": "必须指定项目。",
   "A project can have at most 5 images.": "一个项目最多可以有 5 张图片。",
-  "Iteration and project are required.": "必须指定迭代和项目。",
-  "An iteration can have at most 5 images.": "一个迭代最多可以有 5 张图片。",
   "Complete onboarding first.": "请先完成账户设置。",
   "Upload intent is required.": "必须提供上传意图。",
   "Upload intent mismatch.": "上传意图不匹配。",
@@ -616,29 +638,20 @@ const zhCN: Record<string, string> = {
   "User not found.": "未找到用户。",
   "Invalid image order.": "图片顺序无效。",
   "Project image not found.": "未找到项目图片。",
-  "Iteration image not found.": "未找到迭代图片。",
   "Only pending content can be reviewed.": "只能审核待审核内容。",
   "Project rejected.": "项目已拒绝。",
   "Unable to reject the project.": "无法拒绝该项目。",
-  "Iteration rejected.": "迭代已拒绝。",
-  "Unable to reject the iteration.": "无法拒绝该迭代。",
   "At least one administrator is required.": "系统必须至少保留一名管理员。",
   "You cannot ban your own account.": "你不能封禁自己的账户。",
   "Transfer administrator access before deleting the final admin account.":
     "删除最后一个管理员账户前，请先转移管理员权限。",
   "Only draft or rejected projects can be submitted.":
     "只能提交草稿或已拒绝的项目。",
-  "Only draft or rejected iterations can be submitted.":
-    "只能提交草稿或已拒绝的迭代。",
   "Project must have between 1 and 5 images.": "项目必须包含 1–5 张图片。",
-  "Iteration must have between 1 and 5 images.": "迭代必须包含 1–5 张图片。",
-  "The project must be approved before submitting an iteration.":
-    "提交迭代前，项目必须先获得批准。",
   "Project name must be at least 2 characters.": "项目名称至少需要 2 个字符。",
   "Project name must be at most 100 characters.": "项目名称最多 100 个字符。",
   "Description must be at least 10 characters.": "描述至少需要 10 个字符。",
   "Description must be at most 4,000 characters.": "描述最多 4,000 个字符。",
-  "Version label must be at most 80 characters.": "版本标签最多 80 个字符。",
   "Rejection reason must be at least 3 characters.":
     "拒绝原因至少需要 3 个字符。",
   "Rejection reason must be at most 2,000 characters.":

@@ -1,13 +1,15 @@
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 
 import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { ProjectImageCarousel } from "@/components/project/project-image-carousel";
 import { LikeButton } from "@/components/project/like-button";
-import { RecentUpdates } from "@/components/project/recent-updates";
+import { ProjectSuggestionButton } from "@/components/project/project-suggestion-button";
+import { ProjectSuggestionPanel } from "@/components/project/project-suggestion-panel";
+import { ProjectSectionUnavailable } from "@/components/project/project-section-unavailable";
 import { RecommendedProjects } from "@/components/project/recommended-projects";
 import { Avatar } from "@/components/ui/avatar";
 import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
@@ -15,52 +17,117 @@ import { Button } from "@/components/ui/button";
 import {
   getPublicProject,
   getRecommendationPool,
-  getPublicProjectIterations,
   getViewerProjectLike,
 } from "@/db/queries/public";
-import { isFeatureEnabled } from "@/lib/features";
+import { getProjectSuggestionSummary } from "@/db/queries/project-suggestions";
 import { publicProfilePath, publicProjectPath } from "@/lib/public-routes";
 import { getSession } from "@/lib/session";
 import { getTranslations } from "@/lib/i18n-server";
 import { selectRandomRecommendations } from "@/lib/recommendations";
 import { SITE_DESCRIPTION } from "@/lib/site";
 import { formatDate, truncate } from "@/lib/utils";
+import { loadOptionalUiData } from "@/server/optional-ui-data";
 
-async function ProjectSidebar({
-  projectId,
-  iterationsEnabled,
-}: {
-  projectId: string;
-  iterationsEnabled: boolean;
-}) {
-  if (iterationsEnabled) {
-    const iterations = await getPublicProjectIterations(projectId);
-    if (iterations.length) {
-      return (
-        <RecentUpdates
-          items={iterations.map((iteration) => ({
-            id: iteration.id,
-            versionLabel: iteration.versionLabel,
-            description: iteration.description,
-            approvedAt: iteration.approvedAt
-              ? new Date(iteration.approvedAt).toISOString()
-              : null,
-            createdAt: new Date(iteration.createdAt).toISOString(),
-            images: iteration.images.map((image) => ({
-              id: image.id,
-              url: image.url,
-            })),
-          }))}
-        />
-      );
-    }
+const loadPublicProjectResult = cache(async (projectId: string) => {
+  try {
+    return {
+      ok: true as const,
+      project: await getPublicProject(projectId),
+    };
+  } catch (error) {
+    console.error("Unable to load the public project page", error);
+    return { ok: false as const };
   }
+});
 
-  const recommendations = await getRecommendationPool(projectId);
+function ProjectPageUnavailable({
+  retryPath,
+  title,
+  description,
+  retryLabel,
+}: {
+  retryPath: string;
+  title: string;
+  description: string;
+  retryLabel: string;
+}) {
+  return (
+    <div
+      role="alert"
+      className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center px-4 text-center"
+    >
+      <span className="rounded-2xl bg-rose-50 p-4 text-danger">
+        <TriangleAlert className="size-7" />
+      </span>
+      <h1 className="mt-5 text-3xl font-black">{title}</h1>
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+        {description}
+      </p>
+      <Button asChild className="mt-6">
+        <a href={retryPath}>{retryLabel}</a>
+      </Button>
+    </div>
+  );
+}
+
+async function ProjectSidebar({ projectId }: { projectId: string }) {
+  const suggestionResult = await loadOptionalUiData(
+    "project suggestion sidebar",
+    () => getProjectSuggestionSummary(projectId),
+  );
+  if (!suggestionResult.ok) return <ProjectSectionUnavailable />;
+  const suggestions = suggestionResult.data;
+  if (suggestions.totalCount > 0) {
+    return (
+      <ProjectSuggestionPanel
+        projectId={projectId}
+        items={suggestions.items}
+        totalCount={suggestions.totalCount}
+      />
+    );
+  }
+  const recommendationResult = await loadOptionalUiData(
+    "project recommendations",
+    () => getRecommendationPool(projectId),
+  );
+  if (!recommendationResult.ok) return <ProjectSectionUnavailable />;
   return (
     <RecommendedProjects
       key={projectId}
-      pool={selectRandomRecommendations(recommendations, 5)}
+      pool={selectRandomRecommendations(recommendationResult.data, 5)}
+    />
+  );
+}
+
+async function ProjectSuggestionControl({
+  projectId,
+  projectName,
+  ownerId,
+  slug,
+}: {
+  projectId: string;
+  projectName: string;
+  ownerId: string;
+  slug: string;
+}) {
+  const sessionResult = await loadOptionalUiData(
+    "project suggestion control",
+    getSession,
+  );
+  if (!sessionResult.ok) return null;
+  const session = sessionResult.data;
+  const accountState = !session
+    ? "guest"
+    : session.user.onboardingCompleted
+      ? "ready"
+      : "onboarding";
+  return (
+    <ProjectSuggestionButton
+      projectId={projectId}
+      projectName={projectName}
+      nextPath={publicProjectPath({ id: projectId, slug })}
+      accountState={accountState}
+      isOwner={session?.user.id === ownerId}
     />
   );
 }
@@ -74,10 +141,18 @@ async function ProjectLikeControl({
   slug: string;
   likeCount: number;
 }) {
-  const session = await getSession();
-  const viewerLiked = session
-    ? await getViewerProjectLike(projectId, session.user.id)
-    : false;
+  const viewerResult = await loadOptionalUiData(
+    "project like control",
+    async () => {
+      const session = await getSession();
+      const viewerLiked = session
+        ? await getViewerProjectLike(projectId, session.user.id)
+        : false;
+      return { session, viewerLiked };
+    },
+  );
+  if (!viewerResult.ok) return null;
+  const { session, viewerLiked } = viewerResult.data;
   const access = !session
     ? "login"
     : session.user.onboardingCompleted
@@ -99,10 +174,17 @@ export async function generateMetadata({
   params,
 }: PageProps<"/p/[projectId]/[slug]">): Promise<Metadata> {
   const { projectId, slug } = await params;
-  const [project, { t }] = await Promise.all([
-    getPublicProject(projectId),
+  const [projectResult, { t }] = await Promise.all([
+    loadPublicProjectResult(projectId),
     getTranslations(),
   ]);
+  if (!projectResult.ok) {
+    return {
+      title: t("Project temporarily unavailable"),
+      robots: { index: false, follow: false },
+    };
+  }
+  const project = projectResult.project;
   if (!project)
     return {
       title: t("Project not found"),
@@ -135,17 +217,26 @@ export default async function ProjectPage({
   params,
 }: PageProps<"/p/[projectId]/[slug]">) {
   const projectPromise = params.then(({ projectId }) =>
-    getPublicProject(projectId),
+    loadPublicProjectResult(projectId),
   );
-  const [{ slug }, project, { locale, t }] = await Promise.all([
-    params,
-    projectPromise,
-    getTranslations(),
-  ]);
+  const [{ projectId, slug }, projectResult, { locale, t }] = await Promise.all(
+    [params, projectPromise, getTranslations()],
+  );
+  if (!projectResult.ok) {
+    return (
+      <ProjectPageUnavailable
+        retryPath={publicProjectPath({ id: projectId, slug })}
+        title={t("Project temporarily unavailable")}
+        description={t(
+          "The project could not be loaded right now. The rest of the site is still available.",
+        )}
+        retryLabel={t("Try again")}
+      />
+    );
+  }
+  const project = projectResult.project;
   if (!project) notFound();
   if (slug !== project.slug) permanentRedirect(publicProjectPath(project));
-  const iterationsEnabled = isFeatureEnabled("iterations");
-
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="grid gap-9 lg:grid-cols-[1fr_19rem]">
@@ -170,7 +261,7 @@ export default async function ProjectPage({
                 @{project.ownerUsername}
               </Link>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Suspense
                 fallback={
                   <div
@@ -183,6 +274,21 @@ export default async function ProjectPage({
                   projectId={project.id}
                   slug={project.slug}
                   likeCount={project.likeCount}
+                />
+              </Suspense>
+              <Suspense
+                fallback={
+                  <div
+                    aria-hidden="true"
+                    className="h-10 w-36 animate-pulse rounded-xl bg-muted"
+                  />
+                }
+              >
+                <ProjectSuggestionControl
+                  projectId={project.id}
+                  projectName={project.name}
+                  ownerId={project.ownerId}
+                  slug={project.slug}
                 />
               </Suspense>
               {project.websiteUrl ? (
@@ -268,10 +374,7 @@ export default async function ProjectPage({
               </div>
             }
           >
-            <ProjectSidebar
-              projectId={project.id}
-              iterationsEnabled={iterationsEnabled}
-            />
+            <ProjectSidebar projectId={project.id} />
           </Suspense>
         </aside>
       </div>

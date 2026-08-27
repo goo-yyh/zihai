@@ -1,5 +1,6 @@
 import { ExternalLink, Inbox, Lightbulb } from "lucide-react";
 
+import { CursorPagination } from "@/components/admin/cursor-pagination";
 import { GitHubIcon } from "@/components/ui/brand-icons";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -9,12 +10,18 @@ import { getTranslations } from "@/lib/i18n-server";
 import { requireOnboardedUser } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 
-export default async function DashboardIdeasPage() {
-  const [session, { locale, t }] = await Promise.all([
+export default async function DashboardIdeasPage({
+  searchParams,
+}: PageProps<"/dashboard/ideas">) {
+  const [session, { cursor }, { locale, t }] = await Promise.all([
     requireOnboardedUser(),
+    searchParams,
     getTranslations(),
   ]);
-  const ideas = await getUserIdeas(session.user.id);
+  const ideaPage = await getUserIdeas(session.user.id, {
+    cursor: typeof cursor === "string" ? cursor : undefined,
+    pageSize: 10,
+  });
 
   return (
     <div className="space-y-6">
@@ -28,9 +35,9 @@ export default async function DashboardIdeasPage() {
         </p>
       </div>
 
-      {ideas.length ? (
+      {ideaPage.items.length ? (
         <div className="space-y-4">
-          {ideas.map((idea) => (
+          {ideaPage.items.map((idea) => (
             <Card key={idea.id} className="p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -104,6 +111,7 @@ export default async function DashboardIdeasPage() {
           <Lightbulb className="mt-1 size-4 text-amber-700" />
         </Card>
       )}
+      <CursorPagination page={ideaPage} basePath="/dashboard/ideas" />
     </div>
   );
 }

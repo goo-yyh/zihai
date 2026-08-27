@@ -4,10 +4,8 @@ import { MAX_CONTENT_IMAGES } from "@/lib/image-policy";
 export const MIN_CONTENT_IMAGES = 1;
 export { MAX_CONTENT_IMAGES } from "@/lib/image-policy";
 
-export type ModeratedContentStatus =
-  "draft" | "pending" | "approved" | "rejected";
-
-export type ProjectContentStatus = ModeratedContentStatus | "archived";
+export type ProjectContentStatus =
+  "draft" | "pending" | "approved" | "rejected" | "archived";
 
 type ContentEditPatch = {
   status: ProjectContentStatus;
@@ -59,33 +57,18 @@ export function contentEditPatch(
   };
 }
 
-export function iterationContentEditPatch(
-  currentStatus: ModeratedContentStatus,
-  now = new Date(),
-) {
-  return contentEditPatch(currentStatus, now) as ContentEditPatch & {
-    status: ModeratedContentStatus;
-  };
-}
-
-export function assertSubmittable(
-  status: ProjectContentStatus,
-  resourceName: "project" | "iteration",
-) {
+export function assertSubmittable(status: ProjectContentStatus) {
   if (status !== "draft" && status !== "rejected") {
     throw new UserFacingError(
-      `Only draft or rejected ${resourceName}s can be submitted.`,
+      "Only draft or rejected projects can be submitted.",
     );
   }
 }
 
-export function assertImageCount(
-  count: number,
-  resourceName: "Project" | "Iteration",
-) {
+export function assertImageCount(count: number) {
   if (count < MIN_CONTENT_IMAGES || count > MAX_CONTENT_IMAGES) {
     throw new UserFacingError(
-      `${resourceName} must have between ${MIN_CONTENT_IMAGES} and ${MAX_CONTENT_IMAGES} images.`,
+      `Project must have between ${MIN_CONTENT_IMAGES} and ${MAX_CONTENT_IMAGES} images.`,
     );
   }
 }

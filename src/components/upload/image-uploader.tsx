@@ -17,13 +17,11 @@ import {
 export function ImageUploader({
   kind,
   projectId,
-  iterationId,
   currentCount = 0,
   compact = false,
 }: {
   kind: UploadKind;
   projectId?: string;
-  iterationId?: string;
   currentCount?: number;
   compact?: boolean;
 }) {
@@ -41,7 +39,6 @@ export function ImageUploader({
   ) {
     const query = new URLSearchParams({ kind, contentType: file.type });
     if (projectId) query.set("projectId", projectId);
-    if (iterationId) query.set("iterationId", iterationId);
 
     const intentResponse = await fetch(`/api/blob/upload?${query}`);
     const intent = (await intentResponse.json()) as {

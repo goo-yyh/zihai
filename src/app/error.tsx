@@ -1,17 +1,24 @@
 "use client";
 
 import { TriangleAlert } from "lucide-react";
+import { useEffect } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 
 export default function ErrorPage({
-  reset,
+  error,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   const { t } = useI18n();
+
+  useEffect(() => {
+    console.error("Unexpected page error", error);
+  }, [error]);
+
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center px-4 text-center">
       <span className="rounded-2xl bg-rose-50 p-4 text-danger">
@@ -23,7 +30,7 @@ export default function ErrorPage({
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
         {t("The request could not be completed. No changes were made.")}
       </p>
-      <Button type="button" className="mt-6" onClick={reset}>
+      <Button type="button" className="mt-6" onClick={retry}>
         {t("Try again")}
       </Button>
     </div>
