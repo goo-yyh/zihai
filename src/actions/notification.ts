@@ -2,13 +2,16 @@
 
 import "server-only";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, isNull } from "drizzle-orm";
 
 import { withTransaction } from "@/db";
+import {
+  createTimestampCursorPage,
+  exactTimestamp,
+} from "@/db/queries/cursor-pagination";
 import { notifications } from "@/db/schema";
 import { isUserFacingError } from "@/lib/errors";
 import type { NotificationPage } from "@/lib/notifications";
-import { createCursorPage } from "@/lib/pagination";
 import { assertOnboardedUser } from "@/lib/session";
 
 export type OpenNotificationsResult =
@@ -31,12 +34,15 @@ export async function openNotificationsAction(): Promise<OpenNotificationsResult
         );
 
       const rows = await tx
-        .select()
+        .select({
+          ...getTableColumns(notifications),
+          cursorSortValue: exactTimestamp(notifications.createdAt),
+        })
         .from(notifications)
         .where(eq(notifications.recipientId, session.user.id))
         .orderBy(desc(notifications.createdAt), desc(notifications.id))
         .limit(21);
-      const result = createCursorPage(rows, 20, null, (item) => item.createdAt);
+      const result = createTimestampCursorPage(rows, 20, null);
       return {
         items: result.items.map((item) => ({
           id: item.id,

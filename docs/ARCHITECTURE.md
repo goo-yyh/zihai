@@ -52,7 +52,7 @@ Server modules begin with `import "server-only"` and must not be imported by cli
 
 ### `src/db`
 
-`schema` defines storage and inferred database types. `queries` contains named, screen-oriented read models. Reusable reads belong here instead of in `page.tsx`; mutations with broader business meaning belong in an Action or server service. Every user-facing collection that can grow without a product limit uses bounded keyset pagination with a timestamp plus stable ID tie-breaker; filters and search terms remain part of the page URL while cursors only describe position. This includes public and private project suggestions, notifications, user Ideas, administrative indexes, and moderation history on administrative detail pages.
+`schema` defines storage and inferred database types. `queries` contains named, screen-oriented read models. Reusable reads belong here instead of in `page.tsx`; mutations with broader business meaning belong in an Action or server service. Every user-facing collection that can grow without a product limit uses bounded keyset pagination with a timestamp plus stable ID tie-breaker; filters and search terms remain part of the page URL while cursors only describe position. Timestamp cursors preserve PostgreSQL microseconds and compare their boundary in PostgreSQL instead of round-tripping through JavaScript `Date`. This includes public and private project suggestions, notifications, user Ideas, administrative indexes, and moderation history on administrative detail pages.
 
 Deliberately bounded collections do not add pagination: one user can own at most ten projects, one project has at most five images, the public suggestion summary has three items, and the recommendation pool is capped at twenty. Sitemap generation is a full cached export rather than an interactive collection. Any new unbounded list must add a database limit and a continuation cursor in the same change.
 
@@ -187,7 +187,7 @@ The public project page uses a cached three-item summary. Once any suggestion
 exists it replaces recommendations with that summary; the complete public list
 uses an uncached, status-filtered keyset Route Handler with ten items per page.
 Its drawer keeps the page result count and navigation controls visible even
-when only one page exists. Private received and submitted lists use twenty
+when only one page exists. Private received and submitted lists use ten
 items per page and are never placed in shared cache entries.
 
 ### Notifications

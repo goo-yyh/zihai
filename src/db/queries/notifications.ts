@@ -1,16 +1,24 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gt, isNull, lt, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  getTableColumns,
+  isNull,
+} from "drizzle-orm";
 
 import { getDb } from "@/db";
+import {
+  createTimestampCursorPage,
+  exactTimestamp,
+  timestampCursorCondition,
+} from "@/db/queries/cursor-pagination";
 import { notifications } from "@/db/schema";
 import type { NotificationPage } from "@/lib/notifications";
-import {
-  createCursorPage,
-  decodePageCursor,
-  normalizePageSize,
-  type PageCursor,
-} from "@/lib/pagination";
+import { decodePageCursor, normalizePageSize } from "@/lib/pagination";
 
 export async function getUnreadNotificationCount(recipientId: string) {
   const [result] = await getDb()
@@ -25,27 +33,6 @@ export async function getUnreadNotificationCount(recipientId: string) {
   return result?.value ?? 0;
 }
 
-function cursorCondition(cursor: PageCursor | null) {
-  if (!cursor) return undefined;
-  const createdAt = new Date(cursor.sortValue);
-  if (cursor.direction === "previous") {
-    return or(
-      gt(notifications.createdAt, createdAt),
-      and(
-        eq(notifications.createdAt, createdAt),
-        gt(notifications.id, cursor.id),
-      ),
-    );
-  }
-  return or(
-    lt(notifications.createdAt, createdAt),
-    and(
-      eq(notifications.createdAt, createdAt),
-      lt(notifications.id, cursor.id),
-    ),
-  );
-}
-
 export async function getNotificationPage(
   recipientId: string,
   options: { cursor?: string; pageSize?: number } = {},
@@ -54,22 +41,27 @@ export async function getNotificationPage(
   const pageSize = normalizePageSize(options.pageSize ?? 20);
   const previous = cursor?.direction === "previous";
   const rows = await getDb()
-    .select()
+    .select({
+      ...getTableColumns(notifications),
+      cursorSortValue: exactTimestamp(notifications.createdAt),
+    })
     .from(notifications)
     .where(
-      and(eq(notifications.recipientId, recipientId), cursorCondition(cursor)),
+      and(
+        eq(notifications.recipientId, recipientId),
+        timestampCursorCondition(
+          notifications.createdAt,
+          notifications.id,
+          cursor,
+        ),
+      ),
     )
     .orderBy(
       previous ? asc(notifications.createdAt) : desc(notifications.createdAt),
       previous ? asc(notifications.id) : desc(notifications.id),
     )
     .limit(pageSize + 1);
-  const page = createCursorPage(
-    rows,
-    pageSize,
-    cursor,
-    (item) => item.createdAt,
-  );
+  const page = createTimestampCursorPage(rows, pageSize, cursor);
 
   return {
     items: page.items.map((item) => ({

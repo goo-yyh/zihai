@@ -43,12 +43,12 @@ export default async function DashboardSuggestionsPage({
       ? getReceivedProjectSuggestions(
           session.user.id,
           { status },
-          { cursor: filters.cursor, pageSize: 20 },
+          { cursor: filters.cursor, pageSize: 10 },
         )
       : getSubmittedProjectSuggestions(
           session.user.id,
           { status },
-          { cursor: filters.cursor, pageSize: 20 },
+          { cursor: filters.cursor, pageSize: 10 },
         );
   const [page, focused] = await Promise.all([
     pagePromise,

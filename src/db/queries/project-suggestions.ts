@@ -1,18 +1,22 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gt, lt, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
 import { getDb } from "@/db";
+import {
+  createTimestampCursorPage,
+  exactTimestamp,
+  timestampCursorCondition,
+} from "@/db/queries/cursor-pagination";
 import { projectSuggestions, projects, user } from "@/db/schema";
 import {
   PUBLIC_PROJECT_SUGGESTIONS_TAG,
   publicProjectSuggestionsTag,
 } from "@/lib/cache-tags";
 import {
-  createCursorPage,
   decodePageCursor,
   normalizePageSize,
   type PageCursor,
@@ -31,27 +35,6 @@ export type SuggestionPageOptions = {
   pageSize?: number;
 };
 
-function keysetCondition(cursor: PageCursor | null) {
-  if (!cursor) return undefined;
-  const createdAt = new Date(cursor.sortValue);
-  if (cursor.direction === "previous") {
-    return or(
-      gt(projectSuggestions.createdAt, createdAt),
-      and(
-        eq(projectSuggestions.createdAt, createdAt),
-        gt(projectSuggestions.id, cursor.id),
-      ),
-    );
-  }
-  return or(
-    lt(projectSuggestions.createdAt, createdAt),
-    and(
-      eq(projectSuggestions.createdAt, createdAt),
-      lt(projectSuggestions.id, cursor.id),
-    ),
-  );
-}
-
 function suggestionFilter(
   filters: ProjectSuggestionFilters,
   cursor: PageCursor | null,
@@ -60,7 +43,11 @@ function suggestionFilter(
   return and(
     scope,
     filters.status ? eq(projectSuggestions.status, filters.status) : undefined,
-    keysetCondition(cursor),
+    timestampCursorCondition(
+      projectSuggestions.createdAt,
+      projectSuggestions.id,
+      cursor,
+    ),
   );
 }
 
@@ -83,6 +70,7 @@ const dashboardSelection = {
   completedAt: projectSuggestions.completedAt,
   createdAt: projectSuggestions.createdAt,
   updatedAt: projectSuggestions.updatedAt,
+  cursorSortValue: exactTimestamp(projectSuggestions.createdAt),
 };
 
 function dashboardSuggestionQuery(filter?: SQL) {
@@ -104,7 +92,7 @@ async function dashboardSuggestionPage(
   options: SuggestionPageOptions,
 ) {
   const cursor = decodePageCursor(options.cursor, "uuid");
-  const pageSize = normalizePageSize(options.pageSize ?? 20);
+  const pageSize = normalizePageSize(options.pageSize ?? 10);
   const previous = cursor?.direction === "previous";
   const rows = await dashboardSuggestionQuery(
     suggestionFilter(filters, cursor, scope),
@@ -117,7 +105,7 @@ async function dashboardSuggestionPage(
     )
     .limit(pageSize + 1);
 
-  return createCursorPage(rows, pageSize, cursor, (item) => item.createdAt);
+  return createTimestampCursorPage(rows, pageSize, cursor);
 }
 
 export function getReceivedProjectSuggestions(
@@ -160,7 +148,11 @@ export async function getFocusedProjectSuggestion(
   const rows = await dashboardSuggestionQuery(
     and(eq(projectSuggestions.id, suggestionId), scope),
   ).limit(1);
-  return rows[0] ?? null;
+  const focused = rows[0];
+  if (!focused) return null;
+  const { cursorSortValue, ...item } = focused;
+  void cursorSortValue;
+  return item;
 }
 
 async function queryProjectSuggestionSummary(projectId: string) {
@@ -256,6 +248,7 @@ export async function getPublicProjectSuggestions(
         username: suggestionAuthor.username,
         image: suggestionAuthor.image,
       },
+      cursorSortValue: exactTimestamp(projectSuggestions.createdAt),
     })
     .from(projectSuggestions)
     .innerJoin(projects, eq(projectSuggestions.projectId, projects.id))
@@ -274,12 +267,7 @@ export async function getPublicProjectSuggestions(
   const [projectRows, rows] = await getDb().batch([projectQuery, rowsQuery]);
   if (!projectRows[0]) return null;
 
-  const page = createCursorPage(
-    rows,
-    pageSize,
-    cursor,
-    (item) => item.createdAt,
-  );
+  const page = createTimestampCursorPage(rows, pageSize, cursor);
   return {
     ...page,
     items: page.items.map((item) => ({

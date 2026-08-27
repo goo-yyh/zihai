@@ -11,17 +11,41 @@ function source(relativePath: string) {
 }
 
 describe("growing collection pagination", () => {
-  it("bounds the user's Idea list with a stable cursor page", () => {
+  it("keeps Idea and private suggestion pages at ten items", () => {
     const dashboardQueries = source("./dashboard.ts");
     const dashboardIdeasPage = source("../../app/dashboard/ideas/page.tsx");
-
-    expect(dashboardQueries).toContain("function ideaCursorCondition");
-    expect(dashboardQueries).toContain(".limit(pageSize + 1)");
-    expect(dashboardQueries).toContain(
-      "createCursorPage(rows, pageSize, cursor",
+    const suggestionQueries = source("./project-suggestions.ts");
+    const dashboardSuggestionsPage = source(
+      "../../app/dashboard/suggestions/page.tsx",
     );
+    const adminIdeasPage = source("../../app/admin/ideas/page.tsx");
+
+    expect(dashboardQueries).toContain("options.pageSize ?? 10");
+    expect(dashboardQueries).toContain(".limit(pageSize + 1)");
+    expect(dashboardIdeasPage).toContain("pageSize: 10");
     expect(dashboardIdeasPage).toContain("ideaPage.items");
     expect(dashboardIdeasPage).toContain("<CursorPagination");
+    expect(suggestionQueries).toContain("options.pageSize ?? 10");
+    expect(dashboardSuggestionsPage.match(/pageSize: 10/g)).toHaveLength(2);
+    expect(adminIdeasPage).toContain("pageSize: 10");
+  });
+
+  it("preserves database microseconds in every timestamp cursor query", () => {
+    const cursorQueries = source("./cursor-pagination.ts");
+    const paginatedQueries = [
+      source("./admin.ts"),
+      source("./dashboard.ts"),
+      source("./notifications.ts"),
+      source("./project-suggestions.ts"),
+    ];
+
+    expect(cursorQueries).toContain("AT TIME ZONE 'UTC'");
+    expect(cursorQueries).toContain("::timestamptz");
+    expect(cursorQueries).toContain("createTimestampCursorPage");
+    for (const querySource of paginatedQueries) {
+      expect(querySource).toContain("createTimestampCursorPage");
+      expect(querySource).not.toContain("new Date(cursor.sortValue)");
+    }
   });
 
   it("bounds project and Idea moderation history", () => {

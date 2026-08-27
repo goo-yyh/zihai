@@ -137,7 +137,7 @@ stateDiagram-v2
 规则：
 
 - 默认按 `created_at DESC, id DESC` 排列，状态变化不改变原提交顺序。
-- 每页 20 条，使用时间戳加 UUID 的游标分页。
+- 每页 10 条，使用保留数据库微秒精度的时间戳加 UUID 游标分页。
 - 两个标签都支持 `all`、`pending`、`accepted`、`rejected`、`completed` 状态筛选。
 - 收到的建议显示项目、提交者、内容、状态、提交时间和 Owner 操作。
 - 我提交的建议显示项目、Owner、内容、状态、提交时间和公开拒绝理由。
