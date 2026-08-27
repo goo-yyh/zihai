@@ -8,7 +8,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -31,7 +31,6 @@ import { projectSuggestionStatusLabel } from "@/lib/project-suggestion-lifecycle
 import { publicProjectPath, publicProfilePath } from "@/lib/public-routes";
 import { cn, formatDate } from "@/lib/utils";
 import { initialActionState } from "@/types/actions";
-import { useActionState } from "react";
 
 function OwnerSuggestionActions({
   suggestion,
@@ -42,17 +41,23 @@ function OwnerSuggestionActions({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showReject, setShowReject] = useState(false);
-  const [rejectState, rejectAction] = useActionState(
-    rejectProjectSuggestionAction.bind(null, suggestion.id),
-    initialActionState,
-  );
+  const [rejectState, setRejectState] = useState(initialActionState);
 
-  useEffect(() => {
-    if (rejectState.status === "success") {
-      toast.success(t(rejectState.message || "Suggestion rejected."));
+  async function rejectSuggestion(formData: FormData) {
+    setRejectState(initialActionState);
+    const result = await rejectProjectSuggestionAction(
+      suggestion.id,
+      initialActionState,
+      formData,
+    );
+    if (result.status === "success") {
+      setShowReject(false);
+      toast.success(t(result.message || "Suggestion rejected."));
       router.refresh();
+      return;
     }
-  }, [rejectState, router, t]);
+    setRejectState(result);
+  }
 
   function run(action: () => Promise<{ status: string; message?: string }>) {
     startTransition(async () => {
@@ -90,14 +95,17 @@ function OwnerSuggestionActions({
             size="sm"
             variant="danger"
             disabled={pending}
-            onClick={() => setShowReject((visible) => !visible)}
+            onClick={() => {
+              setRejectState(initialActionState);
+              setShowReject((visible) => !visible);
+            }}
           >
             <XCircle className="size-4" /> {t("Reject")}
           </Button>
         </div>
         {showReject ? (
           <form
-            action={rejectAction}
+            action={rejectSuggestion}
             className="mt-4 space-y-3 rounded-xl border border-rose-200 bg-rose-50/60 p-4"
           >
             <div className="space-y-1.5">

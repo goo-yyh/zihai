@@ -26,6 +26,10 @@ export function NotificationButton() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [pending, startTransition] = useTransition();
   const badge = notificationBadgeLabel(unreadCount);
+  const accessibleLabel =
+    unreadCount > 0
+      ? t("Notifications, {count} unread", { count: unreadCount })
+      : t("Notifications");
   const closeDrawer = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
@@ -121,7 +125,7 @@ export function NotificationButton() {
         size="icon"
         variant="ghost"
         className="relative size-8"
-        aria-label={t("Notifications")}
+        aria-label={accessibleLabel}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={openDrawer}
@@ -132,7 +136,10 @@ export function NotificationButton() {
           <Bell className="size-4" />
         )}
         {badge ? (
-          <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-danger px-1 text-center text-[10px] font-black leading-5 text-white">
+          <span
+            aria-hidden="true"
+            className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-danger px-1 text-center text-[10px] font-black leading-5 text-white"
+          >
             {badge}
           </span>
         ) : null}

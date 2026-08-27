@@ -66,8 +66,20 @@ describe("notification event wiring", () => {
     expect(siteHeader).not.toContain("getUnreadNotificationCount");
     expect(button).toContain("/api/notifications/unread-count");
     expect(button).toContain("mergeNotificationItems");
+    expect(button).toContain('t("Notifications, {count} unread"');
+    expect(button).toContain('aria-hidden="true"');
     expect(drawer).toContain("IntersectionObserver");
     expect(drawer).not.toContain('t("Previous")');
     expect(drawer).not.toContain('t("Next")');
+  });
+
+  it("consumes suggestion rejection results in the submitting action", () => {
+    const suggestionList = source(
+      "../components/dashboard/project-suggestion-list.tsx",
+    );
+    expect(suggestionList).toContain("action={rejectSuggestion}");
+    expect(suggestionList).toContain("await rejectProjectSuggestionAction(");
+    expect(suggestionList).not.toContain("useActionState");
+    expect(suggestionList).not.toContain("useEffect");
   });
 });

@@ -23,6 +23,12 @@ describe("i18n", () => {
       translate("en", "Welcome back, @{username}", { username: "ai" }),
     ).toBe("Welcome back, @ai");
     expect(translate("zh-CN", "Enlarge image")).toBe("放大图片");
+    expect(
+      translate("zh-CN", "Notifications, {count} unread", { count: 3 }),
+    ).toBe("通知，3 条未读");
+    expect(translate("en", "Notifications, {count} unread", { count: 3 })).toBe(
+      "Notifications, 3 unread",
+    );
   });
 
   it("keeps unknown provider messages safe and readable", () => {

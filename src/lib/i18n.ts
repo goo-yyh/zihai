@@ -91,6 +91,7 @@ const zhCN: Record<string, string> = {
   All: "全部",
   "Deleted user": "已删除用户",
   Notifications: "通知",
+  "Notifications, {count} unread": "通知，{count} 条未读",
   "Opening this list marks all current notifications as read.":
     "打开通知列表后，当前全部未读通知会被标记为已读。",
   "Loading notifications…": "正在加载通知…",
