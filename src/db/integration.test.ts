@@ -1,8 +1,16 @@
 import { sql } from "drizzle-orm";
+import { neonConfig } from "@neondatabase/serverless";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const testUrl = process.env.DATABASE_TEST_URL ?? "";
 const integrationEnabled = process.env.RUN_DB_IT === "1" && testUrl.length > 0;
+const testWebSocketProxy = process.env.DATABASE_TEST_WS_PROXY;
+
+if (testWebSocketProxy) {
+  neonConfig.wsProxy = testWebSocketProxy;
+  neonConfig.useSecureWebSocket = false;
+  neonConfig.pipelineConnect = false;
+}
 
 function assertSafeTestDatabase() {
   const pathname = new URL(testUrl).pathname;

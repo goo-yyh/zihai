@@ -1,19 +1,20 @@
 # zihAI
 
-zihAI 是一个面向独立 AI 产品的人工审核发布平台。开发者通过邮箱验证码、GitHub 或 Google 完成身份验证，设置用户名和密码后即可提交产品截图和持续更新日志；项目与迭代内容只有通过管理员审核后才会公开展示。
-
-> 当前迭代功能暂时关闭。相关数据模型和实现仍然保留，但用户端、公开页和管理端入口均不可访问；恢复时只需调整 `src/lib/features.ts` 中的集中功能开关。
+zihAI 是一个面向独立 AI 产品的人工审核发布平台。开发者通过邮箱验证码、GitHub 或 Google 完成身份验证，设置用户名和密码后即可提交产品与截图；项目只有通过管理员审核后才会公开展示。
 
 ## 核心能力
 
 - 使用 Better Auth 接入 Resend 邮箱验证码（支持所有有效邮箱地址）、GitHub 和 Google OAuth，并支持用户名密码登录；发送邮件前必须完成一次性图片验证码
 - 强制完成用户名、密码、头像和私密联系邮箱设置后才能创建内容或点赞；GitHub 和 Google OAuth 注册统一使用站点默认头像，用户可自行上传头像
 - 支持项目草稿、提交审核、驳回反馈、重新提交与删除
-- 每个项目和迭代支持 1～3 张有序截图
+- 每个项目支持 1～5 张有序截图
 - 只允许点赞已审核项目，数据库保证同一用户不能重复点赞
+- 已完成引导的用户可以向他人的已发布项目提交公开建议；项目 Owner 可受理、拒绝并填写理由，受理后可标记完成
+- 项目详情展示最近建议和公开筛选分页，Owner 与提交者可在个人中心分别跟踪完整状态
+- Header 提供一次性未读数量和通知抽屉，覆盖点赞、建议、建议回应及项目审核状态变更，不使用轮询或实时推送
 - 提供基于稳定 ID 与可读文本组合 URL 的公开产品页、开发者主页、Open Graph、Robots 和动态 Sitemap
 - 首页支持按最新或热度排序、标题/描述关键词搜索、无限滚动分页和一键刷新
-- 提供项目/迭代审核、用户角色、封禁和审计日志后台
+- 提供项目审核、用户角色、封禁和审计日志后台
 - 登录用户可以提交产品点子、在个人中心跟踪受理状态，并查看最终产品或 GitHub 交付地址
 - 管理员可以受理或拒绝点子；拒绝必须说明理由，完成时必须提供产品 URL 或 GitHub 地址
 - 使用 Neon PostgreSQL、Drizzle ORM 与版本化 SQL 迁移
@@ -62,16 +63,18 @@ flowchart TD
 ## 关键业务规则
 
 - 新账号只能在有效邮箱验证码、GitHub 或 Google 完成身份验证后创建。
-- 未完成引导流程的用户不能创建项目、迭代或点赞。
+- 未完成引导流程的用户不能创建项目或点赞。
 - 每个用户在所有状态下合计最多拥有 10 个项目；删除项目后会释放创建名额。
 - 一个项目至少填写网站地址或 GitHub 仓库地址之一，也可以同时填写两者。
-- 项目和迭代在提交及审核时必须拥有 1～3 张 JPEG、PNG 或 WebP 图片。
+- 项目在提交及审核时必须拥有 1～5 张 JPEG、PNG 或 WebP 图片。
 - 草稿、待审核、已驳回和已归档内容不会出现在公开查询中。
 - 修改已公开字段会清除原审批状态并重新进入审核。
-- 待审核的迭代不会导致已通过的父项目下线。
 - 同一用户最多点赞同一已通过项目一次。
+- 只能向他人的已通过项目提交建议；同一用户可以多次提交，建议和公开拒绝理由不经过管理员审核。
+- 建议只能按 `pending -> accepted -> completed` 或 `pending -> rejected` 流转，只有项目 Owner 能处理。
+- 打开通知列表会把该用户当时已有的全部未读通知标记为已读；业务提交后通过 `after()` 尽力写入通知，通知失败或丢失不会回滚、延迟原业务响应。
 - 系统必须始终保留至少一名管理员。
-- 所有用户创作的公开字段都必须先经过审核。
+- 除 [项目建议与通知设计](specs/notification.md) 明确无需审核的公开项目建议外，项目名称、描述、链接和图片等公开字段都必须先经过审核。
 
 上述规则不仅存在于界面层：鉴权、所有权和状态转换会在服务端重新检查；URL 异或、唯一点赞、所有者关系和并发图片上限由 PostgreSQL 最终兜底。
 
@@ -178,25 +181,28 @@ make vercel-version
 make vercel-link
 ```
 
-| Make 命令                                                                      | 用途                                             |
-| ------------------------------------------------------------------------------ | ------------------------------------------------ |
-| `make dev`                                                                     | 启动本地开发服务器                               |
-| `make check`                                                                   | 运行完整质量门禁                                 |
-| `make vercel-version`                                                          | 显示当前全局 Vercel CLI 版本                     |
-| `make db-generate`                                                             | 使用 `.env.local` 生成迁移                       |
-| `make db-check-development`                                                    | 检查 Development 迁移                            |
-| `make db-migrate-development`                                                  | 检查并迁移 Development 数据库                    |
-| `make db-studio-development`                                                   | 打开 Development Drizzle Studio                  |
-| `make db-seed-development`                                                     | 创建开发模拟用户、已发布项目及 Blob 封面         |
-| `make db-check-preview`                                                        | 使用 `.env.preview` 检查 Preview 迁移            |
-| `make db-migrate-preview`                                                      | 使用 `.env.preview` 检查并迁移 Preview 数据库    |
-| `make db-check-production`                                                     | 使用 `.env.production` 只读检查 Production 迁移  |
-| `make db-migrate-production CONFIRM_PRODUCTION=yes`                            | 使用 `.env.production` 显式确认后迁移 Production |
-| `make admin-promote-development EMAIL=admin@example.com`                       | 提升 Development 中的已有用户                    |
-| `make admin-promote-preview EMAIL=admin@example.com`                           | 提升 Preview 中的已有用户                        |
-| `make admin-promote-production EMAIL=admin@example.com CONFIRM_PRODUCTION=yes` | 显式确认后提升 Production 用户                   |
+| Make 命令                                                                                        | 用途                                             |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| `make dev`                                                                                       | 启动本地开发服务器                               |
+| `make check`                                                                                     | 运行完整质量门禁                                 |
+| `make vercel-version`                                                                            | 显示当前全局 Vercel CLI 版本                     |
+| `make db-generate`                                                                               | 使用 `.env.local` 生成迁移                       |
+| `make db-check-development`                                                                      | 检查 Development 迁移                            |
+| `make db-migrate-development`                                                                    | 检查并迁移 Development 数据库                    |
+| `make db-studio-development`                                                                     | 打开 Development Drizzle Studio                  |
+| `make db-seed-development`                                                                       | 创建开发模拟用户、已发布项目及 Blob 封面         |
+| `make retire-iteration-blobs-development CONFIRM_ITERATION_RETIREMENT=yes`                       | 删除 Development 的历史迭代 Blob                 |
+| `make db-check-preview`                                                                          | 使用 `.env.preview` 检查 Preview 迁移            |
+| `make db-migrate-preview`                                                                        | 使用 `.env.preview` 检查并迁移 Preview 数据库    |
+| `make retire-iteration-blobs-preview CONFIRM_ITERATION_RETIREMENT=yes`                           | 删除 Preview 的历史迭代 Blob                     |
+| `make db-check-production`                                                                       | 使用 `.env.production` 只读检查 Production 迁移  |
+| `make db-migrate-production CONFIRM_PRODUCTION=yes`                                              | 使用 `.env.production` 显式确认后迁移 Production |
+| `make retire-iteration-blobs-production CONFIRM_ITERATION_RETIREMENT=yes CONFIRM_PRODUCTION=yes` | 显式确认后删除 Production 的历史迭代 Blob        |
+| `make admin-promote-development EMAIL=admin@example.com`                                         | 提升 Development 中的已有用户                    |
+| `make admin-promote-preview EMAIL=admin@example.com`                                             | 提升 Preview 中的已有用户                        |
+| `make admin-promote-production EMAIL=admin@example.com CONFIRM_PRODUCTION=yes`                   | 显式确认后提升 Production 用户                   |
 
-Development、Preview 和 Production 默认分别读取 `.env.local`、`.env.preview` 和 `.env.production`，可通过 `DEV_ENV_FILE`、`PREVIEW_ENV_FILE` 和 `PRODUCTION_ENV_FILE` 覆盖。命令会清除当前 shell 继承的数据库和站点变量，并校验 Preview 必须对应 `staging.zihai.dev`、Production 必须对应 `www.zihai.dev`。Production 数据迁移和管理员提升仍要求传入 `CONFIRM_PRODUCTION=yes`，避免误操作。
+Development、Preview 和 Production 默认分别读取 `.env.local`、`.env.preview` 和 `.env.production`，可通过 `DEV_ENV_FILE`、`PREVIEW_ENV_FILE` 和 `PRODUCTION_ENV_FILE` 覆盖。命令会清除当前 shell 继承的数据库、Blob 和站点变量，并校验 Preview 必须对应 `staging.zihai.dev`、Production 必须对应 `www.zihai.dev`。Production 数据迁移、历史迭代 Blob 清理和管理员提升仍要求传入 `CONFIRM_PRODUCTION=yes`，避免误操作。
 
 底层 pnpm 命令仍可直接使用：
 
@@ -240,12 +246,14 @@ make db-migrate-development
 
 执行迁移前必须人工检查生成的 SQL。不要编辑已经进入共享环境或生产环境的迁移，也不要在应用启动时自动修改生产数据库。初始迁移除表结构外，还包含 URL 异或约束、图片策略、所有者校验和并发图片数量触发器。
 
+删除迭代数据结构前必须先运行目标环境对应的 `retire-iteration-blobs-*` 命令。该命令读取数据库中仍保存的精确 pathname，删除历史迭代 Blob，但保留数据库行供随后的迁移删除；如果先删表，将无法再可靠定位这些对象。命令不会由应用启动或数据库迁移自动执行。
+
 ## 上传与一致性
 
 浏览器不会直接获得 Blob 密钥。上传流程会签发与用户、资源、路径、MIME 类型和过期时间绑定的上传意图；Blob 写入成功后，浏览器必须等待认证完成接口再次验证签名意图与 Blob 元数据并写入 PostgreSQL，之后界面才提示成功并刷新。Vercel 的完成回调复用同一套幂等服务作为兜底，本地开发不依赖公网回调地址。
 
 - 头像：最多 1 张，单张不超过 2 MiB。
-- 项目与迭代：每项最多 3 张，单张不超过 5 MiB。
+- 项目：最多 5 张，单张不超过 5 MiB。
 - 支持格式：JPEG、PNG、WebP。
 - 新文件写入数据库失败时，会补偿删除刚上传的 Blob。
 - 头像替换在数据库提交后再尽力清理旧 Blob，避免删除已经被引用的新文件。
@@ -255,6 +263,14 @@ PostgreSQL 与 Blob 无法共享事务，新增文件工作流时必须明确写
 ## 测试与质量门禁
 
 当前单元测试覆盖内容生命周期、提交图片数量、输入规范化、安全返回地址、Slug、图片上传策略、公开项目筛选参数、游标分页和预期错误映射。GitHub Actions 在 Pull Request 及推送到 `main` 时执行与本地一致的格式、Lint、类型、测试和构建检查。
+
+项目建议和通知还覆盖状态机、输入边界、通知映射、非阻塞事件接线、无限滚动合并与迁移 SQL 回归。真实数据库测试默认跳过，只能对名称以 `_test` 结尾的专用数据库启用：
+
+```bash
+RUN_DB_IT=1 DATABASE_TEST_URL='postgresql://.../zihai_test' pnpm test
+```
+
+如果专用 PostgreSQL 通过 Neon WebSocket 代理暴露，可额外传入形如 `DATABASE_TEST_WS_PROXY=127.0.0.1:6543/v1` 的测试代理地址。该变量只由集成测试读取，不属于应用运行时配置。
 
 涉及认证、Blob 回调、数据库并发约束或缓存的变更，还需要在配置完整的预览环境进行人工冒烟测试。下一阶段的测试与上线任务见 [后续行动计划](specs/NEXT_STEPS.md)。
 

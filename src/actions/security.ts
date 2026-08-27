@@ -9,13 +9,7 @@ import { z } from "zod";
 
 import { getDb, withTransaction } from "@/db";
 import { hasCredentialAccount } from "@/db/queries/account";
-import {
-  iterationImages,
-  projectImages,
-  projectIterations,
-  projects,
-  user,
-} from "@/db/schema";
+import { projectImages, projects, user } from "@/db/schema";
 import { getAuth } from "@/lib/auth";
 import { safeActionError, validationError } from "@/lib/action-utils";
 import { UserFacingError } from "@/lib/errors";
@@ -107,15 +101,11 @@ export async function deleteAccountAction(formData: FormData) {
   const session = await assertOnboardedUser();
   z.literal("DELETE").parse(formData.get("confirmation"));
 
-  const [ownedProjects, ownedIterations, avatar] = await Promise.all([
+  const [ownedProjects, avatar] = await Promise.all([
     getDb()
       .select({ id: projects.id })
       .from(projects)
       .where(eq(projects.ownerId, session.user.id)),
-    getDb()
-      .select({ id: projectIterations.id })
-      .from(projectIterations)
-      .where(eq(projectIterations.ownerId, session.user.id)),
     getDb()
       .select({ pathname: user.avatarPathname })
       .from(user)
@@ -124,25 +114,15 @@ export async function deleteAccountAction(formData: FormData) {
   ]);
 
   const projectIds = ownedProjects.map(({ id }) => id);
-  const iterationIds = ownedIterations.map(({ id }) => id);
-  const [projectPaths, iterationPaths] = await Promise.all([
-    projectIds.length
-      ? getDb()
-          .select({ pathname: projectImages.blobPathname })
-          .from(projectImages)
-          .where(inArray(projectImages.projectId, projectIds))
-      : Promise.resolve([]),
-    iterationIds.length
-      ? getDb()
-          .select({ pathname: iterationImages.blobPathname })
-          .from(iterationImages)
-          .where(inArray(iterationImages.iterationId, iterationIds))
-      : Promise.resolve([]),
-  ]);
+  const projectPaths = projectIds.length
+    ? await getDb()
+        .select({ pathname: projectImages.blobPathname })
+        .from(projectImages)
+        .where(inArray(projectImages.projectId, projectIds))
+    : [];
   const pathnames = [
     ...(avatar[0]?.pathname ? [avatar[0].pathname] : []),
     ...projectPaths.map(({ pathname }) => pathname),
-    ...iterationPaths.map(({ pathname }) => pathname),
   ];
 
   if (session.user.role === "admin") {

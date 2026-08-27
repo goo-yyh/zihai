@@ -3,8 +3,6 @@ import "server-only";
 import type { UploadIntent } from "@/lib/upload-intent";
 import { deleteBlobsBestEffort } from "@/server/blob";
 import {
-  revalidateIterationWorkspace,
-  revalidateProjectDetail,
   revalidateProjectWorkspace,
   revalidatePublicProject,
   revalidateUserPresentation,
@@ -27,14 +25,7 @@ function refreshUploadConsumers(upload: PersistedUpload) {
       { id: upload.projectId, slug: upload.projectSlug },
       { id: upload.ownerId, username: upload.ownerUsername },
     );
-    return;
   }
-
-  revalidateIterationWorkspace(upload.projectId, upload.iterationId);
-  revalidateProjectDetail({
-    id: upload.projectId,
-    slug: upload.projectSlug,
-  });
 }
 
 export async function completeUpload(blob: UploadedBlob, intent: UploadIntent) {

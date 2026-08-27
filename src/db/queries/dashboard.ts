@@ -1,19 +1,44 @@
 import "server-only";
 
-import { and, asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, lt, or } from "drizzle-orm";
 
 import { getDb } from "@/db";
+import { ideas, projectImages, projectLikes, projects } from "@/db/schema";
 import {
-  ideas,
-  iterationImages,
-  projectImages,
-  projectIterations,
-  projectLikes,
-  projects,
-} from "@/db/schema";
+  createCursorPage,
+  decodePageCursor,
+  normalizePageSize,
+  type PageCursor,
+} from "@/lib/pagination";
 
-export async function getUserIdeas(userId: string) {
-  return getDb()
+type DashboardPageOptions = {
+  cursor?: string;
+  pageSize?: number;
+};
+
+function ideaCursorCondition(cursor: PageCursor | null) {
+  if (!cursor) return undefined;
+  const updatedAt = new Date(cursor.sortValue);
+  if (cursor.direction === "previous") {
+    return or(
+      gt(ideas.updatedAt, updatedAt),
+      and(eq(ideas.updatedAt, updatedAt), gt(ideas.id, cursor.id)),
+    );
+  }
+  return or(
+    lt(ideas.updatedAt, updatedAt),
+    and(eq(ideas.updatedAt, updatedAt), lt(ideas.id, cursor.id)),
+  );
+}
+
+export async function getUserIdeas(
+  userId: string,
+  options: DashboardPageOptions = {},
+) {
+  const cursor = decodePageCursor(options.cursor, "uuid");
+  const pageSize = normalizePageSize(options.pageSize ?? 20);
+  const previous = cursor?.direction === "previous";
+  const rows = await getDb()
     .select({
       id: ideas.id,
       title: ideas.title,
@@ -28,8 +53,14 @@ export async function getUserIdeas(userId: string) {
       updatedAt: ideas.updatedAt,
     })
     .from(ideas)
-    .where(eq(ideas.userId, userId))
-    .orderBy(desc(ideas.updatedAt));
+    .where(and(eq(ideas.userId, userId), ideaCursorCondition(cursor)))
+    .orderBy(
+      previous ? asc(ideas.updatedAt) : desc(ideas.updatedAt),
+      previous ? asc(ideas.id) : desc(ideas.id),
+    )
+    .limit(pageSize + 1);
+
+  return createCursorPage(rows, pageSize, cursor, (idea) => idea.updatedAt);
 }
 
 export async function getUserProjects(ownerId: string) {
@@ -72,93 +103,22 @@ export async function getOwnedProject(projectId: string, ownerId: string) {
     .innerJoin(projects, eq(projectImages.projectId, projects.id))
     .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)))
     .orderBy(asc(projectImages.sortOrder));
-  const iterationsQuery = getDb()
-    .select()
-    .from(projectIterations)
-    .where(
-      and(
-        eq(projectIterations.projectId, projectId),
-        eq(projectIterations.ownerId, ownerId),
-      ),
-    )
-    .orderBy(desc(projectIterations.createdAt));
-  const [projectRows, imageRows, iterations] = await getDb().batch([
+  const [projectRows, imageRows] = await getDb().batch([
     projectQuery,
     imagesQuery,
-    iterationsQuery,
   ]);
   const project = projectRows[0];
   if (!project) return null;
   const images = imageRows.map(({ image }) => image);
 
-  return { ...project, images, iterations };
-}
-
-export async function getOwnedIteration(iterationId: string, ownerId: string) {
-  const iterationQuery = getDb()
-    .select({
-      id: projectIterations.id,
-      projectId: projectIterations.projectId,
-      ownerId: projectIterations.ownerId,
-      versionLabel: projectIterations.versionLabel,
-      description: projectIterations.description,
-      status: projectIterations.status,
-      rejectionReason: projectIterations.rejectionReason,
-      createdAt: projectIterations.createdAt,
-      updatedAt: projectIterations.updatedAt,
-      projectName: projects.name,
-      projectSlug: projects.slug,
-      projectStatus: projects.status,
-    })
-    .from(projectIterations)
-    .innerJoin(projects, eq(projectIterations.projectId, projects.id))
-    .where(
-      and(
-        eq(projectIterations.id, iterationId),
-        eq(projectIterations.ownerId, ownerId),
-      ),
-    )
-    .limit(1);
-  const imagesQuery = getDb()
-    .select({ image: iterationImages })
-    .from(iterationImages)
-    .innerJoin(
-      projectIterations,
-      eq(iterationImages.iterationId, projectIterations.id),
-    )
-    .where(
-      and(
-        eq(projectIterations.id, iterationId),
-        eq(projectIterations.ownerId, ownerId),
-      ),
-    )
-    .orderBy(asc(iterationImages.sortOrder));
-  const [iterationRows, imageRows] = await getDb().batch([
-    iterationQuery,
-    imagesQuery,
-  ]);
-  const iteration = iterationRows[0];
-  if (!iteration) return null;
-  const images = imageRows.map(({ image }) => image);
-
-  return { ...iteration, images };
+  return { ...project, images };
 }
 
 export async function getImagePathnamesForProject(projectId: string) {
-  const [projectRows, iterationRows] = await getDb().batch([
-    getDb()
-      .select({ pathname: projectImages.blobPathname })
-      .from(projectImages)
-      .where(eq(projectImages.projectId, projectId)),
-    getDb()
-      .select({ pathname: iterationImages.blobPathname })
-      .from(iterationImages)
-      .innerJoin(
-        projectIterations,
-        eq(iterationImages.iterationId, projectIterations.id),
-      )
-      .where(eq(projectIterations.projectId, projectId)),
-  ]);
+  const rows = await getDb()
+    .select({ pathname: projectImages.blobPathname })
+    .from(projectImages)
+    .where(eq(projectImages.projectId, projectId));
 
-  return [...projectRows, ...iterationRows].map((item) => item.pathname);
+  return rows.map((item) => item.pathname);
 }

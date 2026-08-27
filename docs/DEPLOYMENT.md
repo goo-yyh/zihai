@@ -50,6 +50,17 @@ Set `PREVIEW_BRANCH=feature-x` to target another Preview branch. Production muta
 
 The initial migration includes concurrency-safe image-count triggers and integrity constraints beyond the generated Drizzle schema. Review generated migrations before applying future schema changes; do not edit a migration after it has reached production.
 
+The migration that retires project iterations drops their image pathnames. Before applying that migration in each environment, delete the corresponding Blob objects while the rows are still available:
+
+```bash
+make retire-iteration-blobs-preview CONFIRM_ITERATION_RETIREMENT=yes
+make retire-iteration-blobs-production \
+  CONFIRM_ITERATION_RETIREMENT=yes \
+  CONFIRM_PRODUCTION=yes
+```
+
+Run each cleanup against the same target environment immediately before its migration. The cleanup is intentionally separate from Drizzle because PostgreSQL and Vercel Blob cannot share a transaction; do not apply the table-drop migration first.
+
 ## 4. Verify and deploy
 
 ```bash
@@ -69,9 +80,8 @@ Deploy the same commit verified by CI. After deployment:
 4. Upload three screenshots; confirm a fourth is rejected.
 5. Promote the intended first administrator with `pnpm admin:promote <email>`.
 6. Approve the project and confirm it appears on `/`, `/p/{projectId}/{slug}`, `/u/{userId}/{username}`, and `/sitemap.xml`; confirm the legacy `/p/{slug}` and `/u/{username}` links permanently redirect to those canonical URLs.
-7. Create and approve an iteration, then verify the public build log.
-8. Confirm `/admin`, `/dashboard`, and `/settings` are inaccessible to unauthorized users.
-9. Confirm a page visit sends a request to Vercel's Web Analytics endpoint and appears in the Analytics dashboard.
+7. Confirm `/admin`, `/dashboard`, and `/settings` are inaccessible to unauthorized users.
+8. Confirm a page visit sends a request to Vercel's Web Analytics endpoint and appears in the Analytics dashboard.
 
 ## 5. Operations and rollback
 

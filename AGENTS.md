@@ -28,16 +28,15 @@ Never claim a check passed unless it was run in the current workspace.
 These rules are non-negotiable unless the product specification changes:
 
 - Accounts are created only through a verified email OTP, GitHub, or Google OAuth.
-- Onboarding must finish before projects, iterations, or likes can be created.
+- Onboarding must finish before projects or likes can be created.
 - A project has at least one destination: website URL, GitHub repository URL, or both.
 - A user can own at most ten projects across all statuses; deleting a project frees a slot.
-- A project or iteration has one to five images.
+- A project has one to five images.
 - Draft, pending, rejected, and archived content is not public.
 - Editing approved public fields returns that resource to pending review.
-- A pending iteration does not unpublish its approved project.
 - A user can like an approved project at most once.
 - At least one administrator must always exist.
-- Every public user-authored field is moderated before publication.
+- Every public project listing field is moderated before publication. Public project suggestions are the explicit exception defined in `specs/notification.md`.
 
 The database is the final enforcement layer for required project destinations, unique likes, owner relationships, concurrent per-user project limits, and concurrent image limits.
 
@@ -94,7 +93,7 @@ app/components → actions/route handlers → server services → db/integration
 - Text edits, URL edits, image uploads, image deletions, and image reordering must use the same transition.
 - Approved project edits clear the previous approval/publication state and hide the project until reapproval.
 - Rejected edits return to a clean draft; they do not silently resubmit.
-- Submission and approval both re-check the one-to-three image invariant.
+- Submission and approval both re-check the one-to-five image invariant.
 
 Add table-driven tests when changing lifecycle behavior.
 
@@ -110,7 +109,7 @@ Add table-driven tests when changing lifecycle behavior.
 ## Upload and Blob rules
 
 - Supported types are JPEG, PNG, and WebP only.
-- Avatar limit is 2 MiB; project and iteration image limit is 5 MiB each.
+- Avatar limit is 2 MiB; project image limit is 5 MiB each.
 - Direct uploads require a signed, expiring intent bound to the user, target resource, pathname, and MIME type.
 - Verify Blob-reported metadata before inserting a row.
 - Store both the display URL and pathname. URLs render files; pathnames delete them.
@@ -127,7 +126,6 @@ Use the helpers in `src/server/cache.ts`. Do not scatter new `revalidatePath` ca
 Before completing a mutation, identify every consumer:
 
 - Project public data: homepage, `/p/{projectId}/{slug}`, `/u/{userId}/{username}`.
-- Iteration public data: `/p/{projectId}/{slug}`.
 - Avatar or username: homepage, profile, project pages, and account UI.
 - Admin review or user changes: relevant queue, audit page, and admin counts.
 
@@ -144,7 +142,7 @@ If a new page consumes mutable data, update the relevant cache helper in the sam
 ## Code style and readability
 
 - TypeScript strict mode stays enabled.
-- Use descriptive domain names (`projectId`, `pendingIteration`) rather than generic names (`data`, `item`) when context is not obvious.
+- Use descriptive domain names (`projectId`, `pendingProject`) rather than generic names (`data`, `item`) when context is not obvious.
 - Prefer early returns to deeply nested conditionals.
 - Keep functions focused; split files when unrelated resources or integration phases accumulate.
 - Comments should explain invariants, concurrency, or non-obvious ordering—not restate syntax.

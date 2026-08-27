@@ -4,7 +4,6 @@ import { CursorPagination } from "@/components/admin/cursor-pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getAuditLogs } from "@/db/queries/admin";
-import { isFeatureEnabled } from "@/lib/features";
 import { getTranslations } from "@/lib/i18n-server";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
@@ -18,12 +17,8 @@ export default async function AuditPage({
     getTranslations(),
   ]);
   const search = typeof q === "string" ? q.slice(0, 100) : "";
-  const iterationsEnabled = isFeatureEnabled("iterations");
   const targetType =
-    target === "project" ||
-    target === "idea" ||
-    target === "user" ||
-    (iterationsEnabled && target === "iteration")
+    target === "project" || target === "idea" || target === "user"
       ? target
       : undefined;
   const logPage = await getAuditLogs(
@@ -60,9 +55,6 @@ export default async function AuditPage({
           <option value="">{t("All target types")}</option>
           <option value="project">{t("Projects")}</option>
           <option value="idea">{t("ideas")}</option>
-          {iterationsEnabled ? (
-            <option value="iteration">{t("Iterations")}</option>
-          ) : null}
           <option value="user">{t("Users")}</option>
         </select>
         <Button type="submit" variant="outline">
