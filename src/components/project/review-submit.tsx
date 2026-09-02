@@ -13,7 +13,11 @@ import {
 import { toast } from "sonner";
 
 import { useI18n } from "@/components/i18n-provider";
-import { saveThenSubmitProject } from "@/components/project/review-submit-flow";
+import {
+  isReviewActionBusy,
+  type ProjectQrCodeRefresh,
+  saveThenSubmitProject,
+} from "@/components/project/review-submit-flow";
 import { Button } from "@/components/ui/button";
 
 type SaveProjectBeforeSubmit = () => Promise<boolean>;
@@ -23,6 +27,8 @@ type ReviewActionState = {
   setSubmitting: (value: boolean) => void;
   saving: boolean;
   setSaving: (value: boolean) => void;
+  projectQrCodeRefresh: ProjectQrCodeRefresh;
+  setProjectQrCodeRefresh: (value: ProjectQrCodeRefresh) => void;
   registerSaveProject: (handler: SaveProjectBeforeSubmit) => () => void;
   saveProjectBeforeSubmit: SaveProjectBeforeSubmit;
 };
@@ -43,6 +49,8 @@ export function ReviewSubmitBarrier({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [projectQrCodeRefresh, setProjectQrCodeRefresh] =
+    useState<ProjectQrCodeRefresh>(null);
   const saveProjectRef = useRef<SaveProjectBeforeSubmit | null>(null);
   const registerSaveProject = useCallback(
     (handler: SaveProjectBeforeSubmit) => {
@@ -63,19 +71,27 @@ export function ReviewSubmitBarrier({
       setSubmitting,
       saving,
       setSaving,
+      projectQrCodeRefresh,
+      setProjectQrCodeRefresh,
       registerSaveProject,
       saveProjectBeforeSubmit,
     }),
-    [registerSaveProject, saveProjectBeforeSubmit, submitting, saving],
+    [
+      projectQrCodeRefresh,
+      registerSaveProject,
+      saveProjectBeforeSubmit,
+      submitting,
+      saving,
+    ],
   );
+  const busy = isReviewActionBusy(submitting, saving);
 
   return (
     <ReviewActionContext.Provider value={value}>
       <div
-        aria-busy={submitting || saving}
-        className={
-          submitting || saving ? "pointer-events-none opacity-60" : undefined
-        }
+        aria-busy={busy}
+        inert={busy ? true : undefined}
+        className={busy ? "pointer-events-none opacity-60" : undefined}
       >
         {children}
       </div>
@@ -89,10 +105,17 @@ export function ReviewSubmitBarrier({
 export function useReviewActions() {
   const context = useContext(ReviewActionContext);
   const [localSaving, setLocalSaving] = useState(false);
+  const [localProjectQrCodeRefresh, setLocalProjectQrCodeRefresh] =
+    useState<ProjectQrCodeRefresh>(null);
   return {
     submitting: context?.submitting ?? false,
     saving: context?.saving ?? localSaving,
     setSaving: context?.setSaving ?? setLocalSaving,
+    projectQrCodeRefresh: context
+      ? context.projectQrCodeRefresh
+      : localProjectQrCodeRefresh,
+    setProjectQrCodeRefresh:
+      context?.setProjectQrCodeRefresh ?? setLocalProjectQrCodeRefresh,
     registerSaveProject:
       context?.registerSaveProject ?? ignoreSaveProjectRegistration,
   };
@@ -118,7 +141,10 @@ export function SubmitReviewForm({
 }) {
   const { t } = useI18n();
   const context = useContext(ReviewActionContext);
-  const busy = Boolean(context?.submitting || context?.saving);
+  const busy = isReviewActionBusy(
+    context?.submitting ?? false,
+    context?.saving ?? false,
+  );
   const [, startTransition] = useTransition();
 
   return (
@@ -175,7 +201,10 @@ export function DeleteProjectButton({
 }) {
   const { t } = useI18n();
   const context = useContext(ReviewActionContext);
-  const busy = context?.submitting ?? false;
+  const busy = isReviewActionBusy(
+    context?.submitting ?? false,
+    context?.saving ?? false,
+  );
   const [, startTransition] = useTransition();
 
   return (

@@ -6,12 +6,13 @@ import { and, count, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getDb, withTransaction } from "@/db";
-import { getImagePathnamesForProject } from "@/db/queries/dashboard";
+import { withTransaction } from "@/db";
 import { projectImages, projects } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
 import {
   assertImageCount,
+  assertProjectDestination,
+  assertProjectDestinationForStatus,
   assertSubmittable,
   contentEditPatch,
 } from "@/lib/content-lifecycle";
@@ -20,11 +21,11 @@ import { assertCanCreateProject } from "@/lib/project-limits";
 import { assertOnboardedUser } from "@/lib/session";
 import { insertWithUniqueSlug } from "@/lib/slug";
 import { projectInputSchema } from "@/lib/validations";
-import { deleteBlobs } from "@/server/blob";
 import {
   revalidateProjectWorkspace,
   revalidatePublicProject,
 } from "@/server/cache";
+import { deleteOwnedProject } from "@/server/image-service";
 import type { ActionState } from "@/types/actions";
 
 const idSchema = z.uuid();
@@ -46,8 +47,8 @@ function projectInput(formData: FormData) {
   return projectInputSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),
-    websiteUrl: formData.get("websiteUrl"),
-    githubUrl: formData.get("githubUrl"),
+    websiteUrl: formData.get("websiteUrl") ?? "",
+    githubUrl: formData.get("githubUrl") ?? "",
   });
 }
 
@@ -150,7 +151,11 @@ export async function updateProjectAction(
   try {
     const existing = await withTransaction(async (tx) => {
       const [ownedProject] = await tx
-        .select({ status: projects.status, slug: projects.slug })
+        .select({
+          status: projects.status,
+          slug: projects.slug,
+          qrCodeUrl: projects.qrCodeUrl,
+        })
         .from(projects)
         .where(
           and(
@@ -161,11 +166,18 @@ export async function updateProjectAction(
         .for("update");
       if (!ownedProject) throw new UserFacingError("Project not found.");
 
+      const editPatch = contentEditPatch(ownedProject.status);
+      assertProjectDestinationForStatus(editPatch.status, {
+        websiteUrl: parsed.data.websiteUrl,
+        githubUrl: parsed.data.githubUrl,
+        qrCodeUrl: ownedProject.qrCodeUrl,
+      });
+
       await tx
         .update(projects)
         .set({
           ...parsed.data,
-          ...contentEditPatch(ownedProject.status),
+          ...editPatch,
           publishedAt: null,
         })
         .where(
@@ -204,12 +216,18 @@ export async function submitProjectAction(projectId: string) {
     // Upload callbacks lock the same project row, so the image-count check and
     // submission transition observe one serialized state.
     const [project] = await tx
-      .select({ status: projects.status })
+      .select({
+        status: projects.status,
+        websiteUrl: projects.websiteUrl,
+        githubUrl: projects.githubUrl,
+        qrCodeUrl: projects.qrCodeUrl,
+      })
       .from(projects)
       .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)))
       .for("update");
     if (!project) throw new UserFacingError("Project not found.");
     assertSubmittable(project.status);
+    assertProjectDestination(project);
 
     const [images] = await tx
       .select({ value: count() })
@@ -237,17 +255,7 @@ export async function deleteProjectAction(projectId: string) {
   const session = await assertOnboardedUser();
   const id = idSchema.parse(projectId);
 
-  const [project] = await getDb()
-    .select({ slug: projects.slug })
-    .from(projects)
-    .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)))
-    .limit(1);
-  if (!project) throw new UserFacingError("Project not found.");
-
-  await deleteBlobs(await getImagePathnamesForProject(id));
-  await getDb()
-    .delete(projects)
-    .where(and(eq(projects.id, id), eq(projects.ownerId, session.user.id)));
+  const project = await deleteOwnedProject(id, session.user.id);
 
   revalidateProjectWorkspace(id);
   revalidatePublicProject(

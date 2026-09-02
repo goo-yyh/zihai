@@ -24,6 +24,14 @@ export type PersistedUpload =
       projectSlug: string;
       ownerId: string;
       ownerUsername: string | null;
+    }
+  | {
+      kind: "project-qr-code";
+      projectId: string;
+      projectSlug: string;
+      ownerId: string;
+      ownerUsername: string | null;
+      qrCodeUrl: string;
     };
 
 async function verifiedBlobMetadata(blob: UploadedBlob, intent: UploadIntent) {
@@ -33,6 +41,7 @@ async function verifiedBlobMetadata(blob: UploadedBlob, intent: UploadIntent) {
   );
 
   if (
+    metadata.pathname !== intent.pathname ||
     !allowedType ||
     metadata.contentType !== intent.contentType ||
     metadata.size > uploadLimit(intent.kind)
@@ -51,15 +60,8 @@ export async function persistUpload(
     throw new UserFacingError("Upload pathname mismatch.");
   }
 
-  // The two checks are independent network calls (Blob metadata HEAD and the
-  // ownership read), so they run concurrently instead of paying two round
-  // trips back to back.
-  const metadataTask = verifiedBlobMetadata(blob, intent);
-  const ownershipTask =
-    intent.kind === "avatar" ? null : validateUploadOwnership(intent);
-  const metadata = await metadataTask;
-
   if (intent.kind === "avatar") {
+    const metadata = await verifiedBlobMetadata(blob, intent);
     const [existing] = await getDb()
       .select({ pathname: user.avatarPathname, username: user.username })
       .from(user)
@@ -70,7 +72,7 @@ export async function persistUpload(
     await getDb()
       .update(user)
       .set({
-        image: blob.url,
+        image: metadata.url,
         avatarPathname: blob.pathname,
         updatedAt: new Date(),
       })
@@ -86,7 +88,13 @@ export async function persistUpload(
     };
   }
 
-  await ownershipTask;
+  // Blob metadata and ownership are independent network reads. Promise.all
+  // keeps them concurrent while attaching rejection handlers to both tasks, so
+  // one failure cannot leave the other as an unhandled rejection.
+  const [metadata] = await Promise.all([
+    verifiedBlobMetadata(blob, intent),
+    validateUploadOwnership(intent),
+  ]);
 
   if (intent.kind === "project-image" && intent.projectId) {
     const project = await withTransaction(async (tx) => {
@@ -120,7 +128,7 @@ export async function persistUpload(
         .where(eq(projectImages.projectId, intent.projectId!));
       await tx.insert(projectImages).values({
         projectId: intent.projectId!,
-        blobUrl: blob.url,
+        blobUrl: metadata.url,
         blobPathname: blob.pathname,
         mimeType: metadata.contentType,
         sizeBytes: metadata.size,
@@ -145,6 +153,86 @@ export async function persistUpload(
       projectSlug: project.slug,
       ownerId: intent.userId,
       ownerUsername: owner?.username ?? null,
+    };
+  }
+
+  if (intent.kind === "project-qr-code") {
+    const projectId = intent.projectId;
+    if (
+      !projectId ||
+      intent.expectedQrCodePathname === undefined ||
+      !intent.expectedProjectUpdatedAt
+    ) {
+      throw new UserFacingError("Upload intent mismatch.");
+    }
+
+    // Resolve presentation data before the write commits. After the QR code is
+    // referenced by PostgreSQL, no fallible read may escape to the completion
+    // compensator and cause it to delete the newly referenced Blob.
+    const [owner] = await getDb()
+      .select({ username: user.username })
+      .from(user)
+      .where(eq(user.id, intent.userId))
+      .limit(1);
+    if (!owner) throw new UserFacingError("User not found.");
+
+    const project = await withTransaction(async (tx) => {
+      const [ownedProject] = await tx
+        .select({
+          status: projects.status,
+          slug: projects.slug,
+          qrCodePathname: projects.qrCodePathname,
+          updatedAt: projects.updatedAt,
+        })
+        .from(projects)
+        .where(
+          and(eq(projects.id, projectId), eq(projects.ownerId, intent.userId)),
+        )
+        .for("update");
+      if (!ownedProject) throw new UserFacingError("Project not found.");
+
+      if (ownedProject.qrCodePathname === blob.pathname) {
+        return { ...ownedProject, replacedPathname: null };
+      }
+      if (
+        ownedProject.qrCodePathname !== intent.expectedQrCodePathname ||
+        ownedProject.updatedAt.toISOString() !== intent.expectedProjectUpdatedAt
+      ) {
+        throw new UserFacingError("Upload intent mismatch.");
+      }
+
+      await tx
+        .update(projects)
+        .set({
+          qrCodeUrl: metadata.url,
+          qrCodePathname: blob.pathname,
+          ...contentEditPatch(ownedProject.status),
+          publishedAt: null,
+        })
+        .where(
+          and(eq(projects.id, projectId), eq(projects.ownerId, intent.userId)),
+        );
+
+      return {
+        ...ownedProject,
+        replacedPathname: ownedProject.qrCodePathname,
+      };
+    });
+
+    if (
+      project.replacedPathname &&
+      project.replacedPathname !== blob.pathname
+    ) {
+      await deleteBlobsBestEffort(project.replacedPathname);
+    }
+
+    return {
+      kind: "project-qr-code",
+      projectId,
+      projectSlug: project.slug,
+      ownerId: intent.userId,
+      ownerUsername: owner.username,
+      qrCodeUrl: metadata.url,
     };
   }
 

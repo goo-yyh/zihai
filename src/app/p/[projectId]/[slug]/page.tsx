@@ -7,6 +7,7 @@ import { cache, Suspense } from "react";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { ProjectImageCarousel } from "@/components/project/project-image-carousel";
 import { LikeButton } from "@/components/project/like-button";
+import { ProjectQrCodeButton } from "@/components/project/project-qr-code-button";
 import { ProjectSuggestionButton } from "@/components/project/project-suggestion-button";
 import { ProjectSuggestionPanel } from "@/components/project/project-suggestion-panel";
 import { ProjectSectionUnavailable } from "@/components/project/project-section-unavailable";
@@ -291,6 +292,17 @@ export default async function ProjectPage({
                   slug={project.slug}
                 />
               </Suspense>
+              {project.qrCodeUrl ? (
+                <ProjectQrCodeButton
+                  qrCodeUrl={project.qrCodeUrl}
+                  projectName={project.name}
+                  variant={
+                    project.websiteUrl || project.githubUrl
+                      ? "outline"
+                      : "default"
+                  }
+                />
+              ) : null}
               {project.websiteUrl ? (
                 <Button asChild variant="outline">
                   <a
@@ -305,7 +317,11 @@ export default async function ProjectPage({
               {project.githubUrl ? (
                 <Button
                   asChild
-                  variant={project.websiteUrl ? "outline" : "default"}
+                  variant={
+                    project.websiteUrl || project.qrCodeUrl
+                      ? "outline"
+                      : "default"
+                  }
                 >
                   <a
                     href={project.githubUrl}

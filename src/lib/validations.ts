@@ -76,20 +76,12 @@ type DestinationInput = {
   githubUrl: string;
 };
 
-function validateDestinations(
+function validateDestinationFormats(
   data: DestinationInput,
   context: z.RefinementCtx,
 ) {
   const website = data.websiteUrl.length > 0;
   const github = data.githubUrl.length > 0;
-  if (!website && !github) {
-    context.addIssue({
-      code: "custom",
-      path: ["websiteUrl"],
-      message: "Provide a Website URL, a GitHub URL, or both.",
-    });
-    return;
-  }
   if (website) {
     const parsed = websiteUrlSchema.safeParse(data.websiteUrl);
     if (!parsed.success) {
@@ -109,6 +101,20 @@ function validateDestinations(
         message: parsed.error.issues[0]?.message ?? "Invalid GitHub URL.",
       });
     }
+  }
+}
+
+function validateRequiredUrlDestination(
+  data: DestinationInput,
+  context: z.RefinementCtx,
+) {
+  validateDestinationFormats(data, context);
+  if (!data.websiteUrl && !data.githubUrl) {
+    context.addIssue({
+      code: "custom",
+      path: ["websiteUrl"],
+      message: "Provide a Website URL, a GitHub URL, or both.",
+    });
   }
 }
 
@@ -133,7 +139,7 @@ export const projectInputSchema = z
       .max(4000, "Description must be at most 4,000 characters."),
     ...destinationFields,
   })
-  .superRefine(validateDestinations)
+  .superRefine(validateDestinationFormats)
   .transform((data) => ({
     name: data.name,
     description: data.description,
@@ -171,7 +177,7 @@ export const ideaSubmissionSchema = z.object({
 
 export const ideaCompletionSchema = z
   .object(destinationFields)
-  .superRefine(validateDestinations)
+  .superRefine(validateRequiredUrlDestination)
   .transform(normalizeDestinations);
 
 export const projectSuggestionSubmissionSchema = z.object({
