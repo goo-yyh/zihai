@@ -340,6 +340,9 @@ const zhCN: Record<string, string> = {
   Builder: "创造者",
   "View code": "查看代码",
   "Visit product": "访问产品",
+  "View QR code": "查看二维码",
+  "Scan the QR code to open {project}.": "扫描二维码，打开「{project}」。",
+  "{project} mini program QR code": "{project} 小程序二维码",
   "Project screenshots": "项目截图",
   "Loading image…": "图片加载中…",
   "Unable to load image.": "图片加载失败。",
@@ -405,11 +408,11 @@ const zhCN: Record<string, string> = {
   "Submit for review": "提交审核",
   "New launch": "新产品发布",
   "Show us what you built": "展示你构建的产品",
-  "Start with the story and destination. You will add 1–5 screenshots before submitting for human review.":
-    "先填写产品故事和目标链接，提交人工审核前还需要添加 1–5 张截图。",
+  "Start with the project story. You will add a destination and 1–5 screenshots before submitting for human review.":
+    "先填写项目介绍，提交人工审核前再添加目标入口和 1–5 张截图。",
   "Project details": "项目详情",
-  "Add a public website, a public GitHub repository, or both.":
-    "请至少填写公开网站或公开 GitHub 仓库中的一个，也可以同时填写。",
+  "Create the draft now, then add a website, GitHub repository, or QR code before review.":
+    "先创建草稿，提交审核前再添加网站、GitHub 仓库或二维码。",
   "Project name": "项目名称",
   "A sharp, memorable name": "一个鲜明、好记的名称",
   "What did you build?": "你构建了什么？",
@@ -421,7 +424,8 @@ const zhCN: Record<string, string> = {
   Preview: "预览",
   "Nothing to preview yet.": "暂无可预览内容。",
   "10–4,000 characters": "10–4,000 个字符",
-  "Add at least one destination": "请至少填写一个目标链接",
+  "Add at least one destination before review":
+    "提交审核前，请至少添加一个目标入口",
   "Website URL": "网站 URL",
   "GitHub repository": "GitHub 仓库",
   "Saving…": "保存中…",
@@ -446,14 +450,32 @@ const zhCN: Record<string, string> = {
   "Upload authorization failed.": "上传授权失败。",
   "Avatar updated.": "头像已更新。",
   "Images uploaded.": "图片已上传。",
+  "QR code updated.": "二维码已更新。",
   "Upload failed.": "上传失败。",
   "Upload completion failed.": "上传完成信息保存失败。",
   "Upload image": "上传图片",
+  "Upload QR code": "上传二维码",
   "Add screenshots": "添加截图",
+  "Add QR code": "添加二维码",
   "JPEG, PNG, or WebP · up to {size} MB each · {current}/{max} used":
     "JPEG、PNG 或 WebP · 每张不超过 {size} MB · 已使用 {current}/{max}",
   "Choose avatar": "选择头像",
   "Choose images": "选择图片",
+  "Replace QR code": "替换二维码",
+  "Choose replacement QR code": "选择新的二维码",
+  "Choose QR code": "选择二维码",
+  "QR code": "二维码",
+  "Upload one QR code for a mini program or another product without a public URL.":
+    "为小程序或其他没有公开网址的产品上传一张二维码。",
+  "Delete this QR code permanently?": "确定永久删除这个二维码吗？",
+  "QR code deleted.": "二维码已删除。",
+  "{project} QR code": "{project} 二维码",
+  "QR code ready": "二维码已就绪",
+  "Visitors can open this QR code from the project card and detail page after approval.":
+    "审核通过后，访客可以从项目卡片和详情页查看此二维码。",
+  "Delete QR code": "删除二维码",
+  "Save a website or GitHub URL before deleting the only destination.":
+    "删除唯一目标入口前，请先保存网站或 GitHub URL。",
   "Profile settings": "个人资料设置",
   "Control how your builder identity appears across zihAI.":
     "控制你的创造者身份在 zihAI 中的展示方式。",
@@ -608,6 +630,8 @@ const zhCN: Record<string, string> = {
     "请使用类似 https://github.com/owner/repo 的 GitHub 仓库 URL。",
   "Provide a Website URL, a GitHub URL, or both.":
     "网站 URL 和 GitHub URL 至少填写一个，也可以同时填写。",
+  "Provide a Website URL, a GitHub URL, or a QR code.":
+    "网站 URL、GitHub URL 或二维码至少提供一个。",
   "Invalid website URL.": "网站 URL 无效。",
   "Invalid GitHub URL.": "GitHub URL 无效。",
   "Invalid project.": "项目无效。",
@@ -638,6 +662,8 @@ const zhCN: Record<string, string> = {
   "User not found.": "未找到用户。",
   "Invalid image order.": "图片顺序无效。",
   "Project image not found.": "未找到项目图片。",
+  "Project QR code not found.": "未找到项目二维码。",
+  "Expected QR code pathname is required.": "缺少预期的二维码路径。",
   "Only pending content can be reviewed.": "只能审核待审核内容。",
   "Project rejected.": "项目已拒绝。",
   "Unable to reject the project.": "无法拒绝该项目。",

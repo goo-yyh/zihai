@@ -21,6 +21,13 @@ describe("image upload policy", () => {
     });
   });
 
+  it("allows one five-mebibyte project QR code", () => {
+    expect(imageUploadPolicy("project-qr-code")).toEqual({
+      maxFiles: 1,
+      maxBytes: 5 * 1024 * 1024,
+    });
+  });
+
   it("allows only browser-safe raster formats", () => {
     expect(ALLOWED_IMAGE_TYPES).toEqual([
       "image/jpeg",

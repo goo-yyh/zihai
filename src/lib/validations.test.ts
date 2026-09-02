@@ -43,11 +43,10 @@ describe("projectInputSchema", () => {
     description: "A focused assistant that handles one job extremely well.",
   };
 
-  it("requires at least one destination and accepts both", () => {
+  it("allows an incomplete draft and accepts both URL destinations", () => {
     expect(
-      projectInputSchema.safeParse({ ...base, websiteUrl: "", githubUrl: "" })
-        .success,
-    ).toBe(false);
+      projectInputSchema.parse({ ...base, websiteUrl: "", githubUrl: "" }),
+    ).toMatchObject({ websiteUrl: null, githubUrl: null });
     expect(
       projectInputSchema.safeParse({
         ...base,

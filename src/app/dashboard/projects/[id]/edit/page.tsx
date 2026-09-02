@@ -39,6 +39,9 @@ export default async function EditProjectPage({
   const canSubmit =
     ["draft", "rejected"].includes(project.status) &&
     project.images.length >= 1;
+  const canDeleteQrCode =
+    ["draft", "rejected"].includes(project.status) ||
+    Boolean(project.websiteUrl || project.githubUrl);
 
   return (
     <div className="space-y-7 pb-24">
@@ -92,7 +95,18 @@ export default async function EditProjectPage({
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            <ProjectForm project={project} formId="project-edit-form" />
+            <ProjectForm
+              project={{
+                id: project.id,
+                name: project.name,
+                description: project.description,
+                websiteUrl: project.websiteUrl,
+                githubUrl: project.githubUrl,
+                qrCodeUrl: project.qrCodeUrl,
+              }}
+              formId="project-edit-form"
+              canDeleteQrCode={canDeleteQrCode}
+            />
           </CardContent>
         </Card>
 

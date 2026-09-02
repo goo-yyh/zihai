@@ -11,6 +11,7 @@ import { CursorPagination } from "@/components/admin/cursor-pagination";
 import { RejectionForm } from "@/components/admin/review-form";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { ProductScreenshot } from "@/components/project/product-screenshot";
+import { ProjectQrCodeButton } from "@/components/project/project-qr-code-button";
 import { Avatar } from "@/components/ui/avatar";
 import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +72,12 @@ export default async function AdminProjectPage({
                 <GitHubIcon className="size-4" /> {t("Inspect repository")}
               </a>
             </Button>
+          ) : null}
+          {project.qrCodeUrl ? (
+            <ProjectQrCodeButton
+              qrCodeUrl={project.qrCodeUrl}
+              projectName={project.name}
+            />
           ) : null}
         </div>
       </div>

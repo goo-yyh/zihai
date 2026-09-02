@@ -9,6 +9,7 @@ export type ProjectCardData = {
   description: string;
   websiteUrl: string | null;
   githubUrl: string | null;
+  qrCodeUrl: string | null;
   imageUrl: string;
   ownerUsername: string | null;
   ownerImage: string | null;

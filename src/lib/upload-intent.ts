@@ -7,14 +7,40 @@ import { z } from "zod";
 import { getServerEnv } from "@/lib/env";
 import { ALLOWED_IMAGE_TYPES, UPLOAD_KINDS } from "@/lib/image-policy";
 
-const signedUploadIntentSchema = z.object({
-  kind: z.enum(UPLOAD_KINDS),
-  userId: z.string().min(1),
-  pathname: z.string().min(1),
-  projectId: z.uuid().optional(),
-  contentType: z.enum(ALLOWED_IMAGE_TYPES),
-  expiresAt: z.number().int().positive(),
-});
+const signedUploadIntentSchema = z
+  .object({
+    kind: z.enum(UPLOAD_KINDS),
+    userId: z.string().min(1),
+    pathname: z.string().min(1),
+    projectId: z.uuid().optional(),
+    expectedQrCodePathname: z.string().min(1).nullable().optional(),
+    expectedProjectUpdatedAt: z.iso.datetime().optional(),
+    contentType: z.enum(ALLOWED_IMAGE_TYPES),
+    expiresAt: z.number().int().positive(),
+  })
+  .superRefine((intent, context) => {
+    if (intent.kind === "avatar") return;
+
+    if (!intent.projectId) {
+      context.addIssue({
+        code: "custom",
+        path: ["projectId"],
+        message: "Project is required.",
+      });
+    }
+
+    if (
+      intent.kind === "project-qr-code" &&
+      (intent.expectedQrCodePathname === undefined ||
+        intent.expectedProjectUpdatedAt === undefined)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["expectedProjectUpdatedAt"],
+        message: "Expected QR code state is required.",
+      });
+    }
+  });
 
 export type UploadIntent = z.infer<typeof signedUploadIntentSchema>;
 

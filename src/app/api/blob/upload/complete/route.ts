@@ -33,9 +33,14 @@ export async function POST(request: NextRequest) {
       throw new UserFacingError("Upload intent mismatch.");
     }
 
-    await completeUpload(parsed.data.blob, intent);
+    const persisted = await completeUpload(parsed.data.blob, intent);
     return Response.json(
-      { persisted: true },
+      {
+        persisted: true,
+        ...(persisted.kind === "project-qr-code"
+          ? { qrCodeUrl: persisted.qrCodeUrl }
+          : {}),
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

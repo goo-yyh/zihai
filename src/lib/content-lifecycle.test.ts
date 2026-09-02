@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertImageCount,
+  assertProjectDestination,
+  assertProjectDestinationForStatus,
   assertSubmittable,
   contentEditPatch,
+  hasProjectDestination,
 } from "@/lib/content-lifecycle";
 
 describe("contentEditPatch", () => {
@@ -46,5 +49,38 @@ describe("submission invariants", () => {
     expect(() => assertImageCount(5)).not.toThrow();
     expect(() => assertImageCount(0)).toThrow();
     expect(() => assertImageCount(6)).toThrow();
+  });
+
+  it("accepts a website, GitHub repository, or QR code as a destination", () => {
+    const empty = { websiteUrl: null, githubUrl: null, qrCodeUrl: null };
+    expect(hasProjectDestination(empty)).toBe(false);
+    expect(() => assertProjectDestination(empty)).toThrow(
+      "Provide a Website URL, a GitHub URL, or a QR code.",
+    );
+
+    for (const destination of [
+      { ...empty, websiteUrl: "https://example.com" },
+      { ...empty, githubUrl: "https://github.com/acme/project" },
+      { ...empty, qrCodeUrl: "https://blob.example.com/project-qr.png" },
+    ]) {
+      expect(hasProjectDestination(destination)).toBe(true);
+      expect(() => assertProjectDestination(destination)).not.toThrow();
+    }
+  });
+
+  it("allows only drafts to remain temporarily without a destination", () => {
+    const empty = { websiteUrl: null, githubUrl: null, qrCodeUrl: null };
+    expect(() =>
+      assertProjectDestinationForStatus("draft", empty),
+    ).not.toThrow();
+
+    for (const status of [
+      "pending",
+      "approved",
+      "rejected",
+      "archived",
+    ] as const) {
+      expect(() => assertProjectDestinationForStatus(status, empty)).toThrow();
+    }
   });
 });

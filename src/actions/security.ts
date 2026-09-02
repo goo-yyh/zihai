@@ -101,30 +101,6 @@ export async function deleteAccountAction(formData: FormData) {
   const session = await assertOnboardedUser();
   z.literal("DELETE").parse(formData.get("confirmation"));
 
-  const [ownedProjects, avatar] = await Promise.all([
-    getDb()
-      .select({ id: projects.id })
-      .from(projects)
-      .where(eq(projects.ownerId, session.user.id)),
-    getDb()
-      .select({ pathname: user.avatarPathname })
-      .from(user)
-      .where(eq(user.id, session.user.id))
-      .limit(1),
-  ]);
-
-  const projectIds = ownedProjects.map(({ id }) => id);
-  const projectPaths = projectIds.length
-    ? await getDb()
-        .select({ pathname: projectImages.blobPathname })
-        .from(projectImages)
-        .where(inArray(projectImages.projectId, projectIds))
-    : [];
-  const pathnames = [
-    ...(avatar[0]?.pathname ? [avatar[0].pathname] : []),
-    ...projectPaths.map(({ pathname }) => pathname),
-  ];
-
   if (session.user.role === "admin") {
     const [admins] = await getDb()
       .select({ value: count() })
@@ -138,14 +114,30 @@ export async function deleteAccountAction(formData: FormData) {
   }
 
   await getAuth().api.signOut({ headers: await headers() });
-  await withTransaction(async (tx) => {
+  const pathnames = await withTransaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(948217431)`);
     const [freshUser] = await tx
-      .select({ role: user.role })
+      .select({ role: user.role, avatarPathname: user.avatarPathname })
       .from(user)
       .where(eq(user.id, session.user.id))
       .for("update");
-    if (!freshUser) return;
+    if (!freshUser) return [];
+
+    // Project uploads lock each project row before they persist a screenshot
+    // or QR-code replacement. Locking every owned project before collecting
+    // paths makes this snapshot final for the following cascade delete.
+    const ownedProjects = await tx
+      .select({ id: projects.id, qrCodePathname: projects.qrCodePathname })
+      .from(projects)
+      .where(eq(projects.ownerId, session.user.id))
+      .for("update");
+    const projectIds = ownedProjects.map(({ id }) => id);
+    const projectPaths = projectIds.length
+      ? await tx
+          .select({ pathname: projectImages.blobPathname })
+          .from(projectImages)
+          .where(inArray(projectImages.projectId, projectIds))
+      : [];
 
     if (freshUser.role === "admin") {
       const [admins] = await tx
@@ -159,6 +151,14 @@ export async function deleteAccountAction(formData: FormData) {
       }
     }
     await tx.delete(user).where(eq(user.id, session.user.id));
+
+    return [
+      ...(freshUser.avatarPathname ? [freshUser.avatarPathname] : []),
+      ...ownedProjects.flatMap(({ qrCodePathname }) =>
+        qrCodePathname ? [qrCodePathname] : [],
+      ),
+      ...projectPaths.map(({ pathname }) => pathname),
+    ];
   });
 
   await deleteBlobsBestEffort(pathnames);

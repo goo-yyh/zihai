@@ -77,16 +77,17 @@ Deploy the same commit verified by CI. After deployment:
 1. Open `/api/auth/ok` or begin a sign-in and confirm the auth origin is correct.
 2. Test email OTP delivery to `qq.com`, `163.com`, a common public provider, and a custom domain; confirm malformed addresses are rejected, then test GitHub and Google sign-in with non-admin accounts.
 3. Complete onboarding through each provider, set a username and password, then verify username/password sign-in and password changes.
-4. Upload three screenshots; confirm a fourth is rejected.
+4. Upload five screenshots; confirm a sixth is rejected.
 5. Promote the intended first administrator with `pnpm admin:promote <email>`.
-6. Approve the project and confirm it appears on `/`, `/p/{projectId}/{slug}`, `/u/{userId}/{username}`, and `/sitemap.xml`; confirm the legacy `/p/{slug}` and `/u/{username}` links permanently redirect to those canonical URLs.
-7. Confirm `/admin`, `/dashboard`, and `/settings` are inaccessible to unauthorized users.
-8. Confirm a page visit sends a request to Vercel's Web Analytics endpoint and appears in the Analytics dashboard.
+6. Create a QR-only project without a website or GitHub URL, upload its QR code and required screenshots, submit and approve it, then confirm the QR viewer works from the homepage, public detail, and admin review pages. Scan the rendered code with a real device.
+7. Confirm the approved project appears on `/`, `/p/{projectId}/{slug}`, `/u/{userId}/{username}`, and `/sitemap.xml`; confirm the legacy `/p/{slug}` and `/u/{username}` links permanently redirect to those canonical URLs.
+8. Confirm `/admin`, `/dashboard`, and `/settings` are inaccessible to unauthorized users.
+9. Confirm a page visit sends a request to Vercel's Web Analytics endpoint and appears in the Analytics dashboard.
 
 ## 5. Operations and rollback
 
 - Vercel application rollbacks do not roll back the database. Prefer backward-compatible migrations and deploy schema changes before code that requires them.
 - Keep Neon point-in-time restore and Vercel deployment retention enabled according to the organization’s recovery policy.
-- A failed Blob-to-database callback deletes the newly uploaded object. Account and project deletion remove Blob objects before relational rows.
+- A failed Blob-to-database callback deletes the newly uploaded object only after confirming that PostgreSQL does not already reference its pathname. Account and project deletion collect exact pathnames while removing relational data in a transaction, then clean up the detached Blobs best-effort after commit.
 - Rotate any exposed OAuth, Better Auth, Neon, or Blob credential immediately and revoke affected sessions.
 - Review `/admin/audit` for moderation and access-control changes.

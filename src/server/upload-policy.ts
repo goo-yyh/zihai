@@ -33,9 +33,28 @@ function pathnameFor(request: UploadRequest & { userId: string }) {
     return `avatars/${request.userId}/${filename}`;
   }
   if (request.kind === "project-image") {
+    if (!request.projectId) throw new UserFacingError("Project is required.");
     return `projects/${request.userId}/${request.projectId}/${filename}`;
   }
+  if (request.kind === "project-qr-code") {
+    if (!request.projectId) throw new UserFacingError("Project is required.");
+    return `projects/${request.userId}/${request.projectId}/qr-codes/${filename}`;
+  }
   throw new UserFacingError("Unsupported upload kind.");
+}
+
+async function getOwnedProjectUploadState(projectId: string, userId: string) {
+  const [project] = await getDb()
+    .select({
+      id: projects.id,
+      qrCodePathname: projects.qrCodePathname,
+      updatedAt: projects.updatedAt,
+    })
+    .from(projects)
+    .where(and(eq(projects.id, projectId), eq(projects.ownerId, userId)))
+    .limit(1);
+  if (!project) throw new UserFacingError("Project not found.");
+  return project;
 }
 
 export async function validateUploadOwnership(intent: UploadIntent) {
@@ -44,17 +63,7 @@ export async function validateUploadOwnership(intent: UploadIntent) {
   if (intent.kind === "project-image") {
     if (!intent.projectId) throw new UserFacingError("Project is required.");
 
-    const [project] = await getDb()
-      .select({ id: projects.id })
-      .from(projects)
-      .where(
-        and(
-          eq(projects.id, intent.projectId),
-          eq(projects.ownerId, intent.userId),
-        ),
-      )
-      .limit(1);
-    if (!project) throw new UserFacingError("Project not found.");
+    await getOwnedProjectUploadState(intent.projectId, intent.userId);
 
     const [existingImage] = await getDb()
       .select({ id: projectImages.id })
@@ -79,6 +88,29 @@ export async function validateUploadOwnership(intent: UploadIntent) {
     }
     return;
   }
+
+  if (intent.kind === "project-qr-code") {
+    if (
+      !intent.projectId ||
+      intent.expectedQrCodePathname === undefined ||
+      !intent.expectedProjectUpdatedAt
+    ) {
+      throw new UserFacingError("Upload intent mismatch.");
+    }
+
+    const project = await getOwnedProjectUploadState(
+      intent.projectId,
+      intent.userId,
+    );
+    if (project.qrCodePathname === intent.pathname) return;
+    if (
+      project.qrCodePathname !== intent.expectedQrCodePathname ||
+      project.updatedAt.toISOString() !== intent.expectedProjectUpdatedAt
+    ) {
+      throw new UserFacingError("Upload intent mismatch.");
+    }
+    return;
+  }
 }
 
 export async function issueUploadIntent(
@@ -89,10 +121,32 @@ export async function issueUploadIntent(
     throw new UserFacingError("Complete onboarding first.");
   }
 
+  const pathname = pathnameFor({ ...request, userId: uploadUser.id });
+  if (request.kind === "project-qr-code") {
+    if (!request.projectId) throw new UserFacingError("Project is required.");
+    const project = await getOwnedProjectUploadState(
+      request.projectId,
+      uploadUser.id,
+    );
+    const intent: UploadIntent = {
+      ...request,
+      projectId: request.projectId,
+      userId: uploadUser.id,
+      pathname,
+      expectedQrCodePathname: project.qrCodePathname,
+      expectedProjectUpdatedAt: project.updatedAt.toISOString(),
+      expiresAt: Date.now() + UPLOAD_INTENT_TTL_MS,
+    };
+    return {
+      pathname: intent.pathname,
+      clientPayload: signUploadIntent(intent),
+    };
+  }
+
   const intent: UploadIntent = {
     ...request,
     userId: uploadUser.id,
-    pathname: pathnameFor({ ...request, userId: uploadUser.id }),
+    pathname,
     expiresAt: Date.now() + UPLOAD_INTENT_TTL_MS,
   };
   await validateUploadOwnership(intent);

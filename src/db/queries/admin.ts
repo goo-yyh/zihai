@@ -237,6 +237,7 @@ export async function getAdminProject(
       description: projects.description,
       websiteUrl: projects.websiteUrl,
       githubUrl: projects.githubUrl,
+      qrCodeUrl: projects.qrCodeUrl,
       status: projects.status,
       rejectionReason: projects.rejectionReason,
       submittedAt: projects.submittedAt,

@@ -23,6 +23,18 @@ describe("i18n", () => {
       translate("en", "Welcome back, @{username}", { username: "ai" }),
     ).toBe("Welcome back, @ai");
     expect(translate("zh-CN", "Enlarge image")).toBe("放大图片");
+    expect(translate("zh-CN", "View QR code")).toBe("查看二维码");
+    expect(
+      translate("zh-CN", "Scan the QR code to open {project}.", {
+        project: "小程序",
+      }),
+    ).toBe("扫描二维码，打开「小程序」。");
+    expect(
+      translate(
+        "zh-CN",
+        "Save a website or GitHub URL before deleting the only destination.",
+      ),
+    ).toBe("删除唯一目标入口前，请先保存网站或 GitHub URL。");
     expect(
       translate("zh-CN", "Notifications, {count} unread", { count: 3 }),
     ).toBe("通知，3 条未读");
