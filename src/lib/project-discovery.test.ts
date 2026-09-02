@@ -80,4 +80,54 @@ describe("public project discovery", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("preserves an optional QR-code destination in project cards", () => {
+    const page = publicProjectPageSchema.parse({
+      items: [
+        {
+          id: "project-1",
+          name: "Mini program",
+          slug: "mini-program",
+          description: "A useful mini program.",
+          websiteUrl: null,
+          githubUrl: null,
+          qrCodeUrl: "https://blob.example.com/project-qr.png",
+          imageUrl: "https://blob.example.com/cover.png",
+          ownerUsername: "builder",
+          ownerImage: null,
+          likeCount: 0,
+        },
+      ],
+      nextPage: null,
+      totalCount: 1,
+    });
+
+    expect(page.items[0]?.qrCodeUrl).toBe(
+      "https://blob.example.com/project-qr.png",
+    );
+  });
+
+  it("rejects a malformed QR-code destination", () => {
+    expect(
+      publicProjectPageSchema.safeParse({
+        items: [
+          {
+            id: "project-1",
+            name: "Mini program",
+            slug: "mini-program",
+            description: "A useful mini program.",
+            websiteUrl: null,
+            githubUrl: null,
+            qrCodeUrl: "not-a-url",
+            imageUrl: "https://blob.example.com/cover.png",
+            ownerUsername: "builder",
+            ownerImage: null,
+            likeCount: 0,
+          },
+        ],
+        nextPage: null,
+        totalCount: 1,
+      }).success,
+    ).toBe(false);
+  });
 });

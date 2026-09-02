@@ -4,7 +4,10 @@ import { and, asc, eq, sql } from "drizzle-orm";
 
 import { withTransaction, type DbTransaction } from "@/db";
 import { projectImages, projects } from "@/db/schema";
-import { contentEditPatch } from "@/lib/content-lifecycle";
+import {
+  assertProjectDestinationForStatus,
+  contentEditPatch,
+} from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
 import { deleteBlobsBestEffort } from "@/server/blob";
 
@@ -85,6 +88,91 @@ export async function deleteOwnedProjectImage(
   await deleteBlobsBestEffort(deleted.pathname);
 
   return { projectId: deleted.projectId, slug: deleted.slug };
+}
+
+export async function deleteOwnedProjectQrCode(
+  projectId: string,
+  ownerId: string,
+) {
+  const deleted = await withTransaction(async (tx) => {
+    const [project] = await tx
+      .select({
+        slug: projects.slug,
+        status: projects.status,
+        websiteUrl: projects.websiteUrl,
+        githubUrl: projects.githubUrl,
+        qrCodeUrl: projects.qrCodeUrl,
+        qrCodePathname: projects.qrCodePathname,
+      })
+      .from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)))
+      .for("update");
+    if (!project) throw new UserFacingError("Project not found.");
+    if (!project.qrCodeUrl || !project.qrCodePathname) {
+      throw new UserFacingError("Project QR code not found.");
+    }
+
+    const editPatch = contentEditPatch(project.status);
+    assertProjectDestinationForStatus(editPatch.status, {
+      websiteUrl: project.websiteUrl,
+      githubUrl: project.githubUrl,
+      qrCodeUrl: null,
+    });
+
+    await tx
+      .update(projects)
+      .set({
+        qrCodeUrl: null,
+        qrCodePathname: null,
+        ...editPatch,
+        publishedAt: null,
+      })
+      .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)));
+
+    return { slug: project.slug, pathname: project.qrCodePathname };
+  });
+
+  // The database no longer exposes this object. Cleanup after commit means a
+  // provider failure can only leave an orphan; it cannot break a live QR code.
+  await deleteBlobsBestEffort(deleted.pathname);
+
+  return { projectId, slug: deleted.slug };
+}
+
+export async function deleteOwnedProject(projectId: string, ownerId: string) {
+  const deleted = await withTransaction(async (tx) => {
+    // Upload callbacks lock this same project row before inserting screenshots
+    // or replacing the QR code. Capturing paths behind the lock therefore sees
+    // the final committed set that the project deletion will remove.
+    const [project] = await tx
+      .select({ slug: projects.slug, qrCodePathname: projects.qrCodePathname })
+      .from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)))
+      .for("update");
+    if (!project) throw new UserFacingError("Project not found.");
+
+    const imagePathnames = await tx
+      .select({ pathname: projectImages.blobPathname })
+      .from(projectImages)
+      .where(eq(projectImages.projectId, projectId));
+
+    await tx
+      .delete(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)));
+
+    return {
+      slug: project.slug,
+      pathnames: [
+        ...imagePathnames.map(({ pathname }) => pathname),
+        ...(project.qrCodePathname ? [project.qrCodePathname] : []),
+      ],
+    };
+  });
+
+  // Once the relational delete commits, a cleanup failure can only orphan
+  // storage; it cannot leave a surviving project pointing at deleted objects.
+  await deleteBlobsBestEffort(deleted.pathnames);
+  return { projectId, slug: deleted.slug };
 }
 
 export async function reorderOwnedProjectImages(

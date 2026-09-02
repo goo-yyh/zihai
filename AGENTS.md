@@ -29,16 +29,16 @@ These rules are non-negotiable unless the product specification changes:
 
 - Accounts are created only through a verified email OTP, GitHub, or Google OAuth.
 - Onboarding must finish before projects or likes can be created.
-- A project has at least one destination: website URL, GitHub repository URL, or both.
+- A draft can be created from its name and description alone. Before it leaves draft, the project must have at least one destination: website URL, GitHub repository URL, QR code, or any combination. Every non-draft status retains that requirement.
 - A user can own at most ten projects across all statuses; deleting a project frees a slot.
-- A project has one to five images.
+- A draft may have no screenshots while it is being prepared. Submission and approval require one to five screenshots. An optional QR code is a separate destination and does not count toward that limit.
 - Draft, pending, rejected, and archived content is not public.
 - Editing approved public fields returns that resource to pending review.
 - A user can like an approved project at most once.
 - At least one administrator must always exist.
 - Every public project listing field is moderated before publication. Public project suggestions are the explicit exception defined in `specs/notification.md`.
 
-The database is the final enforcement layer for required project destinations, unique likes, owner relationships, concurrent per-user project limits, and concurrent image limits.
+The database is the final enforcement layer for status-aware project destinations, QR-code URL/pathname pairing, unique likes, owner relationships, concurrent per-user project limits, and concurrent screenshot limits.
 
 ## Architecture boundaries
 
@@ -87,15 +87,17 @@ app/components → actions/route handlers → server services → db/integration
 
 ## Moderation lifecycle
 
-`src/lib/content-lifecycle.ts` is the only source of truth for edit transitions and image-count submission rules.
+`src/lib/content-lifecycle.ts` is the only source of truth for edit transitions, destination requirements, and screenshot-count submission rules.
 
 - Never hand-code separate approved/pending/rejected branches in an Action or upload callback.
-- Text edits, URL edits, image uploads, image deletions, and image reordering must use the same transition.
+- Text edits, URL edits, screenshot changes, and QR-code uploads, replacements, or deletions must use the same transition.
 - Approved project edits clear the previous approval/publication state and hide the project until reapproval.
 - Rejected edits return to a clean draft; they do not silently resubmit.
-- Submission and approval both re-check the one-to-five image invariant.
+- Submission and approval both re-check the one-to-five screenshot invariant and the website/GitHub/QR-code destination invariant. Only draft may have no destination.
 
 Add table-driven tests when changing lifecycle behavior.
+
+The complete destination status matrix and QR-code workflow are defined in `specs/project-qr-code.md`.
 
 ## Authentication and authorization
 
@@ -109,12 +111,14 @@ Add table-driven tests when changing lifecycle behavior.
 ## Upload and Blob rules
 
 - Supported types are JPEG, PNG, and WebP only.
-- Avatar limit is 2 MiB; project image limit is 5 MiB each.
-- Direct uploads require a signed, expiring intent bound to the user, target resource, pathname, and MIME type.
-- Verify Blob-reported metadata before inserting a row.
+- Avatar limit is 2 MiB; project screenshot and QR-code limits are 5 MiB each. A project has at most one QR code, independently of its one-to-five screenshots.
+- Direct uploads require a signed, expiring intent bound to the user, target resource, pathname, and MIME type. QR-code intents also bind the expected stored pathname and project update version so a delayed callback cannot revive a deleted code.
+- Give the provider token the same expiry as the application intent. Verify the Blob-reported pathname, MIME type, and size before inserting a row, and persist the provider's canonical URL.
 - Store both the display URL and pathname. URLs render files; pathnames delete them.
 - If a new upload cannot be persisted, delete the new Blob as compensation.
 - After a successful replacement commit, cleanup failure for the old Blob must not delete the newly referenced Blob.
+- QR-code replacement uploads the new Blob first, locks the project while atomically replacing its URL/pathname reference and applying the content lifecycle, then cleans up the old Blob best-effort after commit.
+- Project and account deletion lock and remove relational data while collecting exact screenshot, QR-code, and avatar pathnames in the same database transaction, then clean up those Blobs best-effort after commit.
 - Blob and PostgreSQL are not one transaction. State the operation ordering explicitly when adding a new file workflow.
 
 Never expose `BLOB_READ_WRITE_TOKEN` or any other secret through a `NEXT_PUBLIC_` variable.

@@ -9,7 +9,10 @@ import { z } from "zod";
 import { getDb, withTransaction } from "@/db";
 import { moderationLogs, projectImages, projects, user } from "@/db/schema";
 import { safeActionError, validationError } from "@/lib/action-utils";
-import { assertImageCount } from "@/lib/content-lifecycle";
+import {
+  assertImageCount,
+  assertProjectDestination,
+} from "@/lib/content-lifecycle";
 import { UserFacingError } from "@/lib/errors";
 import { assertAdmin } from "@/lib/session";
 import { rejectionSchema } from "@/lib/validations";
@@ -42,6 +45,9 @@ export async function approveProjectAction(projectId: string) {
         name: projects.name,
         slug: projects.slug,
         ownerId: projects.ownerId,
+        websiteUrl: projects.websiteUrl,
+        githubUrl: projects.githubUrl,
+        qrCodeUrl: projects.qrCodeUrl,
       })
       .from(projects)
       .where(eq(projects.id, id))
@@ -50,6 +56,7 @@ export async function approveProjectAction(projectId: string) {
     if (pendingProject.status !== "pending") {
       throw new UserFacingError("Only pending content can be reviewed.");
     }
+    assertProjectDestination(pendingProject);
 
     const [images] = await tx
       .select({ value: count() })
@@ -225,6 +232,9 @@ export async function republishProjectAction(projectId: string) {
         name: projects.name,
         slug: projects.slug,
         ownerId: projects.ownerId,
+        websiteUrl: projects.websiteUrl,
+        githubUrl: projects.githubUrl,
+        qrCodeUrl: projects.qrCodeUrl,
       })
       .from(projects)
       .where(eq(projects.id, id))
@@ -233,6 +243,7 @@ export async function republishProjectAction(projectId: string) {
     if (archivedProject.status !== "archived") {
       throw new UserFacingError("Only archived projects can be republished.");
     }
+    assertProjectDestination(archivedProject);
 
     const [images] = await tx
       .select({ value: count() })

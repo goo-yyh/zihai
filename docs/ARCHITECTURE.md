@@ -43,9 +43,9 @@ Server services hold workflows that cross persistence or integration boundaries:
 
 - `blob.ts` owns Blob credentials, metadata reads, deletion, and upload limits.
 - `cache.ts` maps mutations to affected Next.js paths.
-- `image-service.ts` owns image ordering and image-driven moderation transitions.
+- `image-service.ts` owns screenshot ordering and screenshot/QR-code moderation transitions.
 - `upload-policy.ts` issues and verifies upload intents and checks ownership.
-- `upload-persistence.ts` validates completed uploads and commits their metadata.
+- `upload-persistence.ts` validates completed uploads and commits their metadata, including atomic project QR-code replacement.
 - `upload-completion.ts` makes completion idempotent, compensates failed persistence, and invalidates every affected page.
 
 Server modules begin with `import "server-only"` and must not be imported by client components.
@@ -54,7 +54,7 @@ Server modules begin with `import "server-only"` and must not be imported by cli
 
 `schema` defines storage and inferred database types. `queries` contains named, screen-oriented read models. Reusable reads belong here instead of in `page.tsx`; mutations with broader business meaning belong in an Action or server service. Every user-facing collection that can grow without a product limit uses bounded keyset pagination with a timestamp plus stable ID tie-breaker; filters and search terms remain part of the page URL while cursors only describe position. Timestamp cursors preserve PostgreSQL microseconds and compare their boundary in PostgreSQL instead of round-tripping through JavaScript `Date`. This includes public and private project suggestions, notifications, user Ideas, administrative indexes, and moderation history on administrative detail pages.
 
-Deliberately bounded collections do not add pagination: one user can own at most ten projects, one project has at most five images, the public suggestion summary has three items, and the recommendation pool is capped at twenty. Sitemap generation is a full cached export rather than an interactive collection. Any new unbounded list must add a database limit and a continuation cursor in the same change.
+Deliberately bounded collections do not add pagination: one user can own at most ten projects, one project has at most five screenshots plus one optional QR code, the public suggestion summary has three items, and the recommendation pool is capped at twenty. Sitemap generation is a full cached export rather than an interactive collection. Any new unbounded list must add a database limit and a continuation cursor in the same change.
 
 Public project discovery is served by `GET /api/projects`. The Route Handler validates the sort, keyword, and page boundary before calling the shared read model. The homepage server-renders page one, then the client requests bounded follow-up pages for infinite scrolling. Keyword matching covers project names and descriptions; the selected latest or hot ordering is applied to the filtered result set.
 
@@ -149,7 +149,29 @@ stateDiagram-v2
 
 An approved-project edit clears the previous approval and publication timestamps, hides the public page, and creates a new pending review. Text changes, URL changes, image uploads, deletions, and reordering all use the same lifecycle function.
 
-Owner edits and submissions lock the content row before reading its status. Submission keeps the image-count check and state transition in the same transaction, serialized with upload callbacks that lock the same row.
+Owner edits and submissions lock the content row before reading its status. Submission keeps the screenshot-count check and state transition in the same transaction, serialized with upload callbacks that lock the same row.
+
+A project destination can be a website URL, a GitHub repository URL, a stored
+QR code, or any combination. Creation needs only the project name and
+description, so a draft may temporarily have no destination while its owner
+prepares the listing. Every status after draft must retain at least one
+destination. Submission and approval re-check that rule while holding the
+project row lock.
+
+The QR code is a one-to-one, moderated Blob reference stored directly on the
+project as `qrCodeUrl` plus `qrCodePathname`. Both fields are null or both are
+present. It is limited to one JPEG, PNG, or WebP file of at most 5 MiB and does
+not count toward the required one-to-five screenshots.
+
+Uploading, replacing, or deleting a QR code applies `contentEditPatch` in the
+same locked mutation as the reference change. An approved-project QR change
+therefore clears publication and returns the project to pending review; editing
+a rejected project returns it to draft. Public cards and detail pages expose a
+viewer only for approved data, while the administrator detail page exposes the
+QR destination for review before approval.
+
+The complete state matrix, interaction contract, and acceptance criteria live
+in `specs/project-qr-code.md`.
 
 The public project detail treats its main project record as required data and
 likes, viewer session controls, suggestion summaries, and recommendations as
@@ -220,25 +242,26 @@ row locks, or delays its response.
 Browser-to-Blob uploads use three checks rather than trusting client metadata:
 
 1. The browser asks `GET /api/blob/upload` for an intent.
-2. The server checks the session, onboarding, target ownership, image count, and requested MIME type.
-3. The returned intent is signed, resource-bound, pathname-bound, and short-lived.
-4. Vercel Blob calls the POST handler, which verifies the session and signed intent before issuing an upload token.
+2. The server checks the session, onboarding, target ownership, kind-specific file count, and requested MIME type.
+3. The returned intent is signed, resource-bound, pathname-bound, and short-lived. A QR-code intent also records the expected QR pathname and project update version.
+4. Vercel Blob calls the POST handler, which verifies the session and signed intent before issuing an upload token with the same expiry.
 5. After the Blob upload returns, the browser sends the Blob URL, pathname, and signed intent to the authenticated completion endpoint.
-6. The completion service re-checks the signed user/path/resource binding, reads Blob metadata, validates MIME type and size again, and stores the Blob URL and pathname in PostgreSQL before the UI reports success.
+6. The completion service re-checks the signed user/path/resource binding, reads Blob metadata, verifies its real pathname, MIME type, and size, and stores the provider's canonical URL with that pathname in PostgreSQL before the UI reports success.
 7. On Vercel, the Blob completion webhook invokes the same idempotent service as a delivery fallback. Local `next dev` does not require a public webhook URL.
 
-Duplicate browser/webhook completion is safe: avatar writes converge on the same pathname, while project image inserts re-check the stored pathname under the project row lock. If persistence fails, the newly uploaded Blob is deleted as compensation. When an avatar replacement commits successfully, failure to delete the old object is logged but does not delete the new object that PostgreSQL now references.
+Duplicate browser/webhook completion is safe: completion attempts for the same signed pathname are serialized with a transaction-scoped PostgreSQL advisory lock before persistence begins. Avatar and project QR-code writes converge on the same pathname, while project screenshot inserts re-check the stored pathname under the project row lock. QR replacement also compares the signed project version, preventing an older completion from reviving a code after deletion returns the pathname to null. QR uploads are limited to one stored code per project; screenshots retain their independent one-to-five count. If persistence fails, the completion service keeps the pathname lock while checking avatar, screenshot, and QR-code references, and deletes only the signed pathname when all three are absent. A failed reference check leaves an observable orphan instead of risking deletion of a live object. When an avatar or QR-code replacement commits successfully, failure to delete the old object is logged but does not delete the new object that PostgreSQL now references.
 
 ## Blob and database consistency
 
 PostgreSQL and Vercel Blob cannot share a transaction. The code uses explicit ordering based on the operation:
 
-- New upload: upload first, commit metadata second, delete the new Blob if the commit fails.
+- New upload: upload first, commit metadata second, then delete the new Blob after a failed commit only while the pathname completion lock is held and PostgreSQL confirms that no stored reference exists.
 - Avatar replacement: commit the new reference, then best-effort cleanup of the old Blob.
-- User-authored deletion: collect exact pathnames and request Blob deletion before removing relational records.
-- Account deletion: remove relational data under the final-admin lock, then best-effort cleanup of collected pathnames.
+- Project QR-code replacement: upload the new Blob, lock the owned project and atomically replace `qrCodeUrl`/`qrCodePathname` while applying the content lifecycle, commit, then best-effort cleanup of the old Blob.
+- Project deletion: lock the owned project, collect its exact screenshot and QR-code pathnames, and remove its relational row in one database transaction; after commit, clean up the collected Blobs best-effort.
+- Account deletion: under the final-admin lock, collect exact avatar, screenshot, and QR-code pathnames and remove relational data in one database transaction; after commit, clean up the collected Blobs best-effort.
 
-Every stored object keeps both `blobUrl` for display and `blobPathname` for deletion. New file-bearing models must do the same.
+Every stored object keeps both a display URL and a deletion pathname. Project and account deletion include the QR-code pathname alongside screenshot and avatar pathnames. New file-bearing models must do the same.
 
 ## Cache invalidation
 
@@ -264,7 +287,7 @@ boundaries and authorization filters. Do not replace these batches with
 sequential awaits or independent `Promise.all` queries, because both forms add
 database network roundtrips with the HTTP driver.
 
-- Project publication, rejection, edits, images, deletion, and likes affect `/`, `/p/{projectId}/{slug}`, and `/u/{userId}/{username}`.
+- Project publication, rejection, text/URL/screenshot/QR-code edits, deletion, and likes affect `/`, `/p/{projectId}/{slug}`, and `/u/{userId}/{username}`.
 - Suggestion creation and owner decisions expire the project suggestion tag, the project detail, and `/dashboard/suggestions`; private notification state is never placed in the public cache.
 - Avatar or username changes affect the homepage, profile, project pages, and account UI. Contact email changes also invalidate administrator user views.
 - Admin mutations refresh the relevant queue and dashboard count.
@@ -276,10 +299,11 @@ When adding a mutation, list every page that consumes the changed data before ch
 
 Application validation provides useful errors; PostgreSQL remains the final authority.
 
-- Projects require a website URL, a GitHub URL, or both.
+- Only draft projects may have no destination. Pending, approved, rejected, and archived projects require a website URL, a GitHub URL, a QR code, or any combination.
+- Project QR-code URL and pathname are both null or both present, and each stored QR-code pathname is unique.
 - Likes use a composite primary key.
-- Project image pathnames and positions are unique.
-- Triggers serialize image inserts and enforce the five-image limit under concurrency.
+- Project screenshot pathnames and positions are unique.
+- Triggers serialize screenshot inserts and enforce the five-screenshot limit under concurrency.
 - Role changes use a PostgreSQL advisory transaction lock so the final administrator cannot be revoked concurrently.
 - State constraints for an idea require a rejection reason for rejected ideas and at least one result destination for completed ideas.
 - Suggestion constraints and a project-locking trigger enforce legal lifecycle details, approved-project submission, and the no-self-suggestion rule.

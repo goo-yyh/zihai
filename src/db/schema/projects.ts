@@ -39,6 +39,8 @@ export const projects = pgTable(
     description: text("description").notNull(),
     websiteUrl: text("website_url"),
     githubUrl: text("github_url"),
+    qrCodeUrl: text("qr_code_url"),
+    qrCodePathname: text("qr_code_pathname"),
     status: projectStatus("status").default("draft").notNull(),
     rejectionReason: text("rejection_reason"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
@@ -69,9 +71,14 @@ export const projects = pgTable(
     ),
     index("projects_created_at_idx").on(table.createdAt),
     index("projects_published_at_idx").on(table.publishedAt),
+    uniqueIndex("projects_qr_code_pathname_unique").on(table.qrCodePathname),
     check(
-      "projects_url_required",
-      sql`num_nonnulls(${table.websiteUrl}, ${table.githubUrl}) >= 1`,
+      "projects_qr_code_complete",
+      sql`num_nonnulls(${table.qrCodeUrl}, ${table.qrCodePathname}) in (0, 2)`,
+    ),
+    check(
+      "projects_destination_required",
+      sql`${table.status} = 'draft' or num_nonnulls(${table.websiteUrl}, ${table.githubUrl}, ${table.qrCodeUrl}) >= 1`,
     ),
   ],
 );

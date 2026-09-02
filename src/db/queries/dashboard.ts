@@ -104,12 +104,3 @@ export async function getOwnedProject(projectId: string, ownerId: string) {
 
   return { ...project, images };
 }
-
-export async function getImagePathnamesForProject(projectId: string) {
-  const rows = await getDb()
-    .select({ pathname: projectImages.blobPathname })
-    .from(projectImages)
-    .where(eq(projectImages.projectId, projectId));
-
-  return rows.map((item) => item.pathname);
-}

@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { useI18n } from "@/components/i18n-provider";
 import { ProductScreenshot } from "@/components/project/product-screenshot";
+import { ProjectQrCodeButton } from "@/components/project/project-qr-code-button";
 import { Avatar } from "@/components/ui/avatar";
 import { ChromeIcon, GitHubIcon } from "@/components/ui/brand-icons";
 import { publicProjectPath } from "@/lib/public-routes";
@@ -63,6 +64,14 @@ export function ProjectCard({
             >
               <GitHubIcon aria-hidden="true" className="size-4" />
             </a>
+          ) : null}
+          {project.qrCodeUrl ? (
+            <ProjectQrCodeButton
+              qrCodeUrl={project.qrCodeUrl}
+              projectName={project.name}
+              iconOnly
+              className="cursor-pointer"
+            />
           ) : null}
         </span>
       </div>

@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
         return {
           allowedContentTypes: [intent.contentType],
           maximumSizeInBytes: uploadLimit(intent.kind),
+          validUntil: intent.expiresAt,
           addRandomSuffix: false,
           allowOverwrite: false,
           cacheControlMaxAge: 60 * 60 * 24 * 30,

@@ -23,6 +23,7 @@ export const publicProjectPageSchema = z.object({
       description: z.string(),
       websiteUrl: z.string().nullable(),
       githubUrl: z.string().nullable(),
+      qrCodeUrl: z.url().nullable(),
       imageUrl: z.string(),
       ownerUsername: z.string().nullable(),
       ownerImage: z.string().nullable(),

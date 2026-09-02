@@ -41,7 +41,7 @@ export default async function SubmitPage() {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
           {t(
-            "Start with the story and destination. You will add 1–5 screenshots before submitting for human review.",
+            "Start with the project story. You will add a destination and 1–5 screenshots before submitting for human review.",
           )}
         </p>
       </div>
@@ -56,7 +56,7 @@ export default async function SubmitPage() {
             {t(
               projectLimitReached
                 ? PROJECT_LIMIT_MESSAGE
-                : "Add a public website, a public GitHub repository, or both.",
+                : "Create the draft now, then add a website, GitHub repository, or QR code before review.",
             )}
           </CardDescription>
         </CardHeader>

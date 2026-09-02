@@ -7,6 +7,12 @@ export { MAX_CONTENT_IMAGES } from "@/lib/image-policy";
 export type ProjectContentStatus =
   "draft" | "pending" | "approved" | "rejected" | "archived";
 
+export type ProjectDestination = {
+  websiteUrl: string | null;
+  githubUrl: string | null;
+  qrCodeUrl: string | null;
+};
+
 type ContentEditPatch = {
   status: ProjectContentStatus;
   rejectionReason: null;
@@ -63,6 +69,28 @@ export function assertSubmittable(status: ProjectContentStatus) {
       "Only draft or rejected projects can be submitted.",
     );
   }
+}
+
+export function hasProjectDestination(destination: ProjectDestination) {
+  return Boolean(
+    destination.websiteUrl || destination.githubUrl || destination.qrCodeUrl,
+  );
+}
+
+export function assertProjectDestination(destination: ProjectDestination) {
+  if (!hasProjectDestination(destination)) {
+    throw new UserFacingError(
+      "Provide a Website URL, a GitHub URL, or a QR code.",
+    );
+  }
+}
+
+export function assertProjectDestinationForStatus(
+  status: ProjectContentStatus,
+  destination: ProjectDestination,
+) {
+  if (status === "draft") return;
+  assertProjectDestination(destination);
 }
 
 export function assertImageCount(count: number) {
